@@ -3178,6 +3178,8 @@ function Routes() {
   const [previewRoute, setPreviewRoute] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [routeCode, setRouteCode] = useState("");
+  const [editRouteCode, setEditRouteCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#3b82f6");
@@ -3235,6 +3237,7 @@ function Routes() {
   }, []);
 
   function openNewRoute() {
+    setRouteCode("");
     setName("");
     setDescription("");
     setColor("#3b82f6");
@@ -3244,6 +3247,7 @@ function Routes() {
   }
 
   function closeForm() {
+    setRouteCode("");
     setName("");
     setDescription("");
     setColor("#3b82f6");
@@ -3253,6 +3257,11 @@ function Routes() {
 
   async function createRoute(event) {
     event.preventDefault();
+
+    if (!routeCode.trim()) {
+      setError("Route code is required.");
+      return;
+    }
 
     if (!name.trim()) {
       setError("Route name is required.");
@@ -3266,6 +3275,7 @@ function Routes() {
     const { error } = await supabase
       .from("routes")
       .insert({
+        route_code: routeCode.trim().toUpperCase(),
         name: name.trim(),
         description: description.trim() || null,
         color,
@@ -3278,7 +3288,9 @@ function Routes() {
       return;
     }
 
-    setMessage(`Route "${name.trim()}" created successfully.`);
+    setMessage(
+      `Route "${name.trim()}" created successfully.`
+    );
 
     closeForm();
     await loadRoutes();
@@ -3287,6 +3299,7 @@ function Routes() {
   }
 
   function openEditDetails() {
+    setEditRouteCode(selected.route_code ?? "");
     setName(selected.name ?? "");
     setDescription(selected.description ?? "");
     setColor(selected.color ?? "#3b82f6");
@@ -3296,6 +3309,7 @@ function Routes() {
   }
 
   function closeEditDetails() {
+    setEditRouteCode(selected.route_code ?? "");
     setName(selected.name ?? "");
     setDescription(selected.description ?? "");
     setColor(selected.color ?? "#3b82f6");
@@ -3306,6 +3320,11 @@ function Routes() {
 
   async function saveRouteDetails(event) {
     event.preventDefault();
+
+    if (!editRouteCode.trim()) {
+      setError("Route code is required.");
+      return;
+    }
 
     if (!name.trim()) {
       setError("Route name is required.");
@@ -3319,6 +3338,7 @@ function Routes() {
     const { data, error } = await supabase
       .from("routes")
       .update({
+        route_code: editRouteCode.trim().toUpperCase(),
         name: name.trim(),
         description: description.trim() || null,
         color,
@@ -3396,6 +3416,19 @@ function Routes() {
             </label>
 
             <label>
+              Route Code
+              <input
+                className="filter-select full-width"
+                value={routeCode}
+                onChange={(e) =>
+                  setRouteCode(e.target.value.toUpperCase())
+                }
+                placeholder="Example: 1A"
+                required
+              />
+            </label>
+
+            <label>
               Description
               <textarea
                 className="filter-select full-width"
@@ -3448,6 +3481,7 @@ function Routes() {
             <table>
               <thead>
                 <tr>
+                  <th>Code</th>
                   <th>Name</th>
                   <th>Description</th>
                   <th>Status</th>
@@ -3463,6 +3497,7 @@ function Routes() {
                     className="clickable"
                     onClick={() => setSelected(route)}
                   >
+                    <td>{route.route_code || "—"}</td>
                     <td>{route.name}</td>
 
                     <td>
@@ -3486,7 +3521,8 @@ function Routes() {
                           width: "18px",
                           height: "18px",
                           borderRadius: "4px",
-                          background: route.color || "#3b82f6",
+                          background:
+                            route.color || "#3b82f6",
                           border: "1px solid #293440",
                           verticalAlign: "middle",
                         }}
@@ -3514,7 +3550,10 @@ function Routes() {
 
               <button
                 className="secondary-button"
-                onClick={() => setSelected(null)}
+                onClick={() => {
+                  setEditingDetails(false);
+                  setSelected(null);
+                }}
               >
                 Close
               </button>
@@ -3529,11 +3568,28 @@ function Routes() {
                   onSubmit={saveRouteDetails}
                 >
                   <label>
+                    Route Code
+                    <input
+                      className="filter-select full-width"
+                      value={editRouteCode}
+                      onChange={(e) =>
+                        setEditRouteCode(
+                          e.target.value.toUpperCase()
+                        )
+                      }
+                      placeholder="Example: 1A"
+                      required
+                    />
+                  </label>
+
+                  <label>
                     Route Name
                     <input
                       className="filter-select full-width"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) =>
+                        setName(e.target.value)
+                      }
                       required
                     />
                   </label>
@@ -3555,7 +3611,9 @@ function Routes() {
                     <input
                       type="color"
                       value={color}
-                      onChange={(e) => setColor(e.target.value)}
+                      onChange={(e) =>
+                        setColor(e.target.value)
+                      }
                     />
                   </label>
 
@@ -3574,12 +3632,19 @@ function Routes() {
                       className="primary-button"
                       disabled={saving}
                     >
-                      {saving ? "Saving..." : "Save Changes"}
+                      {saving
+                        ? "Saving..."
+                        : "Save Changes"}
                     </button>
                   </div>
                 </form>
               ) : (
                 <div className="detail-grid">
+                  <Detail
+                    label="Code"
+                    value={selected.route_code || "—"}
+                  />
+
                   <Detail
                     label="Name"
                     value={selected.name}
