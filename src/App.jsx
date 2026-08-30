@@ -2184,40 +2184,662 @@ function Maintenance() {
 
 function Audits() {
   const [audits, setAudits] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+
+  const [showForm, setShowForm] = useState(false);
+
+  const [vehicleId, setVehicleId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [auditType, setAuditType] = useState("DAILY");
+  const [result, setResult] = useState("PENDING");
+  const [notes, setNotes] = useState("");
+
+  const [checklist, setChecklist] = useState({
+    // Exterior lighting
+    headlights: false,
+    highBeams: false,
+    markerLights: false,
+    clearanceLights: false,
+    brakeLights: false,
+    turnSignals: false,
+    fourWayFlashers: false,
+    reverseLights: false,
+    licensePlate: false,
+
+    // School bus warning equipment
+    amberWarningLights: false,
+    redWarningLights: false,
+    stopArm: false,
+    stopArmLights: false,
+    crossingGate: false,
+
+    // Visibility
+    outsideMirrors: false,
+    crossoverMirror: false,
+    windshield: false,
+    wipers: false,
+    washerFluid: false,
+    defroster: false,
+
+    // Body and emergency exits
+    bodyPanels: false,
+    doors: false,
+    emergencyDoor: false,
+    emergencyWindows: false,
+    roofHatches: false,
+    fuelDoor: false,
+
+    // Tires and wheels
+    frontTires: false,
+    rearTires: false,
+    tireCondition: false,
+    wheelLugNuts: false,
+    wheels: false,
+
+    // Brakes and steering
+    serviceBrakes: false,
+    parkingBrake: false,
+    steering: false,
+
+    // Engine and fluids
+    engineOil: false,
+    coolant: false,
+    transmissionFluid: false,
+    fuelSystem: false,
+    beltsHoses: false,
+    exhaustSystem: false,
+
+    // Interior
+    seats: false,
+    seatBelts: false,
+    aisle: false,
+    floor: false,
+    interiorLighting: false,
+    handrails: false,
+
+    // Safety equipment
+    fireExtinguisher: false,
+    firstAidKit: false,
+    emergencyReflectors: false,
+    emergencyExits: false,
+    emergencyExitAlarms: false,
+
+    // Driver controls and instruments
+    gauges: false,
+    horn: false,
+    interiorMirrors: false,
+    parkingBrakeIndicator: false,
+    warningIndicators: false,
+
+    // HVAC
+    heater: false,
+    defrosterFan: false,
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const checklistSections = [
+    {
+      title: "Exterior Lighting",
+      items: [
+        ["headlights", "Headlights"],
+        ["highBeams", "High beams"],
+        ["markerLights", "Marker lights"],
+        ["clearanceLights", "Clearance lights"],
+        ["brakeLights", "Brake lights"],
+        ["turnSignals", "Turn signals"],
+        ["fourWayFlashers", "Four-way flashers"],
+        ["reverseLights", "Reverse lights"],
+        ["licensePlate", "License plate"],
+      ],
+    },
+    {
+      title: "School Bus Warning Equipment",
+      items: [
+        ["amberWarningLights", "Amber warning lights"],
+        ["redWarningLights", "Red warning lights"],
+        ["stopArm", "Stop arm"],
+        ["stopArmLights", "Stop-arm lights"],
+        ["crossingGate", "Crossing gate"],
+      ],
+    },
+    {
+      title: "Visibility",
+      items: [
+        ["outsideMirrors", "Outside mirrors"],
+        ["crossoverMirror", "Crossover mirror"],
+        ["windshield", "Windshield"],
+        ["wipers", "Windshield wipers"],
+        ["washerFluid", "Windshield washer fluid"],
+        ["defroster", "Defroster"],
+      ],
+    },
+    {
+      title: "Body & Emergency Exits",
+      items: [
+        ["bodyPanels", "Body panels"],
+        ["doors", "Service door"],
+        ["emergencyDoor", "Emergency door"],
+        ["emergencyWindows", "Emergency windows"],
+        ["roofHatches", "Roof hatches"],
+        ["fuelDoor", "Fuel door"],
+      ],
+    },
+    {
+      title: "Tires & Wheels",
+      items: [
+        ["frontTires", "Front tires"],
+        ["rearTires", "Rear tires"],
+        ["tireCondition", "Overall tire condition"],
+        ["wheelLugNuts", "Wheel lug nuts"],
+        ["wheels", "Wheels / rims"],
+      ],
+    },
+    {
+      title: "Brakes & Steering",
+      items: [
+        ["serviceBrakes", "Service brakes"],
+        ["parkingBrake", "Parking brake"],
+        ["steering", "Steering"],
+      ],
+    },
+    {
+      title: "Engine & Fluids",
+      items: [
+        ["engineOil", "Engine oil"],
+        ["coolant", "Engine coolant"],
+        ["transmissionFluid", "Transmission fluid"],
+        ["fuelSystem", "Fuel system"],
+        ["beltsHoses", "Belts and hoses"],
+        ["exhaustSystem", "Exhaust system"],
+      ],
+    },
+    {
+      title: "Interior",
+      items: [
+        ["seats", "Passenger seats"],
+        ["seatBelts", "Seat belts"],
+        ["aisle", "Aisle clear"],
+        ["floor", "Floor condition"],
+        ["interiorLighting", "Interior lighting"],
+        ["handrails", "Handrails"],
+      ],
+    },
+    {
+      title: "Safety Equipment",
+      items: [
+        ["fireExtinguisher", "Fire extinguisher"],
+        ["firstAidKit", "First-aid kit"],
+        ["emergencyReflectors", "Emergency reflectors"],
+        ["emergencyExits", "Emergency exits"],
+        ["emergencyExitAlarms", "Emergency-exit alarms"],
+      ],
+    },
+    {
+      title: "Driver Controls & Instruments",
+      items: [
+        ["gauges", "Gauges / instruments"],
+        ["horn", "Horn"],
+        ["interiorMirrors", "Interior mirrors"],
+        ["parkingBrakeIndicator", "Parking-brake indicator"],
+        ["warningIndicators", "Warning indicators"],
+      ],
+    },
+    {
+      title: "HVAC",
+      items: [
+        ["heater", "Heater"],
+        ["defrosterFan", "Defroster fan"],
+      ],
+    },
+  ];
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    const [
+      auditsResult,
+      vehiclesResult,
+      driversResult,
+    ] = await Promise.all([
+      supabase
+        .from("audits")
+        .select(`
+          *,
+          vehicles(fleet_number),
+          drivers(name)
+        `)
+        .order("created_at", {
+          ascending: false,
+        }),
+
+      supabase
+        .from("vehicles")
+        .select("*")
+        .order("fleet_number"),
+
+      supabase
+        .from("drivers")
+        .select("*")
+        .order("name"),
+    ]);
+
+    if (auditsResult.error) {
+      setError(auditsResult.error.message);
+    }
+
+    if (vehiclesResult.error) {
+      setError(vehiclesResult.error.message);
+    }
+
+    if (driversResult.error) {
+      setError(driversResult.error.message);
+    }
+
+    setAudits(auditsResult.data || []);
+    setVehicles(vehiclesResult.data || []);
+    setDrivers(driversResult.data || []);
+
+    setLoading(false);
+  }
 
   useEffect(() => {
-    supabase
-      .from("audits")
-      .select(`
-        *,
-        vehicles(fleet_number),
-        drivers(name)
-      `)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setAudits(data || []));
+    loadData();
   }, []);
 
-  return (
-    <section className="panel">
-      <PanelTitle title="Audits" />
+  function resetForm() {
+    setVehicleId("");
+    setDriverId("");
+    setAuditType("DAILY");
+    setResult("PENDING");
+    setNotes("");
 
-      <SimpleTable
-        columns={[
-          "Vehicle",
-          "Driver",
-          "Type",
-          "Result",
-          "Completed",
-        ]}
-        rows={audits.map((item) => [
-          item.vehicles?.fleet_number ?? "—",
-          item.drivers?.name ?? "—",
-          item.audit_type,
-          item.result,
-          formatDate(item.completed_at),
-        ])}
-      />
-    </section>
+    setChecklist({
+      headlights: false,
+      highBeams: false,
+      markerLights: false,
+      clearanceLights: false,
+      brakeLights: false,
+      turnSignals: false,
+      fourWayFlashers: false,
+      reverseLights: false,
+      licensePlate: false,
+
+      amberWarningLights: false,
+      redWarningLights: false,
+      stopArm: false,
+      stopArmLights: false,
+      crossingGate: false,
+
+      outsideMirrors: false,
+      crossoverMirror: false,
+      windshield: false,
+      wipers: false,
+      washerFluid: false,
+      defroster: false,
+
+      bodyPanels: false,
+      doors: false,
+      emergencyDoor: false,
+      emergencyWindows: false,
+      roofHatches: false,
+      fuelDoor: false,
+
+      frontTires: false,
+      rearTires: false,
+      tireCondition: false,
+      wheelLugNuts: false,
+      wheels: false,
+
+      serviceBrakes: false,
+      parkingBrake: false,
+      steering: false,
+
+      engineOil: false,
+      coolant: false,
+      transmissionFluid: false,
+      fuelSystem: false,
+      beltsHoses: false,
+      exhaustSystem: false,
+
+      seats: false,
+      seatBelts: false,
+      aisle: false,
+      floor: false,
+      interiorLighting: false,
+      handrails: false,
+
+      fireExtinguisher: false,
+      firstAidKit: false,
+      emergencyReflectors: false,
+      emergencyExits: false,
+      emergencyExitAlarms: false,
+
+      gauges: false,
+      horn: false,
+      interiorMirrors: false,
+      parkingBrakeIndicator: false,
+      warningIndicators: false,
+
+      heater: false,
+      defrosterFan: false,
+    });
+  }
+
+  function toggleChecklistItem(item) {
+    setChecklist((current) => ({
+      ...current,
+      [item]: !current[item],
+    }));
+  }
+
+  async function createAudit(event) {
+    event.preventDefault();
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    if (!vehicleId) {
+      setError("Select a vehicle.");
+      setSaving(false);
+      return;
+    }
+
+    const completedAt =
+      result === "PENDING"
+        ? null
+        : new Date().toISOString();
+
+    const { error } = await supabase
+      .from("audits")
+      .insert({
+        vehicle_id: vehicleId,
+        driver_id: driverId || null,
+        audit_type: auditType,
+        result,
+        checklist,
+        notes: notes.trim() || null,
+        completed_at: completedAt,
+      });
+
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    setMessage("Audit created.");
+    resetForm();
+    setShowForm(false);
+
+    await loadData();
+
+    setSaving(false);
+  }
+
+  return (
+    <>
+      <div className="vehicle-toolbar">
+        <button
+          className="primary-button assignment-button"
+          onClick={() => {
+            setShowForm(true);
+            setError("");
+            setMessage("");
+          }}
+        >
+          + New Audit
+        </button>
+
+        <button
+          className="secondary-button"
+          onClick={loadData}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {message && (
+        <div className="success-message">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="error fleet-error">
+          {error}
+        </div>
+      )}
+
+      {showForm && (
+        <section className="panel audit-form-panel">
+          <PanelTitle title="New Vehicle Audit" />
+
+          <form
+            className="audit-form"
+            onSubmit={createAudit}
+          >
+            <label>
+              Vehicle
+              <select
+                className="filter-select full-width"
+                value={vehicleId}
+                onChange={(e) =>
+                  setVehicleId(e.target.value)
+                }
+                required
+              >
+                <option value="">
+                  Select vehicle...
+                </option>
+
+                {vehicles.map((vehicle) => (
+                  <option
+                    key={vehicle.id}
+                    value={vehicle.id}
+                  >
+                    Bus {vehicle.fleet_number}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Driver
+              <select
+                className="filter-select full-width"
+                value={driverId}
+                onChange={(e) =>
+                  setDriverId(e.target.value)
+                }
+              >
+                <option value="">
+                  No driver
+                </option>
+
+                {drivers.map((driver) => (
+                  <option
+                    key={driver.id}
+                    value={driver.id}
+                  >
+                    {driver.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Audit Type
+              <select
+                className="filter-select full-width"
+                value={auditType}
+                onChange={(e) =>
+                  setAuditType(e.target.value)
+                }
+              >
+                <option value="DAILY">Daily</option>
+                <option value="PRE_TRIP">Pre-Trip</option>
+                <option value="POST_TRIP">Post-Trip</option>
+                <option value="ANNUAL">Annual</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </label>
+
+            <label>
+              Result
+              <select
+                className="filter-select full-width"
+                value={result}
+                onChange={(e) =>
+                  setResult(e.target.value)
+                }
+              >
+                <option value="PENDING">
+                  Pending
+                </option>
+                <option value="PASS">Pass</option>
+                <option value="FAIL">Fail</option>
+              </select>
+            </label>
+
+            <div className="audit-checklist">
+              {checklistSections.map((section) => (
+                <div
+                  className="audit-checklist-section"
+                  key={section.title}
+                >
+                  <div className="audit-checklist-title">
+                    {section.title}
+                  </div>
+
+                  <div className="audit-checklist-items">
+                    {section.items.map(
+                      ([key, label]) => (
+                        <label
+                          className="check-item"
+                          key={key}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checklist[key]}
+                            onChange={() =>
+                              toggleChecklistItem(
+                                key
+                              )
+                            }
+                          />
+
+                          {label}
+                        </label>
+                      )
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <label className="full-width-label">
+              Notes
+              <textarea
+                className="form-input form-textarea"
+                value={notes}
+                onChange={(e) =>
+                  setNotes(e.target.value)
+                }
+                placeholder="Additional inspection notes..."
+              />
+            </label>
+
+            <div className="assignment-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button assignment-save"
+                disabled={saving}
+              >
+                {saving
+                  ? "Saving..."
+                  : "Create Audit"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <section className="panel">
+        <PanelTitle title="Audit History" />
+
+        {audits.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Driver</th>
+                  <th>Type</th>
+                  <th>Result</th>
+                  <th>Completed</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {audits.map((audit) => (
+                  <tr key={audit.id}>
+                    <td>
+                      Bus{" "}
+                      {audit.vehicles?.fleet_number ||
+                        "—"}
+                    </td>
+
+                    <td>
+                      {audit.drivers?.name || "—"}
+                    </td>
+
+                    <td>{audit.audit_type}</td>
+
+                    <td>
+                      <StatusBadge
+                        status={audit.result}
+                      />
+                    </td>
+
+                    <td>
+                      {formatDate(
+                        audit.completed_at
+                      )}
+                    </td>
+
+                    <td>
+                      {audit.notes || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
