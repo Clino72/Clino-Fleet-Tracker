@@ -904,3 +904,60 @@ td {
 .dashboard-maintenance-panel {
   margin-top: 18px;
 }
+
+.fleet-leaflet-map {
+  width: 100%;
+  height: 100%;
+  min-height: 700px;
+  background: #0c1218;
+}
+
+.fleet-bus-marker-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.fleet-bus-marker {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #18222c;
+  border: 2px solid #93a4b5;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+.fleet-bus-marker span {
+  display: block;
+  position: relative;
+  z-index: 2;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.fleet-bus-arrow {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid #93a4b5;
+}
+
+.fleet-bus-marker.selected {
+  border-color: #fff;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.15),
+    0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-container {
+  background: #0c1218;
+  font-family: inherit;
+}

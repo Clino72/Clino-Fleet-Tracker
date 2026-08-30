@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { supabase } from "./lib/supabase";
 
 const pages = [
@@ -256,7 +258,7 @@ function Dashboard() {
 
     const interval = setInterval(
       loadDashboard,
-      60 * 1000
+      15 * 1000
     );
 
     return () => clearInterval(interval);
@@ -508,6 +510,192 @@ function Dashboard() {
   );
 }
 
+function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef(new Map());
+
+  const IMAGE_SIZE = 1055;
+  const ROBLOX_HALF_SIZE = 3072;
+  const ROBLOX_SIZE = 6144;
+  const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
+
+  function robloxToMap(x, z) {
+  const imageX =
+    (ROBLOX_HALF_SIZE - x) * PIXELS_PER_STUD;
+
+  const imageY =
+    (ROBLOX_HALF_SIZE + z) * PIXELS_PER_STUD;
+
+  return [
+    imageY,
+    imageX,
+  ];
+}
+
+  useEffect(() => {
+  if (!mapRef.current || mapInstanceRef.current) {
+    return;
+  }
+
+  const map = L.map(mapRef.current, {
+    crs: L.CRS.Simple,
+    minZoom: -1,
+    maxZoom: 4,
+    zoomControl: true,
+    attributionControl: false,
+    maxBoundsViscosity: 1.0,
+  });
+
+  const bounds = [
+    [0, 0],
+    [IMAGE_SIZE, IMAGE_SIZE],
+  ];
+
+  L.imageOverlay(
+    "/map.png",
+    bounds
+  ).addTo(map);
+
+  // Start with the entire map visible.
+  map.fitBounds(bounds, {
+    padding: [0, 0],
+  });
+
+  // Prevent dragging the map completely away from view.
+  map.setMaxBounds(bounds);
+
+  mapInstanceRef.current = map;
+
+  return () => {
+    map.remove();
+    mapInstanceRef.current = null;
+  };
+}, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    const activeFleetNumbers = new Set();
+
+    fleet.forEach((bus) => {
+      if (
+        bus.x == null ||
+        bus.z == null ||
+        bus.effective_status === "OFFLINE"
+      ) {
+        return;
+      }
+
+      const fleetNumber = String(bus.fleet_number);
+
+      activeFleetNumbers.add(fleetNumber);
+
+      const position = robloxToMap(
+        Number(bus.x),
+        Number(bus.z)
+      );
+
+      let marker =
+        markersRef.current.get(fleetNumber);
+
+      if (!marker) {
+        const icon = L.divIcon({
+          className: "fleet-bus-marker-wrapper",
+          html: `
+            <div class="fleet-bus-marker">
+              <div class="fleet-bus-arrow"></div>
+              <span></span>
+            </div>
+          `,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        });
+
+        marker = L.marker(
+          position,
+          {
+            icon,
+          }
+        );
+
+        marker.on("click", () => {
+          onSelect(bus.fleet_number);
+        });
+
+        marker.addTo(map);
+
+        markersRef.current.set(
+          fleetNumber,
+          marker
+        );
+      } else {
+        marker.setLatLng(position);
+      }
+
+      const element = marker.getElement();
+
+      if (element) {
+        const markerBody =
+          element.querySelector(
+            ".fleet-bus-marker"
+          );
+
+        const number =
+          element.querySelector(
+            ".fleet-bus-marker span"
+          );
+
+        if (markerBody) {
+          markerBody.style.transform = "rotate(0deg)";
+        }
+
+        if (number) {
+          number.textContent = bus.fleet_number;
+          number.style.transform = "rotate(180deg)";
+        }
+
+        element.classList.toggle(
+          "selected",
+          fleetNumber ===
+            String(selectedFleetNumber)
+        );
+      }
+    });
+
+    for (const [
+      fleetNumber,
+      marker,
+    ] of markersRef.current) {
+      if (
+        !activeFleetNumbers.has(
+          fleetNumber
+        )
+      ) {
+        marker.remove();
+        markersRef.current.delete(
+          fleetNumber
+        );
+      }
+    }
+  }, [
+    fleet,
+    selectedFleetNumber,
+    onSelect,
+  ]);
+
+  return (
+    <div
+      ref={mapRef}
+      className="fleet-leaflet-map"
+    />
+  );
+}
+
 function LiveFleet() {
   const [fleet, setFleet] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -571,7 +759,7 @@ function LiveFleet() {
   useEffect(() => {
     loadFleet();
 
-    const interval = setInterval(loadFleet, 60 * 1000);
+    const interval = setInterval(loadFleet, 15 * 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -726,18 +914,22 @@ function LiveFleet() {
 
       <div className="fleet-layout">
         <section className="panel fleet-map">
-          <div className="map-placeholder">
-            <div>
-              <strong>Fleet Map</strong>
-              <span>
-                Custom Roblox map will be placed here.
-              </span>
-              <small>
-                Live vehicle positions are already being received.
-              </small>
-            </div>
-          </div>
-        </section>
+  <FleetMap
+    fleet={fleet}
+    selectedFleetNumber={
+      selected?.fleet_number
+    }
+    onSelect={(fleetNumber) => {
+      const bus = fleet.find(
+        (item) =>
+          String(item.fleet_number) ===
+          String(fleetNumber)
+      );
+
+      setSelected(bus || null);
+    }}
+  />
+</section>
 
         <section className="panel fleet-list">
           <PanelTitle title="Fleet" />
@@ -1129,7 +1321,7 @@ function VehicleDetails({ vehicle, onClose }) {
 
     const interval = setInterval(
       loadLive,
-      60 * 1000
+      15 * 1000
     );
 
     return () => clearInterval(interval);
@@ -1491,7 +1683,7 @@ function DriverDetails({ driver, onClose }) {
 
     const interval = setInterval(
       loadAssignments,
-      60 * 1000
+      15 * 1000
     );
 
     return () => clearInterval(interval);
@@ -3101,7 +3293,7 @@ function Settings() {
 
       <div className="settings-item">
         <strong>Fleet tracking interval</strong>
-        <span>60 seconds</span>
+        <span>15 seconds</span>
       </div>
 
       <div className="settings-item">
