@@ -287,6 +287,11 @@ function Dashboard() {
 function LiveFleet() {
   const [fleet, setFleet] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function loadFleet() {
     const { data, error } = await supabase
@@ -294,138 +299,351 @@ function LiveFleet() {
       .select("*")
       .order("fleet_number");
 
-    if (!error) {
-      setFleet(data || []);
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
     }
+
+    const sortedFleet = (data || []).sort((a, b) => {
+    const garageOrder = {
+      CLIO: 0,
+      MAPLECREST: 1,
+    };
+
+    const aGarage =
+      garageOrder[String(a.garage || "").toUpperCase()] ?? 999;
+
+    const bGarage =
+      garageOrder[String(b.garage || "").toUpperCase()] ?? 999;
+
+    // Garage first
+    if (aGarage !== bGarage) {
+      return aGarage - bGarage;
+    }
+
+    // Oldest buses first
+    const aYear = Number(a.year) || 9999;
+    const bYear = Number(b.year) || 9999;
+
+    if (aYear !== bYear) {
+      return aYear - bYear;
+    }
+
+    // Same year: lowest fleet number first
+    return String(a.fleet_number).localeCompare(
+      String(b.fleet_number),
+      undefined,
+      { numeric: true }
+    );
+  });
+
+    setFleet(sortedFleet);
+    setLastRefresh(new Date());
+    setLoading(false);
+    setError("");
   }
 
   useEffect(() => {
     loadFleet();
 
-    const interval = setInterval(
-      loadFleet,
-      60 * 1000
-    );
+    const interval = setInterval(loadFleet, 60 * 1000);
 
     return () => clearInterval(interval);
   }, []);
 
+  const filteredFleet = fleet.filter((bus) => {
+    const searchValue = search.toLowerCase();
+
+    const matchesSearch =
+      String(bus.fleet_number)
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(bus.driver_name || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(bus.route_name || "")
+        .toLowerCase()
+        .includes(searchValue);
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      bus.effective_status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const statusCounts = {
+    ALL: fleet.length,
+    IN_SERVICE: fleet.filter(
+      (bus) => bus.effective_status === "IN_SERVICE"
+    ).length,
+    AVAILABLE: fleet.filter(
+      (bus) => bus.effective_status === "AVAILABLE"
+    ).length,
+    STALE: fleet.filter(
+      (bus) => bus.effective_status === "STALE"
+    ).length,
+    OFFLINE: fleet.filter(
+      (bus) => bus.effective_status === "OFFLINE"
+    ).length,
+    MAINTENANCE: fleet.filter(
+      (bus) => bus.effective_status === "MAINTENANCE"
+    ).length,
+  };
+
   return (
-    <div className="fleet-layout">
-      <section className="panel fleet-map">
-        <div className="map-placeholder">
-          <div>
-            <strong>Fleet Map</strong>
-            <span>
-              Custom Roblox map will be placed here.
-            </span>
-          </div>
+    <>
+      <div className="fleet-toolbar">
+        <div className="fleet-status-summary">
+          <button
+            className={
+              statusFilter === "ALL"
+                ? "fleet-filter active"
+                : "fleet-filter"
+            }
+            onClick={() => setStatusFilter("ALL")}
+          >
+            All <span>{statusCounts.ALL}</span>
+          </button>
+
+          <button
+            className={
+              statusFilter === "IN_SERVICE"
+                ? "fleet-filter active"
+                : "fleet-filter"
+            }
+            onClick={() => setStatusFilter("IN_SERVICE")}
+          >
+            In Service <span>{statusCounts.IN_SERVICE}</span>
+          </button>
+
+          <button
+            className={
+              statusFilter === "AVAILABLE"
+                ? "fleet-filter active"
+                : "fleet-filter"
+            }
+            onClick={() => setStatusFilter("AVAILABLE")}
+          >
+            Available <span>{statusCounts.AVAILABLE}</span>
+          </button>
+
+          <button
+            className={
+              statusFilter === "STALE"
+                ? "fleet-filter active"
+                : "fleet-filter"
+            }
+            onClick={() => setStatusFilter("STALE")}
+          >
+            Stale <span>{statusCounts.STALE}</span>
+          </button>
+
+          <button
+            className={
+              statusFilter === "OFFLINE"
+                ? "fleet-filter active"
+                : "fleet-filter"
+            }
+            onClick={() => setStatusFilter("OFFLINE")}
+          >
+            Offline <span>{statusCounts.OFFLINE}</span>
+          </button>
+
+          <button
+            className={
+              statusFilter === "MAINTENANCE"
+                ? "fleet-filter active"
+                : "fleet-filter"
+            }
+            onClick={() => setStatusFilter("MAINTENANCE")}
+          >
+            Maintenance <span>{statusCounts.MAINTENANCE}</span>
+          </button>
         </div>
-      </section>
 
-      <section className="panel fleet-list">
-        <PanelTitle
-          title={`Fleet (${fleet.length})`}
-        />
+        <div className="fleet-actions">
+          <input
+            className="search"
+            placeholder="Search fleet, driver, route..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Fleet</th>
-                <th>Driver</th>
-                <th>Route</th>
-                <th>Speed</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+          <button
+            className="secondary-button"
+            onClick={loadFleet}
+            disabled={loading}
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+      </div>
 
-            <tbody>
-              {fleet.map((bus) => (
-                <tr
+      {error && (
+        <div className="error fleet-error">
+          Unable to load fleet: {error}
+        </div>
+      )}
+
+      <div className="fleet-meta">
+        <span>
+          {filteredFleet.length} of {fleet.length} vehicles shown
+        </span>
+
+        <span>
+          Last refresh:{" "}
+          {lastRefresh
+            ? lastRefresh.toLocaleTimeString()
+            : "Never"}
+        </span>
+      </div>
+
+      <div className="fleet-layout">
+        <section className="panel fleet-map">
+          <div className="map-placeholder">
+            <div>
+              <strong>Fleet Map</strong>
+              <span>
+                Custom Roblox map will be placed here.
+              </span>
+              <small>
+                Live vehicle positions are already being received.
+              </small>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel fleet-list">
+          <PanelTitle title="Fleet" />
+
+          {filteredFleet.length === 0 ? (
+            <Empty />
+          ) : (
+            <div className="fleet-vehicle-list">
+              {filteredFleet.map((bus) => (
+                <button
                   key={bus.fleet_number}
+                  className={
+                    selected?.fleet_number === bus.fleet_number
+                      ? "fleet-vehicle selected"
+                      : "fleet-vehicle"
+                  }
                   onClick={() => setSelected(bus)}
-                  className="clickable"
                 >
-                  <td>{bus.fleet_number}</td>
-                  <td>
-                    {bus.driver_name || "—"}
-                  </td>
-                  <td>
-                    {bus.route_name || "—"}
-                  </td>
-                  <td>
-                    {Number(bus.speed || 0).toFixed(0)} MPH
-                  </td>
-                  <td>
+                  <div className="fleet-vehicle-main">
+                    <strong>
+                      Bus {bus.fleet_number}
+                    </strong>
+
+                    <span>
+                      {bus.driver_name || "Unassigned"}
+                    </span>
+                  </div>
+
+                  <div className="fleet-vehicle-secondary">
+                    <span>
+                      {bus.route_name || "No route"}
+                    </span>
+
                     <StatusBadge
                       status={bus.effective_status}
                     />
-                  </td>
-                </tr>
+                  </div>
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-
-        {selected && (
-          <div className="selection-card">
-            <PanelTitle
-              title={`Bus ${selected.fleet_number}`}
-            />
-
-            <div className="detail-grid">
-              <Detail
-                label="Driver"
-                value={selected.driver_name || "—"}
-              />
-
-              <Detail
-                label="Route"
-                value={selected.route_name || "—"}
-              />
-
-              <Detail
-                label="Speed"
-                value={`${Number(
-                  selected.speed || 0
-                ).toFixed(0)} MPH`}
-              />
-
-              <Detail
-                label="RPM"
-                value={selected.rpm ?? "—"}
-              />
-
-              <Detail
-                label="Coolant"
-                value={
-                  selected.coolant_temp != null
-                    ? `${selected.coolant_temp}°F`
-                    : "—"
-                }
-              />
-
-              <Detail
-                label="Oil"
-                value={
-                  selected.oil_temp != null
-                    ? `${selected.oil_temp}°F`
-                    : "—"
-                }
-              />
-
-              <Detail
-                label="Last Ping"
-                value={formatDate(
-                  selected.last_ping
-                )}
-              />
             </div>
-          </div>
-        )}
-      </section>
-    </div>
+          )}
+
+          {selected && (
+            <div className="selection-card">
+              <PanelTitle
+                title={`Bus ${selected.fleet_number}`}
+              />
+
+              <div className="detail-grid">
+                <Detail
+                  label="Status"
+                  value={selected.effective_status}
+                />
+
+                <Detail
+                  label="Driver"
+                  value={selected.driver_name || "Unassigned"}
+                />
+
+                <Detail
+                  label="Route"
+                  value={selected.route_name || "No route"}
+                />
+
+                <Detail
+                  label="Speed"
+                  value={`${Number(
+                    selected.speed || 0
+                  ).toFixed(0)} MPH`}
+                />
+
+                <Detail
+                  label="RPM"
+                  value={
+                    selected.rpm != null
+                      ? Number(selected.rpm).toFixed(0)
+                      : "—"
+                  }
+                />
+
+                <Detail
+                  label="Heading"
+                  value={
+                    selected.heading != null
+                      ? `${Number(selected.heading).toFixed(0)}°`
+                      : "—"
+                  }
+                />
+
+                <Detail
+                  label="Coolant"
+                  value={
+                    selected.coolant_temp != null
+                      ? `${selected.coolant_temp}°F`
+                      : "—"
+                  }
+                />
+
+                <Detail
+                  label="Oil"
+                  value={
+                    selected.oil_temp != null
+                      ? `${selected.oil_temp}°F`
+                      : "—"
+                  }
+                />
+
+                <Detail
+                  label="Last Ping"
+                  value={formatDate(selected.last_ping)}
+                />
+
+                <Detail
+                  label="Position"
+                  value={
+                    selected.x != null
+                      ? `${Number(selected.x).toFixed(1)}, ${Number(
+                          selected.y
+                        ).toFixed(1)}, ${Number(
+                          selected.z
+                        ).toFixed(1)}`
+                      : "—"
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
   );
 }
 

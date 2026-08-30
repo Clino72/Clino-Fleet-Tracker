@@ -440,3 +440,152 @@ td {
 .settings-item span {
   color: #8b99a7;
 }
+
+.fleet-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.fleet-status-summary {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fleet-filter {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #293440;
+  border-radius: 7px;
+  background: #10171f;
+  color: #8996a4;
+}
+
+.fleet-filter.active,
+.fleet-filter:hover {
+  background: #18222c;
+  color: #fff;
+}
+
+.fleet-filter span {
+  color: #cbd5df;
+  font-weight: 700;
+}
+
+.fleet-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.fleet-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 12px;
+  color: #718091;
+  font-size: 11px;
+}
+
+.fleet-error {
+  margin-bottom: 12px;
+}
+
+.fleet-vehicle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.fleet-vehicle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #0d141b;
+  color: #dce3ea;
+  text-align: left;
+}
+
+.fleet-vehicle:hover,
+.fleet-vehicle.selected {
+  border-color: #293440;
+  background: #151e27;
+}
+
+.fleet-vehicle-main,
+.fleet-vehicle-secondary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fleet-vehicle-main {
+  min-width: 0;
+}
+
+.fleet-vehicle-main strong {
+  min-width: 62px;
+}
+
+.fleet-vehicle-main span,
+.fleet-vehicle-secondary span {
+  color: #7f8c9a;
+  font-size: 12px;
+}
+
+.fleet-vehicle-secondary {
+  margin-left: auto;
+}
+
+.fleet-map {
+  min-height: 700px;
+}
+
+.map-placeholder {
+  min-height: 700px;
+}
+
+.map-placeholder small {
+  display: block;
+  margin-top: 8px;
+  color: #566372;
+  font-size: 10px;
+}
+
+/* Fleet list scrollbar */
+
+.fleet-vehicle-list {
+  scrollbar-width: thin;
+  scrollbar-color: #35414d #0d141b;
+}
+
+.fleet-vehicle-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.fleet-vehicle-list::-webkit-scrollbar-track {
+  background: #0d141b;
+  border-radius: 8px;
+}
+
+.fleet-vehicle-list::-webkit-scrollbar-thumb {
+  background: #35414d;
+  border-radius: 8px;
+  border: 2px solid #0d141b;
+}
+
+.fleet-vehicle-list::-webkit-scrollbar-thumb:hover {
+  background: #465462;
+}
