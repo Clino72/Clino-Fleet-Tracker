@@ -757,12 +757,30 @@ function LiveFleet() {
   }
 
   useEffect(() => {
-    loadFleet();
+  loadFleet();
 
-    const interval = setInterval(loadFleet, 15 * 1000);
+  const interval = setInterval(loadFleet, 15 * 1000);
 
-    return () => clearInterval(interval);
-  }, []);
+  return () => clearInterval(interval);
+}, []);
+
+useEffect(() => {
+  if (!selected) {
+    return;
+  }
+
+  const updatedBus = fleet.find(
+    (bus) =>
+      String(bus.fleet_number) ===
+      String(selected.fleet_number)
+  );
+
+  if (updatedBus) {
+    setSelected(updatedBus);
+  } else {
+    setSelected(null);
+  }
+}, [fleet]);
 
   const filteredFleet = fleet.filter((bus) => {
     const searchValue = search.toLowerCase();
@@ -1220,14 +1238,6 @@ function Vehicles() {
             </option>
           ))}
         </select>
-
-        <button
-          className="secondary-button"
-          onClick={loadVehicles}
-          disabled={loading}
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       <div className="fleet-meta">
@@ -1293,15 +1303,30 @@ function Vehicles() {
         <VehicleDetails
           vehicle={selected}
           onClose={() => setSelected(null)}
+          onSaved={loadVehicles}
         />
       )}
     </>
   );
 }
 
-function VehicleDetails({ vehicle, onClose }) {
+function VehicleDetails({ vehicle, onClose, onSaved }) {
   const [live, setLive] = useState(null);
-  const [loadingLive, setLoadingLive] = useState(true);
+const [loadingLive, setLoadingLive] = useState(true);
+
+const [editing, setEditing] = useState(false);
+const [saving, setSaving] = useState(false);
+const [error, setError] = useState("");
+const [message, setMessage] = useState("");
+
+const [year, setYear] = useState(vehicle.year ?? "");
+const [make, setMake] = useState(vehicle.make ?? "");
+const [model, setModel] = useState(vehicle.model ?? "");
+const [engine, setEngine] = useState(vehicle.engine ?? "");
+const [mileage, setMileage] = useState(vehicle.mileage ?? 0);
+const [status, setStatus] = useState(vehicle.status ?? "AVAILABLE");
+const [garage, setGarage] = useState(vehicle.garage ?? "");
+const [notes, setNotes] = useState(vehicle.notes ?? "");
 
   async function loadLive() {
     setLoadingLive(true);
@@ -1317,20 +1342,48 @@ function VehicleDetails({ vehicle, onClose }) {
   }
 
   useEffect(() => {
-    loadLive();
+  loadLive();
+}, [vehicle.fleet_number]);
 
-    const interval = setInterval(
-      loadLive,
-      15 * 1000
+  async function saveVehicle(event) {
+    event.preventDefault();
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase.rpc(
+      "update_vehicle",
+      {
+        p_vehicle_id: vehicle.id,
+        p_year: year === "" ? null : Number(year),
+        p_make: make,
+        p_model: model,
+        p_engine: engine,
+        p_mileage: mileage === "" ? 0 : Number(mileage),
+        p_status: status,
+        p_garage: garage,
+        p_notes: notes,
+      }
     );
 
-    return () => clearInterval(interval);
-  }, [vehicle.fleet_number]);
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    await onSaved();
+
+    setMessage("Vehicle updated successfully.");
+    setEditing(false);
+    setSaving(false);
+  }
 
   return (
     <div className="vehicle-detail-overlay">
       <div className="vehicle-detail">
-        <div className="vehicle-detail-header">
+         <div className="vehicle-detail-header">
           <div>
             <div className="eyebrow">
               VEHICLE DETAILS
@@ -1339,59 +1392,211 @@ function VehicleDetails({ vehicle, onClose }) {
             <h2>Bus {vehicle.fleet_number}</h2>
           </div>
 
-          <button
-            className="secondary-button"
-            onClick={onClose}
-          >
-            Close
-          </button>
-        </div>
+          <div className="vehicle-detail-header-actions">
+            {!editing && (
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setError("");
+                  setMessage("");
+                  setEditing(true);
+                }}
+              >
+                Edit
+              </button>
+            )}
 
-        <div className="vehicle-detail-section">
-          <h3>Vehicle Information</h3>
-
-          <div className="detail-grid">
-            <Detail
-              label="Fleet Number"
-              value={vehicle.fleet_number}
-            />
-
-            <Detail
-              label="Year"
-              value={vehicle.year ?? "—"}
-            />
-
-            <Detail
-              label="Make"
-              value={vehicle.make ?? "—"}
-            />
-
-            <Detail
-              label="Model"
-              value={vehicle.model ?? "—"}
-            />
-
-            <Detail
-              label="Engine"
-              value={vehicle.engine ?? "—"}
-            />
-
-            <Detail
-              label="Mileage"
-              value={vehicle.mileage ?? "—"}
-            />
-
-            <Detail
-              label="Garage"
-              value={vehicle.garage ?? "—"}
-            />
-
-            <Detail
-              label="Fleet Status"
-              value={vehicle.status}
-            />
+            <button
+              className="secondary-button"
+              onClick={onClose}
+            >
+              Close
+            </button>
           </div>
         </div>
+
+        {message && (
+          <div className="success-message">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="error fleet-error">
+            {error}
+          </div>
+        )}
+
+        <div className="vehicle-detail-section">
+  <h3>Vehicle Information</h3>
+
+  {editing ? (
+    <form
+      className="assignment-form"
+      onSubmit={saveVehicle}
+    >
+      <label>
+        Fleet Number
+        <input
+          className="filter-select full-width"
+          value={vehicle.fleet_number}
+          disabled
+        />
+      </label>
+
+      <label>
+        Year
+        <input
+          className="filter-select full-width"
+          type="number"
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+        />
+      </label>
+
+      <label>
+        Make
+        <input
+          className="filter-select full-width"
+          value={make}
+          onChange={(e) => setMake(e.target.value)}
+        />
+      </label>
+
+      <label>
+        Model
+        <input
+          className="filter-select full-width"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+        />
+      </label>
+
+      <label>
+        Engine
+        <input
+          className="filter-select full-width"
+          value={engine}
+          onChange={(e) => setEngine(e.target.value)}
+        />
+      </label>
+
+      <label>
+        Mileage
+        <input
+          className="filter-select full-width"
+          type="number"
+          min="0"
+          step="1"
+          value={mileage}
+          onChange={(e) => setMileage(e.target.value)}
+        />
+      </label>
+
+      <label>
+        Status
+        <select
+          className="filter-select full-width"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="AVAILABLE">
+            AVAILABLE
+          </option>
+
+          <option value="ASSIGNED">
+            ASSIGNED
+          </option>
+
+          <option value="MAINTENANCE">
+            MAINTENANCE
+          </option>
+        </select>
+      </label>
+
+      <label>
+        Garage
+        <input
+          className="filter-select full-width"
+          value={garage}
+          onChange={(e) => setGarage(e.target.value)}
+        />
+      </label>
+
+      <div className="vehicle-edit-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            setYear(vehicle.year ?? "");
+            setMake(vehicle.make ?? "");
+            setModel(vehicle.model ?? "");
+            setEngine(vehicle.engine ?? "");
+            setMileage(vehicle.mileage ?? 0);
+            setStatus(vehicle.status ?? "AVAILABLE");
+            setGarage(vehicle.garage ?? "");
+            setNotes(vehicle.notes ?? "");
+            setError("");
+            setMessage("");
+            setEditing(false);
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className="primary-button"
+          disabled={saving}
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </form>
+  ) : (
+    <div className="detail-grid">
+      <Detail
+        label="Fleet Number"
+        value={vehicle.fleet_number}
+      />
+
+      <Detail
+        label="Year"
+        value={vehicle.year ?? "—"}
+      />
+
+      <Detail
+        label="Make"
+        value={vehicle.make ?? "—"}
+      />
+
+      <Detail
+        label="Model"
+        value={vehicle.model ?? "—"}
+      />
+
+      <Detail
+        label="Engine"
+        value={vehicle.engine ?? "—"}
+      />
+
+      <Detail
+        label="Mileage"
+        value={vehicle.mileage ?? "—"}
+      />
+
+      <Detail
+        label="Garage"
+        value={vehicle.garage ?? "—"}
+      />
+
+      <Detail
+        label="Fleet Status"
+        value={vehicle.status ?? "—"}
+      />
+    </div>
+  )}
+</div>
 
         <div className="vehicle-detail-section">
           <h3>Current Operation</h3>
@@ -1803,6 +2008,8 @@ function Assignments() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [endingId, setEndingId] = useState(null);
+
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -1845,17 +2052,11 @@ function Assignments() {
 
     if (assignmentsResult.error) {
       setError(assignmentsResult.error.message);
-    }
-
-    if (vehiclesResult.error) {
+    } else if (vehiclesResult.error) {
       setError(vehiclesResult.error.message);
-    }
-
-    if (driversResult.error) {
+    } else if (driversResult.error) {
       setError(driversResult.error.message);
-    }
-
-    if (routesResult.error) {
+    } else if (routesResult.error) {
       setError(routesResult.error.message);
     }
 
@@ -1929,6 +2130,49 @@ function Assignments() {
     setSaving(false);
   }
 
+  async function endAssignment(assignment) {
+    const fleetNumber =
+      assignment.vehicles?.fleet_number;
+
+    if (!fleetNumber) {
+      setError("Unable to determine vehicle fleet number.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `End the assignment for Bus ${fleetNumber}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setEndingId(assignment.id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase.rpc(
+      "end_vehicle_assignment",
+      {
+        p_fleet_number: fleetNumber,
+      }
+    );
+
+    if (error) {
+      setError(error.message);
+      setEndingId(null);
+      return;
+    }
+
+    setMessage(
+      `Assignment for Bus ${fleetNumber} ended.`
+    );
+
+    await loadData();
+
+    setEndingId(null);
+  }
+
   const activeAssignments = assignments.filter(
     (item) => item.status === "ACTIVE"
   );
@@ -1994,14 +2238,19 @@ function Assignments() {
                   Select vehicle...
                 </option>
 
-                {vehicles.map((vehicle) => (
-                  <option
-                    key={vehicle.id}
-                    value={vehicle.id}
-                  >
-                    Bus {vehicle.fleet_number}
-                  </option>
-                ))}
+                {vehicles
+                  .filter(
+                    (vehicle) =>
+                      vehicle.status !== "MAINTENANCE"
+                  )
+                  .map((vehicle) => (
+                    <option
+                      key={vehicle.id}
+                      value={vehicle.id}
+                    >
+                      Bus {vehicle.fleet_number}
+                    </option>
+                  ))}
               </select>
             </label>
 
@@ -2093,6 +2342,7 @@ function Assignments() {
                   <th>Route</th>
                   <th>Status</th>
                   <th>Started</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
@@ -2106,11 +2356,13 @@ function Assignments() {
                     </td>
 
                     <td>
-                      {item.drivers?.name || "Unassigned"}
+                      {item.drivers?.name ||
+                        "Unassigned"}
                     </td>
 
                     <td>
-                      {item.routes?.name || "No route"}
+                      {item.routes?.name ||
+                        "No route"}
                     </td>
 
                     <td>
@@ -2121,6 +2373,22 @@ function Assignments() {
 
                     <td>
                       {formatDate(item.started_at)}
+                    </td>
+
+                    <td>
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          endAssignment(item)
+                        }
+                        disabled={
+                          endingId === item.id
+                        }
+                      >
+                        {endingId === item.id
+                          ? "Ending..."
+                          : "End Assignment"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -2159,11 +2427,13 @@ function Assignments() {
                     </td>
 
                     <td>
-                      {item.drivers?.name || "Unassigned"}
+                      {item.drivers?.name ||
+                        "Unassigned"}
                     </td>
 
                     <td>
-                      {item.routes?.name || "No route"}
+                      {item.routes?.name ||
+                        "No route"}
                     </td>
 
                     <td>
