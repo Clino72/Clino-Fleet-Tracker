@@ -9,9 +9,9 @@ const pages = [
   "Vehicles",
   "Drivers",
   "Assignments",
+  "Routes",
   "Maintenance",
   "Audits",
-  "Routes",
   "Settings",
 ];
 
@@ -1709,28 +1709,43 @@ function Drivers() {
   const [selected, setSelected] = useState(null);
 
   async function loadDrivers() {
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    const { data, error } = await supabase
-      .from("drivers")
-      .select("*")
-      .order("name");
+  const { data, error } = await supabase
+    .from("drivers")
+    .select(`
+      *,
+      vehicles:current_vehicle_id (
+        fleet_number
+      ),
+      routes:current_route_id (
+        name
+      )
+    `)
+    .order("name");
 
-    if (error) {
-      setError(error.message);
-      setDrivers([]);
-      setLoading(false);
-      return;
-    }
-
-    setDrivers(data || []);
+  if (error) {
+    setError(error.message);
+    setDrivers([]);
     setLoading(false);
+    return;
   }
 
+  setDrivers(data || []);
+  setLoading(false);
+}
+
   useEffect(() => {
-    loadDrivers();
-  }, []);
+  loadDrivers();
+
+  const interval = setInterval(
+    loadDrivers,
+    15 * 1000
+  );
+
+  return () => clearInterval(interval);
+}, []);
 
   const filteredDrivers = drivers.filter((driver) => {
     const searchValue = search.toLowerCase();
@@ -1753,15 +1768,11 @@ function Drivers() {
   });
 
   const statuses = [
-    "ALL",
-    ...Array.from(
-      new Set(
-        drivers
-          .map((driver) => driver.status)
-          .filter(Boolean)
-      )
-    ),
-  ];
+  "ALL",
+  "ACTIVE",
+  "ONLINE",
+  "OFFLINE",
+];
 
   return (
     <>
@@ -1813,42 +1824,49 @@ function Drivers() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>Name</th>
-                <th>Roblox User ID</th>
-                <th>Employee #</th>
-                <th>Status</th>
-                <th>Current Vehicle</th>
-                <th>Current Route</th>
-              </tr>
-            </thead>
+  <tr>
+    <th>Name</th>
+    <th>Status</th>
+    <th>Current Vehicle</th>
+    <th>Current Route</th>
+    <th>Employee #</th>
+    <th>Roblox User ID</th>
+  </tr>
+</thead>
 
             <tbody>
-              {filteredDrivers.map((driver) => (
-                <tr
-                  key={driver.id}
-                  className="clickable"
-                  onClick={() => setSelected(driver)}
-                >
-                  <td>{driver.name}</td>
-                  <td>{driver.roblox_user_id ?? "—"}</td>
-                  <td>{driver.employee_number ?? "—"}</td>
-                  <td>
-                    <StatusBadge status={driver.status} />
-                  </td>
-                  <td>
-                    {driver.current_vehicle_id
-                      ? driver.current_vehicle_id
-                      : "—"}
-                  </td>
-                  <td>
-                    {driver.current_route_id
-                      ? driver.current_route_id
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+  {filteredDrivers.map((driver) => (
+    <tr
+      key={driver.id}
+      className="clickable"
+      onClick={() => setSelected(driver)}
+    >
+      <td>{driver.name}</td>
+
+      <td>
+        <StatusBadge status={driver.status} />
+      </td>
+
+      <td>
+        {driver.vehicles?.fleet_number
+          ? `Bus ${driver.vehicles.fleet_number}`
+          : "—"}
+      </td>
+
+      <td>
+        {driver.routes?.name || "—"}
+      </td>
+
+      <td>
+        {driver.employee_number ?? "—"}
+      </td>
+
+      <td>
+        {driver.roblox_user_id ?? "—"}
+      </td>
+    </tr>
+  ))}
+</tbody>
           </table>
         </div>
 
@@ -1926,6 +1944,11 @@ function DriverDetails({ driver, onClose }) {
             />
 
             <Detail
+              label="Status"
+              value={driver.status}
+            />
+
+            <Detail
               label="Roblox User ID"
               value={driver.roblox_user_id ?? "—"}
             />
@@ -1933,11 +1956,6 @@ function DriverDetails({ driver, onClose }) {
             <Detail
               label="Employee Number"
               value={driver.employee_number ?? "—"}
-            />
-
-            <Detail
-              label="Status"
-              value={driver.status}
             />
           </div>
         </div>
@@ -1951,42 +1969,50 @@ function DriverDetails({ driver, onClose }) {
             </div>
           ) : currentBus ? (
             <div className="detail-grid">
-              <Detail
-                label="Vehicle"
-                value={`Bus ${currentBus.fleet_number}`}
-              />
+  <Detail
+    label="Vehicle"
+    value={`Bus ${currentBus.fleet_number}`}
+  />
 
-              <Detail
-                label="Route"
-                value={
-                  currentBus.route_name || "No route"
-                }
-              />
+  <Detail
+    label="Route"
+    value={
+      currentBus.route_name || "No route"
+    }
+  />
 
-              <Detail
-                label="Status"
-                value={currentBus.effective_status}
-              />
+  <Detail
+    label="Status"
+    value={currentBus.effective_status}
+  />
 
-              <Detail
-                label="Speed"
-                value={`${Number(
-                  currentBus.speed || 0
-                ).toFixed(0)} MPH`}
-              />
+  <Detail
+    label="Speed"
+    value={`${Number(
+      currentBus.speed || 0
+    ).toFixed(0)} MPH`}
+  />
 
-              <Detail
-                label="Last Ping"
-                value={formatDate(
-                  currentBus.last_ping
-                )}
-              />
-            </div>
+  <Detail
+    label="Server"
+    value={currentBus.server_id || "—"}
+  />
+
+  <Detail
+    label="Last Ping"
+    value={formatDate(
+      currentBus.last_ping
+    )}
+  />
+</div>
           ) : (
             <div className="empty">
-              This driver is not currently operating
-              a tracked bus.
-            </div>
+  {driver.status === "ONLINE"
+    ? "This driver is currently online but is not operating a bus."
+    : driver.status === "OFFLINE"
+      ? "This driver is currently offline."
+      : "This driver is not currently operating a tracked bus."}
+</div>
           )}
         </div>
       </div>
@@ -2457,6 +2483,33 @@ function Assignments() {
         )}
       </section>
     </>
+  );
+}
+
+function Routes() {
+  const [routes, setRoutes] = useState([]);
+
+  useEffect(() => {
+    supabase
+      .from("routes")
+      .select("*")
+      .order("name")
+      .then(({ data }) => setRoutes(data || []));
+  }, []);
+
+  return (
+    <section className="panel">
+      <PanelTitle title="Routes" />
+
+      <SimpleTable
+        columns={["Name", "Description", "Status"]}
+        rows={routes.map((route) => [
+          route.name,
+          route.description ?? "—",
+          route.status,
+        ])}
+      />
+    </section>
   );
 }
 
@@ -3526,33 +3579,6 @@ function Audits() {
         )}
       </section>
     </>
-  );
-}
-
-function Routes() {
-  const [routes, setRoutes] = useState([]);
-
-  useEffect(() => {
-    supabase
-      .from("routes")
-      .select("*")
-      .order("name")
-      .then(({ data }) => setRoutes(data || []));
-  }, []);
-
-  return (
-    <section className="panel">
-      <PanelTitle title="Routes" />
-
-      <SimpleTable
-        columns={["Name", "Description", "Status"]}
-        rows={routes.map((route) => [
-          route.name,
-          route.description ?? "—",
-          route.status,
-        ])}
-      />
-    </section>
   );
 }
 
