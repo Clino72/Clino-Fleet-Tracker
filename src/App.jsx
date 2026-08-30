@@ -176,110 +176,334 @@ function Sidebar({ page, setPage }) {
 
 function Dashboard() {
   const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [liveFleet, setLiveFleet] = useState([]);
   const [events, setEvents] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
 
-  useEffect(() => {
-    async function load() {
-      const [
-        { data: vehicleData },
-        { data: eventData },
-        { data: maintenanceData },
-      ] = await Promise.all([
-        supabase.from("vehicles").select("*"),
-        supabase
-          .from("vehicle_events")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase
-          .from("maintenance_records")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(8),
-      ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-      setVehicles(vehicleData || []);
-      setEvents(eventData || []);
-      setMaintenance(maintenanceData || []);
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+
+    const [
+      vehiclesResult,
+      driversResult,
+      fleetResult,
+      eventsResult,
+      maintenanceResult,
+    ] = await Promise.all([
+      supabase
+        .from("vehicles")
+        .select("*"),
+
+      supabase
+        .from("drivers")
+        .select("*"),
+
+      supabase
+        .from("fleet_live")
+        .select("*"),
+
+      supabase
+        .from("vehicle_events")
+        .select(`
+          *,
+          vehicles(fleet_number)
+        `)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(8),
+
+      supabase
+        .from("maintenance_records")
+        .select(`
+          *,
+          vehicles(fleet_number)
+        `)
+        .order("created_at", {
+          ascending: false,
+        })
+        .limit(8),
+    ]);
+
+    const errors = [
+      vehiclesResult.error,
+      driversResult.error,
+      fleetResult.error,
+      eventsResult.error,
+      maintenanceResult.error,
+    ].filter(Boolean);
+
+    if (errors.length > 0) {
+      setError(errors[0].message);
     }
 
-    load();
+    setVehicles(vehiclesResult.data || []);
+    setDrivers(driversResult.data || []);
+    setLiveFleet(fleetResult.data || []);
+    setEvents(eventsResult.data || []);
+    setMaintenance(maintenanceResult.data || []);
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadDashboard();
+
+    const interval = setInterval(
+      loadDashboard,
+      60 * 1000
+    );
+
+    return () => clearInterval(interval);
   }, []);
 
-  const inService = vehicles.filter(
-    (v) => v.status === "IN_SERVICE"
+  const totalVehicles = vehicles.length;
+
+  const inService = liveFleet.filter(
+    (bus) => bus.effective_status === "IN_SERVICE"
   ).length;
 
-  const available = vehicles.filter(
-    (v) => v.status === "AVAILABLE"
+  const available = liveFleet.filter(
+    (bus) => bus.effective_status === "AVAILABLE"
   ).length;
 
   const maintenanceCount = vehicles.filter(
-    (v) => v.status === "MAINTENANCE"
+    (bus) => bus.status === "MAINTENANCE"
   ).length;
+
+  const offline = liveFleet.filter(
+    (bus) => bus.effective_status === "OFFLINE"
+  ).length;
+
+  const stale = liveFleet.filter(
+    (bus) => bus.effective_status === "STALE"
+  ).length;
+
+  const activeDrivers = drivers.filter(
+    (driver) => driver.status === "ACTIVE"
+  ).length;
+
+  const activeRoutes = new Set(
+    liveFleet
+      .filter((bus) => bus.route_id)
+      .map((bus) => bus.route_id)
+  ).size;
+
+  const upcomingMaintenance = maintenance.filter(
+    (record) =>
+      record.status === "SCHEDULED" ||
+      record.status === "IN_PROGRESS"
+  );
 
   return (
     <>
+      {error && (
+        <div className="error fleet-error">
+          Unable to load some dashboard data: {error}
+        </div>
+      )}
+
       <div className="stats-grid">
-        <Stat title="Total Vehicles" value={vehicles.length} />
-        <Stat title="In Service" value={inService} />
-        <Stat title="Available" value={available} />
+        <Stat
+          title="Total Vehicles"
+          value={loading ? "—" : totalVehicles}
+        />
+
+        <Stat
+          title="In Service"
+          value={loading ? "—" : inService}
+        />
+
+        <Stat
+          title="Available"
+          value={loading ? "—" : available}
+        />
+
         <Stat
           title="Maintenance"
-          value={maintenanceCount}
+          value={loading ? "—" : maintenanceCount}
         />
       </div>
 
-      <div className="two-column">
+      <div className="stats-grid dashboard-secondary-stats">
+        <Stat
+          title="Active Drivers"
+          value={loading ? "—" : activeDrivers}
+        />
+
+        <Stat
+          title="Active Routes"
+          value={loading ? "—" : activeRoutes}
+        />
+
+        <Stat
+          title="Stale Vehicles"
+          value={loading ? "—" : stale}
+        />
+
+        <Stat
+          title="Offline Vehicles"
+          value={loading ? "—" : offline}
+        />
+      </div>
+
+      <div className="dashboard-grid">
+        <section className="panel dashboard-fleet-panel">
+          <PanelTitle title="Fleet Status" />
+
+          {liveFleet.length === 0 ? (
+            <Empty />
+          ) : (
+            <div className="dashboard-status-list">
+              <div className="dashboard-status-row">
+                <div>
+                  <strong>In Service</strong>
+                  <span>
+                    Vehicles currently operating
+                  </span>
+                </div>
+
+                <strong>{inService}</strong>
+              </div>
+
+              <div className="dashboard-status-row">
+                <div>
+                  <strong>Available</strong>
+                  <span>
+                    Vehicles not currently operating
+                  </span>
+                </div>
+
+                <strong>{available}</strong>
+              </div>
+
+              <div className="dashboard-status-row">
+                <div>
+                  <strong>Maintenance</strong>
+                  <span>
+                    Vehicles marked for maintenance
+                  </span>
+                </div>
+
+                <strong>{maintenanceCount}</strong>
+              </div>
+
+              <div className="dashboard-status-row">
+                <div>
+                  <strong>Stale</strong>
+                  <span>
+                    No recent telemetry
+                  </span>
+                </div>
+
+                <strong>{stale}</strong>
+              </div>
+
+              <div className="dashboard-status-row">
+                <div>
+                  <strong>Offline</strong>
+                  <span>
+                    No telemetry for more than five minutes
+                  </span>
+                </div>
+
+                <strong>{offline}</strong>
+              </div>
+            </div>
+          )}
+        </section>
+
         <section className="panel">
           <PanelTitle title="Recent Activity" />
 
           {events.length === 0 ? (
             <Empty />
           ) : (
-            events.map((event) => (
-              <div className="list-row" key={event.id}>
-                <div>
-                  <strong>
-                    {event.event_type}
-                  </strong>
+            <div className="dashboard-list">
+              {events.map((event) => (
+                <div
+                  className="list-row"
+                  key={event.id}
+                >
+                  <div>
+                    <strong>
+                      {event.event_type}
+                    </strong>
+
+                    <div className="muted">
+                      {event.vehicles?.fleet_number
+                        ? `Bus ${event.vehicles.fleet_number}`
+                        : ""}{" "}
+                      {event.description || ""}
+                    </div>
+                  </div>
+
                   <div className="muted">
-                    {event.description || "No description"}
+                    {formatDate(event.created_at)}
                   </div>
                 </div>
-
-                <div className="muted">
-                  {formatDate(event.created_at)}
-                </div>
-              </div>
-            ))
-          )}
-        </section>
-
-        <section className="panel">
-          <PanelTitle title="Maintenance" />
-
-          {maintenance.length === 0 ? (
-            <Empty />
-          ) : (
-            maintenance.map((item) => (
-              <div className="list-row" key={item.id}>
-                <div>
-                  <strong>
-                    {item.maintenance_type}
-                  </strong>
-                  <div className="muted">
-                    {item.description || "No description"}
-                  </div>
-                </div>
-
-                <StatusBadge status={item.status} />
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </section>
       </div>
+
+      <section className="panel dashboard-maintenance-panel">
+        <PanelTitle title="Maintenance Overview" />
+
+        {upcomingMaintenance.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Mileage</th>
+                  <th>Due</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {upcomingMaintenance.map((record) => (
+                  <tr key={record.id}>
+                    <td>
+                      Bus{" "}
+                      {record.vehicles?.fleet_number ||
+                        "—"}
+                    </td>
+
+                    <td>
+                      {record.maintenance_type}
+                    </td>
+
+                    <td>
+                      <StatusBadge
+                        status={record.status}
+                      />
+                    </td>
+
+                    <td>
+                      {record.mileage ?? "—"}
+                    </td>
+
+                    <td>
+                      {formatDate(record.due_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </>
   );
 }

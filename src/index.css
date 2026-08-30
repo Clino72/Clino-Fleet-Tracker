@@ -853,3 +853,54 @@ td {
 .check-item input {
   accent-color: #2563eb;
 }
+
+.dashboard-secondary-stats {
+  margin-top: -6px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.dashboard-fleet-panel {
+  min-height: 300px;
+}
+
+.dashboard-status-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 0;
+  border-bottom: 1px solid #1b252f;
+}
+
+.dashboard-status-row:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-status-row div span,
+.dashboard-status-row div strong {
+  display: block;
+}
+
+.dashboard-status-row div span {
+  margin-top: 4px;
+  color: #718091;
+  font-size: 11px;
+}
+
+.dashboard-status-row > strong {
+  font-size: 20px;
+}
+
+.dashboard-maintenance-panel {
+  margin-top: 18px;
+}
