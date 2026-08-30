@@ -649,73 +649,433 @@ function LiveFleet() {
 
 function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
+  const [garageFilter, setGarageFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadVehicles() {
+    setLoading(true);
+    setError("");
+
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select("*");
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    const sorted = (data || []).sort((a, b) => {
+      const garageOrder = {
+        CLIO: 0,
+        MAPLECREST: 1,
+      };
+
+      const aGarage =
+        garageOrder[String(a.garage || "").toUpperCase()] ?? 999;
+
+      const bGarage =
+        garageOrder[String(b.garage || "").toUpperCase()] ?? 999;
+
+      if (aGarage !== bGarage) {
+        return aGarage - bGarage;
+      }
+
+      const aYear = Number(a.year) || 9999;
+      const bYear = Number(b.year) || 9999;
+
+      if (aYear !== bYear) {
+        return aYear - bYear;
+      }
+
+      return String(a.fleet_number).localeCompare(
+        String(b.fleet_number),
+        undefined,
+        { numeric: true }
+      );
+    });
+
+    setVehicles(sorted);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    supabase
-      .from("vehicles")
-      .select("*")
-      .order("fleet_number")
-      .then(({ data }) => setVehicles(data || []));
+    loadVehicles();
   }, []);
 
-  const filtered = vehicles.filter((bus) =>
-    [
-      bus.fleet_number,
-      bus.make,
-      bus.model,
-      bus.garage,
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
+  const filteredVehicles = vehicles.filter((bus) => {
+    const searchValue = search.toLowerCase();
+
+    const matchesSearch =
+      String(bus.fleet_number)
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(bus.make || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(bus.model || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(bus.engine || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(bus.garage || "")
+        .toLowerCase()
+        .includes(searchValue);
+
+    const matchesGarage =
+      garageFilter === "ALL" ||
+      String(bus.garage || "").toUpperCase() === garageFilter;
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      bus.status === statusFilter;
+
+    return (
+      matchesSearch &&
+      matchesGarage &&
+      matchesStatus
+    );
+  });
+
+  const garages = [
+    "ALL",
+    ...Array.from(
+      new Set(
+        vehicles
+          .map((bus) =>
+            String(bus.garage || "").toUpperCase()
+          )
+          .filter(Boolean)
+      )
+    ),
+  ];
+
+  const statuses = [
+    "ALL",
+    ...Array.from(
+      new Set(
+        vehicles
+          .map((bus) => bus.status)
+          .filter(Boolean)
+      )
+    ),
+  ];
 
   return (
-    <section className="panel">
-      <PanelTitle title="Vehicles">
+    <>
+      <div className="vehicle-toolbar">
         <input
           className="search"
-          placeholder="Search fleet..."
+          placeholder="Search fleet, make, model..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-      </PanelTitle>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Fleet #</th>
-              <th>Year</th>
-              <th>Make</th>
-              <th>Model</th>
-              <th>Engine</th>
-              <th>Mileage</th>
-              <th>Status</th>
-              <th>Garage</th>
-            </tr>
-          </thead>
+        <select
+          className="filter-select"
+          value={garageFilter}
+          onChange={(e) => setGarageFilter(e.target.value)}
+        >
+          {garages.map((garage) => (
+            <option key={garage} value={garage}>
+              {garage === "ALL"
+                ? "All Garages"
+                : garage}
+            </option>
+          ))}
+        </select>
 
-          <tbody>
-            {filtered.map((bus) => (
-              <tr key={bus.fleet_number}>
-                <td>{bus.fleet_number}</td>
-                <td>{bus.year ?? "—"}</td>
-                <td>{bus.make ?? "—"}</td>
-                <td>{bus.model ?? "—"}</td>
-                <td>{bus.engine ?? "—"}</td>
-                <td>{bus.mileage ?? "—"}</td>
-                <td>
-                  <StatusBadge status={bus.status} />
-                </td>
-                <td>{bus.garage ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <select
+          className="filter-select"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status === "ALL"
+                ? "All Statuses"
+                : status}
+            </option>
+          ))}
+        </select>
+
+        <button
+          className="secondary-button"
+          onClick={loadVehicles}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
-    </section>
+
+      <div className="fleet-meta">
+        <span>
+          {filteredVehicles.length} of{" "}
+          {vehicles.length} vehicles shown
+        </span>
+      </div>
+
+      {error && (
+        <div className="error fleet-error">
+          Unable to load vehicles: {error}
+        </div>
+      )}
+
+      <section className="panel">
+        <PanelTitle title="Vehicle Fleet" />
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fleet #</th>
+                <th>Year</th>
+                <th>Make</th>
+                <th>Model</th>
+                <th>Engine</th>
+                <th>Mileage</th>
+                <th>Status</th>
+                <th>Garage</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredVehicles.map((bus) => (
+                <tr
+                  key={bus.fleet_number}
+                  className="clickable"
+                  onClick={() => setSelected(bus)}
+                >
+                  <td>{bus.fleet_number}</td>
+                  <td>{bus.year ?? "—"}</td>
+                  <td>{bus.make ?? "—"}</td>
+                  <td>{bus.model ?? "—"}</td>
+                  <td>{bus.engine ?? "—"}</td>
+                  <td>{bus.mileage ?? "—"}</td>
+                  <td>
+                    <StatusBadge status={bus.status} />
+                  </td>
+                  <td>{bus.garage ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredVehicles.length === 0 && !loading && (
+          <Empty />
+        )}
+      </section>
+
+      {selected && (
+        <VehicleDetails
+          vehicle={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function VehicleDetails({ vehicle, onClose }) {
+  const [live, setLive] = useState(null);
+  const [loadingLive, setLoadingLive] = useState(true);
+
+  async function loadLive() {
+    setLoadingLive(true);
+
+    const { data } = await supabase
+      .from("fleet_live")
+      .select("*")
+      .eq("fleet_number", vehicle.fleet_number)
+      .maybeSingle();
+
+    setLive(data || null);
+    setLoadingLive(false);
+  }
+
+  useEffect(() => {
+    loadLive();
+
+    const interval = setInterval(
+      loadLive,
+      60 * 1000
+    );
+
+    return () => clearInterval(interval);
+  }, [vehicle.fleet_number]);
+
+  return (
+    <div className="vehicle-detail-overlay">
+      <div className="vehicle-detail">
+        <div className="vehicle-detail-header">
+          <div>
+            <div className="eyebrow">
+              VEHICLE DETAILS
+            </div>
+
+            <h2>Bus {vehicle.fleet_number}</h2>
+          </div>
+
+          <button
+            className="secondary-button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <h3>Vehicle Information</h3>
+
+          <div className="detail-grid">
+            <Detail
+              label="Fleet Number"
+              value={vehicle.fleet_number}
+            />
+
+            <Detail
+              label="Year"
+              value={vehicle.year ?? "—"}
+            />
+
+            <Detail
+              label="Make"
+              value={vehicle.make ?? "—"}
+            />
+
+            <Detail
+              label="Model"
+              value={vehicle.model ?? "—"}
+            />
+
+            <Detail
+              label="Engine"
+              value={vehicle.engine ?? "—"}
+            />
+
+            <Detail
+              label="Mileage"
+              value={vehicle.mileage ?? "—"}
+            />
+
+            <Detail
+              label="Garage"
+              value={vehicle.garage ?? "—"}
+            />
+
+            <Detail
+              label="Fleet Status"
+              value={vehicle.status}
+            />
+          </div>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <h3>Current Operation</h3>
+
+          {loadingLive ? (
+            <div className="empty">
+              Loading live information...
+            </div>
+          ) : live ? (
+            <div className="detail-grid">
+              <Detail
+                label="Live Status"
+                value={live.effective_status}
+              />
+
+              <Detail
+                label="Driver"
+                value={
+                  live.driver_name || "Unassigned"
+                }
+              />
+
+              <Detail
+                label="Route"
+                value={
+                  live.route_name || "No route"
+                }
+              />
+
+              <Detail
+                label="Speed"
+                value={`${Number(
+                  live.speed || 0
+                ).toFixed(0)} MPH`}
+              />
+
+              <Detail
+                label="RPM"
+                value={
+                  live.rpm != null
+                    ? Number(live.rpm).toFixed(0)
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Heading"
+                value={
+                  live.heading != null
+                    ? `${Number(
+                        live.heading
+                      ).toFixed(0)}°`
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Coolant"
+                value={
+                  live.coolant_temp != null
+                    ? `${live.coolant_temp}°F`
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Oil"
+                value={
+                  live.oil_temp != null
+                    ? `${live.oil_temp}°F`
+                    : "—"
+                }
+              />
+
+              <Detail
+                label="Last Ping"
+                value={formatDate(live.last_ping)}
+              />
+
+              <Detail
+                label="Server"
+                value={live.server_id || "—"}
+              />
+            </div>
+          ) : (
+            <div className="empty">
+              No live telemetry available.
+            </div>
+          )}
+        </div>
+
+        <div className="vehicle-detail-section">
+          <h3>Notes</h3>
+
+          <div className="notes-box">
+            {vehicle.notes || "No notes recorded."}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
