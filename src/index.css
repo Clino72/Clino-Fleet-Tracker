@@ -364,15 +364,13 @@ td {
   display: grid;
   place-items: center;
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       #0d151d 25%,
       #101a23 25%,
       #101a23 50%,
       #0d151d 50%,
       #0d151d 75%,
-      #101a23 75%
-    );
+      #101a23 75%);
   background-size: 28px 28px;
   color: #718091;
 }
@@ -926,7 +924,7 @@ td {
   font-size: 11px;
 }
 
-.dashboard-status-row > strong {
+.dashboard-status-row>strong {
   font-size: 20px;
 }
 
@@ -989,4 +987,94 @@ td {
 .leaflet-container {
   background: #0c1218;
   font-family: inherit;
+}
+
+.route-point-marker-wrapper {
+  background: transparent;
+  border: none;
+}
+
+.route-point-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: white;
+  border: 2px solid white;
+  box-sizing: border-box;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+}
+
+.route-point-marker:active {
+  cursor: grabbing;
+}
+
+.route-point-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid white;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.assignment-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assignment-form-actions .secondary-button,
+.assignment-form-actions .primary-button {
+  height: 38px !important;
+  min-height: 38px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+.assignment-form-actions .secondary-button {
+  width: auto !important;
+  flex: 0 0 auto;
+}
+
+.assignment-form-actions .primary-button {
+  flex: 1 1 auto;
+  width: auto !important;
+}
+
+.route-preview-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+
+  margin-top: 0 !important;
+  padding: 10px 14px !important;
+
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.route-point-dot.selected {
+  background: #ffffff;
+  color: #2563eb;
+  border-color: #2563eb;
 }

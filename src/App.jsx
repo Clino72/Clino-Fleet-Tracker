@@ -163,9 +163,8 @@ function Sidebar({ page, setPage }) {
         {pages.map((item) => (
           <button
             key={item}
-            className={`nav-button ${
-              page === item ? "active" : ""
-            }`}
+            className={`nav-button ${page === item ? "active" : ""
+              }`}
             onClick={() => setPage(item)}
           >
             {item}
@@ -521,57 +520,57 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
   const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
 
   function robloxToMap(x, z) {
-  const imageX =
-    (ROBLOX_HALF_SIZE - x) * PIXELS_PER_STUD;
+    const imageX =
+      (ROBLOX_HALF_SIZE - x) * PIXELS_PER_STUD;
 
-  const imageY =
-    (ROBLOX_HALF_SIZE + z) * PIXELS_PER_STUD;
+    const imageY =
+      (ROBLOX_HALF_SIZE + z) * PIXELS_PER_STUD;
 
-  return [
-    imageY,
-    imageX,
-  ];
-}
-
-  useEffect(() => {
-  if (!mapRef.current || mapInstanceRef.current) {
-    return;
+    return [
+      imageY,
+      imageX,
+    ];
   }
 
-  const map = L.map(mapRef.current, {
-    crs: L.CRS.Simple,
-    minZoom: -1,
-    maxZoom: 4,
-    zoomControl: true,
-    attributionControl: false,
-    maxBoundsViscosity: 1.0,
-  });
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) {
+      return;
+    }
 
-  const bounds = [
-    [0, 0],
-    [IMAGE_SIZE, IMAGE_SIZE],
-  ];
+    const map = L.map(mapRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: -1,
+      maxZoom: 4,
+      zoomControl: true,
+      attributionControl: false,
+      maxBoundsViscosity: 1.0,
+    });
 
-  L.imageOverlay(
-    "/map.png",
-    bounds
-  ).addTo(map);
+    const bounds = [
+      [0, 0],
+      [IMAGE_SIZE, IMAGE_SIZE],
+    ];
 
-  // Start with the entire map visible.
-  map.fitBounds(bounds, {
-    padding: [0, 0],
-  });
+    L.imageOverlay(
+      "/map.png",
+      bounds
+    ).addTo(map);
 
-  // Prevent dragging the map completely away from view.
-  map.setMaxBounds(bounds);
+    // Start with the entire map visible.
+    map.fitBounds(bounds, {
+      padding: [0, 0],
+    });
 
-  mapInstanceRef.current = map;
+    // Prevent dragging the map completely away from view.
+    map.setMaxBounds(bounds);
 
-  return () => {
-    map.remove();
-    mapInstanceRef.current = null;
-  };
-}, []);
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -662,7 +661,7 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
         element.classList.toggle(
           "selected",
           fleetNumber ===
-            String(selectedFleetNumber)
+          String(selectedFleetNumber)
         );
       }
     });
@@ -718,37 +717,37 @@ function LiveFleet() {
     }
 
     const sortedFleet = (data || []).sort((a, b) => {
-    const garageOrder = {
-      CLIO: 0,
-      MAPLECREST: 1,
-    };
+      const garageOrder = {
+        CLIO: 0,
+        MAPLECREST: 1,
+      };
 
-    const aGarage =
-      garageOrder[String(a.garage || "").toUpperCase()] ?? 999;
+      const aGarage =
+        garageOrder[String(a.garage || "").toUpperCase()] ?? 999;
 
-    const bGarage =
-      garageOrder[String(b.garage || "").toUpperCase()] ?? 999;
+      const bGarage =
+        garageOrder[String(b.garage || "").toUpperCase()] ?? 999;
 
-    // Garage first
-    if (aGarage !== bGarage) {
-      return aGarage - bGarage;
-    }
+      // Garage first
+      if (aGarage !== bGarage) {
+        return aGarage - bGarage;
+      }
 
-    // Oldest buses first
-    const aYear = Number(a.year) || 9999;
-    const bYear = Number(b.year) || 9999;
+      // Oldest buses first
+      const aYear = Number(a.year) || 9999;
+      const bYear = Number(b.year) || 9999;
 
-    if (aYear !== bYear) {
-      return aYear - bYear;
-    }
+      if (aYear !== bYear) {
+        return aYear - bYear;
+      }
 
-    // Same year: lowest fleet number first
-    return String(a.fleet_number).localeCompare(
-      String(b.fleet_number),
-      undefined,
-      { numeric: true }
-    );
-  });
+      // Same year: lowest fleet number first
+      return String(a.fleet_number).localeCompare(
+        String(b.fleet_number),
+        undefined,
+        { numeric: true }
+      );
+    });
 
     setFleet(sortedFleet);
     setLastRefresh(new Date());
@@ -757,30 +756,30 @@ function LiveFleet() {
   }
 
   useEffect(() => {
-  loadFleet();
+    loadFleet();
 
-  const interval = setInterval(loadFleet, 15 * 1000);
+    const interval = setInterval(loadFleet, 15 * 1000);
 
-  return () => clearInterval(interval);
-}, []);
+    return () => clearInterval(interval);
+  }, []);
 
-useEffect(() => {
-  if (!selected) {
-    return;
-  }
+  useEffect(() => {
+    if (!selected) {
+      return;
+    }
 
-  const updatedBus = fleet.find(
-    (bus) =>
-      String(bus.fleet_number) ===
-      String(selected.fleet_number)
-  );
+    const updatedBus = fleet.find(
+      (bus) =>
+        String(bus.fleet_number) ===
+        String(selected.fleet_number)
+    );
 
-  if (updatedBus) {
-    setSelected(updatedBus);
-  } else {
-    setSelected(null);
-  }
-}, [fleet]);
+    if (updatedBus) {
+      setSelected(updatedBus);
+    } else {
+      setSelected(null);
+    }
+  }, [fleet]);
 
   const filteredFleet = fleet.filter((bus) => {
     const searchValue = search.toLowerCase();
@@ -932,22 +931,22 @@ useEffect(() => {
 
       <div className="fleet-layout">
         <section className="panel fleet-map">
-  <FleetMap
-    fleet={fleet}
-    selectedFleetNumber={
-      selected?.fleet_number
-    }
-    onSelect={(fleetNumber) => {
-      const bus = fleet.find(
-        (item) =>
-          String(item.fleet_number) ===
-          String(fleetNumber)
-      );
+          <FleetMap
+            fleet={fleet}
+            selectedFleetNumber={
+              selected?.fleet_number
+            }
+            onSelect={(fleetNumber) => {
+              const bus = fleet.find(
+                (item) =>
+                  String(item.fleet_number) ===
+                  String(fleetNumber)
+              );
 
-      setSelected(bus || null);
-    }}
-  />
-</section>
+              setSelected(bus || null);
+            }}
+          />
+        </section>
 
         <section className="panel fleet-list">
           <PanelTitle title="Fleet" />
@@ -1065,10 +1064,10 @@ useEffect(() => {
                   value={
                     selected.x != null
                       ? `${Number(selected.x).toFixed(1)}, ${Number(
-                          selected.y
-                        ).toFixed(1)}, ${Number(
-                          selected.z
-                        ).toFixed(1)}`
+                        selected.y
+                      ).toFixed(1)}, ${Number(
+                        selected.z
+                      ).toFixed(1)}`
                       : "—"
                   }
                 />
@@ -1312,21 +1311,21 @@ function Vehicles() {
 
 function VehicleDetails({ vehicle, onClose, onSaved }) {
   const [live, setLive] = useState(null);
-const [loadingLive, setLoadingLive] = useState(true);
+  const [loadingLive, setLoadingLive] = useState(true);
 
-const [editing, setEditing] = useState(false);
-const [saving, setSaving] = useState(false);
-const [error, setError] = useState("");
-const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-const [year, setYear] = useState(vehicle.year ?? "");
-const [make, setMake] = useState(vehicle.make ?? "");
-const [model, setModel] = useState(vehicle.model ?? "");
-const [engine, setEngine] = useState(vehicle.engine ?? "");
-const [mileage, setMileage] = useState(vehicle.mileage ?? 0);
-const [status, setStatus] = useState(vehicle.status ?? "AVAILABLE");
-const [garage, setGarage] = useState(vehicle.garage ?? "");
-const [notes, setNotes] = useState(vehicle.notes ?? "");
+  const [year, setYear] = useState(vehicle.year ?? "");
+  const [make, setMake] = useState(vehicle.make ?? "");
+  const [model, setModel] = useState(vehicle.model ?? "");
+  const [engine, setEngine] = useState(vehicle.engine ?? "");
+  const [mileage, setMileage] = useState(vehicle.mileage ?? 0);
+  const [status, setStatus] = useState(vehicle.status ?? "AVAILABLE");
+  const [garage, setGarage] = useState(vehicle.garage ?? "");
+  const [notes, setNotes] = useState(vehicle.notes ?? "");
 
   async function loadLive() {
     setLoadingLive(true);
@@ -1342,8 +1341,8 @@ const [notes, setNotes] = useState(vehicle.notes ?? "");
   }
 
   useEffect(() => {
-  loadLive();
-}, [vehicle.fleet_number]);
+    loadLive();
+  }, [vehicle.fleet_number]);
 
   async function saveVehicle(event) {
     event.preventDefault();
@@ -1383,7 +1382,7 @@ const [notes, setNotes] = useState(vehicle.notes ?? "");
   return (
     <div className="vehicle-detail-overlay">
       <div className="vehicle-detail">
-         <div className="vehicle-detail-header">
+        <div className="vehicle-detail-header">
           <div>
             <div className="eyebrow">
               VEHICLE DETAILS
@@ -1428,175 +1427,175 @@ const [notes, setNotes] = useState(vehicle.notes ?? "");
         )}
 
         <div className="vehicle-detail-section">
-  <h3>Vehicle Information</h3>
+          <h3>Vehicle Information</h3>
 
-  {editing ? (
-    <form
-      className="assignment-form"
-      onSubmit={saveVehicle}
-    >
-      <label>
-        Fleet Number
-        <input
-          className="filter-select full-width"
-          value={vehicle.fleet_number}
-          disabled
-        />
-      </label>
+          {editing ? (
+            <form
+              className="assignment-form"
+              onSubmit={saveVehicle}
+            >
+              <label>
+                Fleet Number
+                <input
+                  className="filter-select full-width"
+                  value={vehicle.fleet_number}
+                  disabled
+                />
+              </label>
 
-      <label>
-        Year
-        <input
-          className="filter-select full-width"
-          type="number"
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-        />
-      </label>
+              <label>
+                Year
+                <input
+                  className="filter-select full-width"
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                />
+              </label>
 
-      <label>
-        Make
-        <input
-          className="filter-select full-width"
-          value={make}
-          onChange={(e) => setMake(e.target.value)}
-        />
-      </label>
+              <label>
+                Make
+                <input
+                  className="filter-select full-width"
+                  value={make}
+                  onChange={(e) => setMake(e.target.value)}
+                />
+              </label>
 
-      <label>
-        Model
-        <input
-          className="filter-select full-width"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-        />
-      </label>
+              <label>
+                Model
+                <input
+                  className="filter-select full-width"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                />
+              </label>
 
-      <label>
-        Engine
-        <input
-          className="filter-select full-width"
-          value={engine}
-          onChange={(e) => setEngine(e.target.value)}
-        />
-      </label>
+              <label>
+                Engine
+                <input
+                  className="filter-select full-width"
+                  value={engine}
+                  onChange={(e) => setEngine(e.target.value)}
+                />
+              </label>
 
-      <label>
-        Mileage
-        <input
-          className="filter-select full-width"
-          type="number"
-          min="0"
-          step="1"
-          value={mileage}
-          onChange={(e) => setMileage(e.target.value)}
-        />
-      </label>
+              <label>
+                Mileage
+                <input
+                  className="filter-select full-width"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={mileage}
+                  onChange={(e) => setMileage(e.target.value)}
+                />
+              </label>
 
-      <label>
-        Status
-        <select
-          className="filter-select full-width"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="AVAILABLE">
-            AVAILABLE
-          </option>
+              <label>
+                Status
+                <select
+                  className="filter-select full-width"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="AVAILABLE">
+                    AVAILABLE
+                  </option>
 
-          <option value="ASSIGNED">
-            ASSIGNED
-          </option>
+                  <option value="ASSIGNED">
+                    ASSIGNED
+                  </option>
 
-          <option value="MAINTENANCE">
-            MAINTENANCE
-          </option>
-        </select>
-      </label>
+                  <option value="MAINTENANCE">
+                    MAINTENANCE
+                  </option>
+                </select>
+              </label>
 
-      <label>
-        Garage
-        <input
-          className="filter-select full-width"
-          value={garage}
-          onChange={(e) => setGarage(e.target.value)}
-        />
-      </label>
+              <label>
+                Garage
+                <input
+                  className="filter-select full-width"
+                  value={garage}
+                  onChange={(e) => setGarage(e.target.value)}
+                />
+              </label>
 
-      <div className="vehicle-edit-actions">
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => {
-            setYear(vehicle.year ?? "");
-            setMake(vehicle.make ?? "");
-            setModel(vehicle.model ?? "");
-            setEngine(vehicle.engine ?? "");
-            setMileage(vehicle.mileage ?? 0);
-            setStatus(vehicle.status ?? "AVAILABLE");
-            setGarage(vehicle.garage ?? "");
-            setNotes(vehicle.notes ?? "");
-            setError("");
-            setMessage("");
-            setEditing(false);
-          }}
-        >
-          Cancel
-        </button>
+              <div className="vehicle-edit-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    setYear(vehicle.year ?? "");
+                    setMake(vehicle.make ?? "");
+                    setModel(vehicle.model ?? "");
+                    setEngine(vehicle.engine ?? "");
+                    setMileage(vehicle.mileage ?? 0);
+                    setStatus(vehicle.status ?? "AVAILABLE");
+                    setGarage(vehicle.garage ?? "");
+                    setNotes(vehicle.notes ?? "");
+                    setError("");
+                    setMessage("");
+                    setEditing(false);
+                  }}
+                >
+                  Cancel
+                </button>
 
-        <button
-          type="submit"
-          className="primary-button"
-          disabled={saving}
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
-    </form>
-  ) : (
-    <div className="detail-grid">
-      <Detail
-        label="Fleet Number"
-        value={vehicle.fleet_number}
-      />
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="detail-grid">
+              <Detail
+                label="Fleet Number"
+                value={vehicle.fleet_number}
+              />
 
-      <Detail
-        label="Year"
-        value={vehicle.year ?? "—"}
-      />
+              <Detail
+                label="Year"
+                value={vehicle.year ?? "—"}
+              />
 
-      <Detail
-        label="Make"
-        value={vehicle.make ?? "—"}
-      />
+              <Detail
+                label="Make"
+                value={vehicle.make ?? "—"}
+              />
 
-      <Detail
-        label="Model"
-        value={vehicle.model ?? "—"}
-      />
+              <Detail
+                label="Model"
+                value={vehicle.model ?? "—"}
+              />
 
-      <Detail
-        label="Engine"
-        value={vehicle.engine ?? "—"}
-      />
+              <Detail
+                label="Engine"
+                value={vehicle.engine ?? "—"}
+              />
 
-      <Detail
-        label="Mileage"
-        value={vehicle.mileage ?? "—"}
-      />
+              <Detail
+                label="Mileage"
+                value={vehicle.mileage ?? "—"}
+              />
 
-      <Detail
-        label="Garage"
-        value={vehicle.garage ?? "—"}
-      />
+              <Detail
+                label="Garage"
+                value={vehicle.garage ?? "—"}
+              />
 
-      <Detail
-        label="Fleet Status"
-        value={vehicle.status ?? "—"}
-      />
-    </div>
-  )}
-</div>
+              <Detail
+                label="Fleet Status"
+                value={vehicle.status ?? "—"}
+              />
+            </div>
+          )}
+        </div>
 
         <div className="vehicle-detail-section">
           <h3>Current Operation</h3>
@@ -1647,8 +1646,8 @@ const [notes, setNotes] = useState(vehicle.notes ?? "");
                 value={
                   live.heading != null
                     ? `${Number(
-                        live.heading
-                      ).toFixed(0)}°`
+                      live.heading
+                    ).toFixed(0)}°`
                     : "—"
                 }
               />
@@ -1709,12 +1708,12 @@ function Drivers() {
   const [selected, setSelected] = useState(null);
 
   async function loadDrivers() {
-  setLoading(true);
-  setError("");
+    setLoading(true);
+    setError("");
 
-  const { data, error } = await supabase
-    .from("drivers")
-    .select(`
+    const { data, error } = await supabase
+      .from("drivers")
+      .select(`
       *,
       vehicles:current_vehicle_id (
         fleet_number
@@ -1723,29 +1722,29 @@ function Drivers() {
         name
       )
     `)
-    .order("name");
+      .order("name");
 
-  if (error) {
-    setError(error.message);
-    setDrivers([]);
+    if (error) {
+      setError(error.message);
+      setDrivers([]);
+      setLoading(false);
+      return;
+    }
+
+    setDrivers(data || []);
     setLoading(false);
-    return;
   }
 
-  setDrivers(data || []);
-  setLoading(false);
-}
-
   useEffect(() => {
-  loadDrivers();
+    loadDrivers();
 
-  const interval = setInterval(
-    loadDrivers,
-    15 * 1000
-  );
+    const interval = setInterval(
+      loadDrivers,
+      15 * 1000
+    );
 
-  return () => clearInterval(interval);
-}, []);
+    return () => clearInterval(interval);
+  }, []);
 
   const filteredDrivers = drivers.filter((driver) => {
     const searchValue = search.toLowerCase();
@@ -1768,11 +1767,11 @@ function Drivers() {
   });
 
   const statuses = [
-  "ALL",
-  "ACTIVE",
-  "ONLINE",
-  "OFFLINE",
-];
+    "ALL",
+    "ACTIVE",
+    "ONLINE",
+    "OFFLINE",
+  ];
 
   return (
     <>
@@ -1824,49 +1823,49 @@ function Drivers() {
         <div className="table-wrap">
           <table>
             <thead>
-  <tr>
-    <th>Name</th>
-    <th>Status</th>
-    <th>Current Vehicle</th>
-    <th>Current Route</th>
-    <th>Employee #</th>
-    <th>Roblox User ID</th>
-  </tr>
-</thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Current Vehicle</th>
+                <th>Current Route</th>
+                <th>Employee #</th>
+                <th>Roblox User ID</th>
+              </tr>
+            </thead>
 
             <tbody>
-  {filteredDrivers.map((driver) => (
-    <tr
-      key={driver.id}
-      className="clickable"
-      onClick={() => setSelected(driver)}
-    >
-      <td>{driver.name}</td>
+              {filteredDrivers.map((driver) => (
+                <tr
+                  key={driver.id}
+                  className="clickable"
+                  onClick={() => setSelected(driver)}
+                >
+                  <td>{driver.name}</td>
 
-      <td>
-        <StatusBadge status={driver.status} />
-      </td>
+                  <td>
+                    <StatusBadge status={driver.status} />
+                  </td>
 
-      <td>
-        {driver.vehicles?.fleet_number
-          ? `Bus ${driver.vehicles.fleet_number}`
-          : "—"}
-      </td>
+                  <td>
+                    {driver.vehicles?.fleet_number
+                      ? `Bus ${driver.vehicles.fleet_number}`
+                      : "—"}
+                  </td>
 
-      <td>
-        {driver.routes?.name || "—"}
-      </td>
+                  <td>
+                    {driver.routes?.name || "—"}
+                  </td>
 
-      <td>
-        {driver.employee_number ?? "—"}
-      </td>
+                  <td>
+                    {driver.employee_number ?? "—"}
+                  </td>
 
-      <td>
-        {driver.roblox_user_id ?? "—"}
-      </td>
-    </tr>
-  ))}
-</tbody>
+                  <td>
+                    {driver.roblox_user_id ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
 
@@ -1969,50 +1968,50 @@ function DriverDetails({ driver, onClose }) {
             </div>
           ) : currentBus ? (
             <div className="detail-grid">
-  <Detail
-    label="Vehicle"
-    value={`Bus ${currentBus.fleet_number}`}
-  />
+              <Detail
+                label="Vehicle"
+                value={`Bus ${currentBus.fleet_number}`}
+              />
 
-  <Detail
-    label="Route"
-    value={
-      currentBus.route_name || "No route"
-    }
-  />
+              <Detail
+                label="Route"
+                value={
+                  currentBus.route_name || "No route"
+                }
+              />
 
-  <Detail
-    label="Status"
-    value={currentBus.effective_status}
-  />
+              <Detail
+                label="Status"
+                value={currentBus.effective_status}
+              />
 
-  <Detail
-    label="Speed"
-    value={`${Number(
-      currentBus.speed || 0
-    ).toFixed(0)} MPH`}
-  />
+              <Detail
+                label="Speed"
+                value={`${Number(
+                  currentBus.speed || 0
+                ).toFixed(0)} MPH`}
+              />
 
-  <Detail
-    label="Server"
-    value={currentBus.server_id || "—"}
-  />
+              <Detail
+                label="Server"
+                value={currentBus.server_id || "—"}
+              />
 
-  <Detail
-    label="Last Ping"
-    value={formatDate(
-      currentBus.last_ping
-    )}
-  />
-</div>
+              <Detail
+                label="Last Ping"
+                value={formatDate(
+                  currentBus.last_ping
+                )}
+              />
+            </div>
           ) : (
             <div className="empty">
-  {driver.status === "ONLINE"
-    ? "This driver is currently online but is not operating a bus."
-    : driver.status === "OFFLINE"
-      ? "This driver is currently offline."
-      : "This driver is not currently operating a tracked bus."}
-</div>
+              {driver.status === "ONLINE"
+                ? "This driver is currently online but is not operating a bus."
+                : driver.status === "OFFLINE"
+                  ? "This driver is currently offline."
+                  : "This driver is not currently operating a tracked bus."}
+            </div>
           )}
         </div>
       </div>
@@ -2121,7 +2120,7 @@ function Assignments() {
     if (vehicleError || !vehicle) {
       setError(
         vehicleError?.message ||
-          "Unable to find selected vehicle."
+        "Unable to find selected vehicle."
       );
       setSaving(false);
       return;
@@ -2486,30 +2485,1179 @@ function Assignments() {
   );
 }
 
-function Routes() {
-  const [routes, setRoutes] = useState([]);
+function RoutePointEditor({ route, onClose, onSaved }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+  const lineRef = useRef(null);
+
+  const IMAGE_SIZE = 1055;
+  const ROBLOX_HALF_SIZE = 3072;
+  const ROBLOX_SIZE = 6144;
+  const PIXELS_PER_STUD =
+    IMAGE_SIZE / ROBLOX_SIZE;
+
+  const [points, setPoints] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  function mapToRoblox(lat, lng) {
+    const x =
+      ROBLOX_HALF_SIZE -
+      lng / PIXELS_PER_STUD;
+
+    const z =
+      lat / PIXELS_PER_STUD -
+      ROBLOX_HALF_SIZE;
+
+    return {
+      x,
+      y: 0,
+      z,
+    };
+  }
+
+  function robloxToMap(x, z) {
+    const imageX =
+      (ROBLOX_HALF_SIZE - x) *
+      PIXELS_PER_STUD;
+
+    const imageY =
+      (ROBLOX_HALF_SIZE + z) *
+      PIXELS_PER_STUD;
+
+    return [imageY, imageX];
+  }
+
+  async function loadPoints() {
+    setLoading(true);
+    setError("");
+
+    const { data, error } = await supabase
+      .from("route_points")
+      .select("*")
+      .eq("route_id", route.id)
+      .order("sequence");
+
+    if (error) {
+      setError(error.message);
+      setPoints([]);
+      setLoading(false);
+      return;
+    }
+
+    setPoints(data || []);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    supabase
-      .from("routes")
-      .select("*")
-      .order("name")
-      .then(({ data }) => setRoutes(data || []));
+    loadPoints();
+  }, [route.id]);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) {
+      return;
+    }
+
+    const map = L.map(mapRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: -1,
+      maxZoom: 4,
+      zoomControl: true,
+      attributionControl: false,
+      maxBoundsViscosity: 1.0,
+    });
+
+    const bounds = [
+      [0, 0],
+      [IMAGE_SIZE, IMAGE_SIZE],
+    ];
+
+    L.imageOverlay(
+      "/map.png",
+      bounds
+    ).addTo(map);
+
+    map.fitBounds(bounds);
+    map.setMaxBounds(bounds);
+
+    map.on("click", (event) => {
+      const { x, y, z } = mapToRoblox(
+        event.latlng.lat,
+        event.latlng.lng
+      );
+
+      setPoints((current) => [
+        ...current,
+        {
+          local: true,
+          sequence: current.length + 1,
+          x,
+          y,
+          z,
+        },
+      ]);
+    });
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      markersRef.current = [];
+      lineRef.current = null;
+    };
   }, []);
 
-  return (
-    <section className="panel">
-      <PanelTitle title="Routes" />
+  useEffect(() => {
+    const map = mapInstanceRef.current;
 
-      <SimpleTable
-        columns={["Name", "Description", "Status"]}
-        rows={routes.map((route) => [
-          route.name,
-          route.description ?? "—",
-          route.status,
-        ])}
-      />
-    </section>
+    if (!map) {
+      return;
+    }
+
+    markersRef.current.forEach((marker) => {
+      marker.remove();
+    });
+
+    markersRef.current = [];
+
+    if (lineRef.current) {
+      lineRef.current.remove();
+      lineRef.current = null;
+    }
+
+    const latLngs = [];
+
+    points.forEach((point, index) => {
+      const position = robloxToMap(
+        Number(point.x),
+        Number(point.z)
+      );
+
+      latLngs.push(position);
+
+      const marker = L.marker(position, {
+        draggable: true,
+
+        icon: L.divIcon({
+          className:
+            "route-point-marker-wrapper",
+
+          html: `
+            <div class="route-point-dot">
+              ${index + 1}
+            </div>
+          `,
+
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        }),
+      }).addTo(map);
+
+      marker.on("dragstart", () => {
+        map.dragging.disable();
+      });
+
+      marker.on("drag", () => {
+        const newPosition =
+          marker.getLatLng();
+
+        const updatedLatLngs = [
+          ...latLngs,
+        ];
+
+        updatedLatLngs[index] = [
+          newPosition.lat,
+          newPosition.lng,
+        ];
+
+        if (lineRef.current) {
+          lineRef.current.setLatLngs(
+            updatedLatLngs
+          );
+        }
+      });
+
+      marker.on("dragend", () => {
+        map.dragging.enable();
+
+        const newPosition =
+          marker.getLatLng();
+
+        const { x, y, z } =
+          mapToRoblox(
+            newPosition.lat,
+            newPosition.lng
+          );
+
+        setPoints((current) =>
+          current.map(
+            (currentPoint, pointIndex) => {
+              if (
+                pointIndex !== index
+              ) {
+                return currentPoint;
+              }
+
+              return {
+                ...currentPoint,
+                x,
+                y,
+                z,
+              };
+            }
+          )
+        );
+      });
+
+      marker.on(
+        "contextmenu",
+        (event) => {
+          L.DomEvent.stopPropagation(
+            event
+          );
+
+          L.DomEvent.preventDefault(
+            event
+          );
+
+          setPoints((current) =>
+            current
+              .filter(
+                (_, pointIndex) =>
+                  pointIndex !== index
+              )
+              .map(
+                (
+                  currentPoint,
+                  pointIndex
+                ) => ({
+                  ...currentPoint,
+                  sequence:
+                    pointIndex + 1,
+                })
+              )
+          );
+        }
+      );
+
+      markersRef.current.push(marker);
+    });
+
+    if (latLngs.length > 1) {
+      lineRef.current =
+        L.polyline(
+          latLngs,
+          {
+            weight: 4,
+          }
+        ).addTo(map);
+    }
+  }, [points]);
+
+  async function savePoints() {
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    const { error: deleteError } =
+      await supabase
+        .from("route_points")
+        .delete()
+        .eq("route_id", route.id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (points.length > 0) {
+      const rows = points.map(
+        (point, index) => ({
+          route_id: route.id,
+          sequence: index + 1,
+          x: Number(point.x),
+          y: Number(point.y),
+          z: Number(point.z),
+          speed_limit:
+            point.speed_limit ?? null,
+        })
+      );
+
+      const {
+        error: insertError,
+      } = await supabase
+        .from("route_points")
+        .insert(rows);
+
+      if (insertError) {
+        setError(insertError.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    await loadPoints();
+
+    if (onSaved) {
+      await onSaved();
+    }
+
+    setMessage(
+      `${points.length} route point${points.length === 1
+        ? ""
+        : "s"
+      } saved.`
+    );
+
+    setSaving(false);
+  }
+
+  function undoPoint() {
+    setPoints((current) =>
+      current
+        .slice(0, -1)
+        .map((point, index) => ({
+          ...point,
+          sequence: index + 1,
+        }))
+    );
+  }
+
+  function clearPoints() {
+    setPoints([]);
+    setError("");
+    setMessage("");
+  }
+
+  return (
+    <div className="vehicle-detail-overlay">
+      <div
+        className="vehicle-detail"
+        style={{
+          maxWidth: "1200px",
+          width: "95vw",
+        }}
+      >
+        <div className="vehicle-detail-header">
+          <div>
+            <div className="eyebrow">
+              ROUTE EDITOR
+            </div>
+
+            <h2>{route.name}</h2>
+          </div>
+
+          <div className="vehicle-detail-header-actions">
+            <button
+              className="secondary-button"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error fleet-error">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="success-message">
+            {message}
+          </div>
+        )}
+
+        <div className="vehicle-detail-section">
+          <h3>Route Path</h3>
+
+          <div
+            ref={mapRef}
+            className="fleet-leaflet-map"
+            style={{
+              height: "600px",
+              width: "100%",
+            }}
+          />
+        </div>
+
+        <div className="vehicle-detail-section">
+          <div className="assignment-form-actions">
+            <span>
+              {loading
+                ? "Loading..."
+                : `${points.length} points`}
+            </span>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={undoPoint}
+              disabled={
+                points.length === 0
+              }
+            >
+              Undo
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={clearPoints}
+              disabled={
+                points.length === 0
+              }
+            >
+              Clear
+            </button>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={savePoints}
+              disabled={
+                saving || loading
+              }
+            >
+              {saving
+                ? "Saving..."
+                : "Save Route"}
+            </button>
+          </div>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <div className="empty">
+            Click the map to add a point.
+            Drag a point to move it.
+            Right-click a point to delete it.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoutePreview({ route, onClose }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const lineRef = useRef(null);
+  const markersRef = useRef([]);
+
+  const IMAGE_SIZE = 1055;
+  const ROBLOX_HALF_SIZE = 3072;
+  const ROBLOX_SIZE = 6144;
+  const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
+
+  const [points, setPoints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  function robloxToMap(x, z) {
+    const imageX =
+      (ROBLOX_HALF_SIZE - x) *
+      PIXELS_PER_STUD;
+
+    const imageY =
+      (ROBLOX_HALF_SIZE + z) *
+      PIXELS_PER_STUD;
+
+    return [imageY, imageX];
+  }
+
+  async function loadPoints() {
+    setLoading(true);
+    setError("");
+
+    const { data, error } = await supabase
+      .from("route_points")
+      .select("*")
+      .eq("route_id", route.id)
+      .order("sequence");
+
+    if (error) {
+      setError(error.message);
+      setPoints([]);
+      setLoading(false);
+      return;
+    }
+
+    setPoints(data || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadPoints();
+  }, [route.id]);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) {
+      return;
+    }
+
+    const map = L.map(mapRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: -1,
+      maxZoom: 4,
+      zoomControl: true,
+      attributionControl: false,
+      maxBoundsViscosity: 1.0,
+    });
+
+    const bounds = [
+      [0, 0],
+      [IMAGE_SIZE, IMAGE_SIZE],
+    ];
+
+    L.imageOverlay(
+      "/map.png",
+      bounds
+    ).addTo(map);
+
+    map.fitBounds(bounds);
+    map.setMaxBounds(bounds);
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      lineRef.current = null;
+      markersRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    markersRef.current.forEach((marker) => {
+      marker.remove();
+    });
+
+    markersRef.current = [];
+
+    if (lineRef.current) {
+      lineRef.current.remove();
+      lineRef.current = null;
+    }
+
+    if (points.length === 0) {
+      return;
+    }
+
+    const latLngs = points.map((point) =>
+      robloxToMap(
+        Number(point.x),
+        Number(point.z)
+      )
+    );
+
+    points.forEach((point, index) => {
+      const marker = L.marker(
+        latLngs[index],
+        {
+          icon: L.divIcon({
+            className: "route-point-marker-wrapper",
+            html: `<div class="route-point-dot">${index + 1}</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+        }
+      ).addTo(map);
+
+      markersRef.current.push(marker);
+    });
+
+    if (latLngs.length > 1) {
+      lineRef.current = L.polyline(
+        latLngs,
+        {
+          weight: 5,
+          color: route.color || "#3b82f6",
+        }
+      ).addTo(map);
+    }
+  }, [points, route.color]);
+
+  return (
+    <div className="vehicle-detail-overlay">
+      <div
+        className="vehicle-detail"
+        style={{
+          maxWidth: "1200px",
+          width: "95vw",
+        }}
+      >
+        <div className="vehicle-detail-header">
+          <div>
+            <div className="eyebrow">
+              ROUTE PREVIEW
+            </div>
+
+            <h2>{route.name}</h2>
+          </div>
+
+          <div className="vehicle-detail-header-actions">
+            <button
+              className="secondary-button"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error fleet-error">
+            {error}
+          </div>
+        )}
+
+        <div className="vehicle-detail-section">
+          <h3>Route Path</h3>
+
+          <div
+            ref={mapRef}
+            className="fleet-leaflet-map"
+            style={{
+              height: "600px",
+              width: "100%",
+            }}
+          />
+        </div>
+
+        <div className="vehicle-detail-section">
+          <div className="detail-grid">
+            <Detail
+              label="Route"
+              value={route.name}
+            />
+
+            <Detail
+              label="Points"
+              value={
+                loading
+                  ? "Loading..."
+                  : points.length
+              }
+            />
+
+            <Detail
+              label="Status"
+              value={route.status}
+            />
+
+            <Detail
+              label="Description"
+              value={
+                route.description || "—"
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Routes() {
+  const [routes, setRoutes] = useState([]);
+  const [routePointCounts, setRoutePointCounts] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [previewRoute, setPreviewRoute] = useState(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [color, setColor] = useState("#3b82f6");
+  const [editingDetails, setEditingDetails] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function loadRoutes() {
+    setLoading(true);
+    setError("");
+
+    const { data: routeData, error: routeError } =
+      await supabase
+        .from("routes")
+        .select("*")
+        .order("name");
+
+    if (routeError) {
+      setError(routeError.message);
+      setRoutes([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: pointData, error: pointError } =
+      await supabase
+        .from("route_points")
+        .select("route_id");
+
+    if (pointError) {
+      setError(pointError.message);
+      setRoutes(routeData || []);
+      setRoutePointCounts({});
+      setLoading(false);
+      return;
+    }
+
+    const counts = {};
+
+    (pointData || []).forEach((point) => {
+      counts[point.route_id] =
+        (counts[point.route_id] || 0) + 1;
+    });
+
+    setRoutes(routeData || []);
+    setRoutePointCounts(counts);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadRoutes();
+  }, []);
+
+  function openNewRoute() {
+    setName("");
+    setDescription("");
+    setColor("#3b82f6");
+    setError("");
+    setMessage("");
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setName("");
+    setDescription("");
+    setColor("#3b82f6");
+    setError("");
+    setShowForm(false);
+  }
+
+  async function createRoute(event) {
+    event.preventDefault();
+
+    if (!name.trim()) {
+      setError("Route name is required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase
+      .from("routes")
+      .insert({
+        name: name.trim(),
+        description: description.trim() || null,
+        color,
+        status: "ACTIVE",
+      });
+
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    setMessage(`Route "${name.trim()}" created successfully.`);
+
+    closeForm();
+    await loadRoutes();
+
+    setSaving(false);
+  }
+
+  function openEditDetails() {
+    setName(selected.name ?? "");
+    setDescription(selected.description ?? "");
+    setColor(selected.color ?? "#3b82f6");
+    setError("");
+    setMessage("");
+    setEditingDetails(true);
+  }
+
+  function closeEditDetails() {
+    setName(selected.name ?? "");
+    setDescription(selected.description ?? "");
+    setColor(selected.color ?? "#3b82f6");
+    setError("");
+    setMessage("");
+    setEditingDetails(false);
+  }
+
+  async function saveRouteDetails(event) {
+    event.preventDefault();
+
+    if (!name.trim()) {
+      setError("Route name is required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    const { data, error } = await supabase
+      .from("routes")
+      .update({
+        name: name.trim(),
+        description: description.trim() || null,
+        color,
+      })
+      .eq("id", selected.id)
+      .select()
+      .single();
+
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    setSelected(data);
+    setEditingDetails(false);
+
+    await loadRoutes();
+
+    setMessage(
+      `Route "${data.name}" updated successfully.`
+    );
+
+    setSaving(false);
+  }
+
+  return (
+    <>
+      <div className="vehicle-toolbar">
+        <button
+          className="primary-button assignment-button"
+          onClick={openNewRoute}
+        >
+          + New Route
+        </button>
+
+        <button
+          className="secondary-button"
+          onClick={loadRoutes}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {message && (
+        <div className="success-message">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="error fleet-error">
+          {error}
+        </div>
+      )}
+
+      {showForm && (
+        <section className="panel assignment-form-panel">
+          <PanelTitle title="New Route" />
+
+          <form
+            className="assignment-form"
+            onSubmit={createRoute}
+          >
+            <label>
+              Route Name
+              <input
+                className="filter-select full-width"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Example: 1A - Morning Elementary"
+                required
+              />
+            </label>
+
+            <label>
+              Description
+              <textarea
+                className="filter-select full-width"
+                value={description}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
+                placeholder="Optional route description..."
+                rows={3}
+              />
+            </label>
+
+            <label>
+              Route Color
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+            </label>
+
+            <div className="assignment-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeForm}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button assignment-save"
+                disabled={saving}
+              >
+                {saving ? "Creating..." : "Create Route"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <section className="panel">
+        <PanelTitle title={`Routes (${routes.length})`} />
+
+        {routes.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Points</th>
+                  <th>Color</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {routes.map((route) => (
+                  <tr
+                    key={route.id}
+                    className="clickable"
+                    onClick={() => setSelected(route)}
+                  >
+                    <td>{route.name}</td>
+
+                    <td>
+                      {route.description || "—"}
+                    </td>
+
+                    <td>
+                      <StatusBadge
+                        status={route.status}
+                      />
+                    </td>
+
+                    <td>
+                      {routePointCounts[route.id] ?? 0}
+                    </td>
+
+                    <td>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "18px",
+                          height: "18px",
+                          borderRadius: "4px",
+                          background: route.color || "#3b82f6",
+                          border: "1px solid #293440",
+                          verticalAlign: "middle",
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {selected && (
+        <div className="vehicle-detail-overlay">
+          <div className="vehicle-detail">
+            <div className="vehicle-detail-header">
+              <div>
+                <div className="eyebrow">
+                  ROUTE DETAILS
+                </div>
+
+                <h2>{selected.name}</h2>
+              </div>
+
+              <button
+                className="secondary-button"
+                onClick={() => setSelected(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="vehicle-detail-section">
+              <h3>Route Information</h3>
+
+              {editingDetails ? (
+                <form
+                  className="assignment-form"
+                  onSubmit={saveRouteDetails}
+                >
+                  <label>
+                    Route Name
+                    <input
+                      className="filter-select full-width"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Description
+                    <textarea
+                      className="filter-select full-width"
+                      value={description}
+                      onChange={(e) =>
+                        setDescription(e.target.value)
+                      }
+                      rows={3}
+                    />
+                  </label>
+
+                  <label>
+                    Route Color
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                    />
+                  </label>
+
+                  <div className="assignment-form-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={closeEditDetails}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="primary-button"
+                      disabled={saving}
+                    >
+                      {saving ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="detail-grid">
+                  <Detail
+                    label="Name"
+                    value={selected.name}
+                  />
+
+                  <Detail
+                    label="Status"
+                    value={selected.status}
+                  />
+
+                  <Detail
+                    label="Description"
+                    value={selected.description || "—"}
+                  />
+
+                  <Detail
+                    label="Color"
+                    value={selected.color || "—"}
+                  />
+                </div>
+              )}
+            </div>
+
+            {!editingDetails && (
+              <div className="vehicle-detail-section">
+                <button
+                  className="primary-button route-preview-button"
+                  onClick={openEditDetails}
+                >
+                  Edit Route Details
+                </button>
+              </div>
+            )}
+
+            <div className="vehicle-detail-section">
+              <h3>Route Data</h3>
+
+              <div className="vehicle-detail-header-actions">
+                <button
+                  className="secondary-button route-preview-button"
+                  onClick={() => {
+                    setPreviewRoute(selected);
+                    setSelected(null);
+                  }}
+                >
+                  Preview Route
+                </button>
+
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    setEditingRoute(selected);
+                    setSelected(null);
+                  }}
+                >
+                  Edit Route Path
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingRoute && (
+        <RoutePointEditor
+          route={editingRoute}
+          onClose={() => setEditingRoute(null)}
+          onSaved={loadRoutes}
+        />
+      )}
+
+      {previewRoute && (
+        <RoutePreview
+          route={previewRoute}
+          onClose={() => setPreviewRoute(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -2906,8 +4054,8 @@ function Maintenance() {
                     <td>
                       {record.cost != null
                         ? `$${Number(
-                            record.cost
-                          ).toFixed(2)}`
+                          record.cost
+                        ).toFixed(2)}`
                         : "—"}
                     </td>
                   </tr>
