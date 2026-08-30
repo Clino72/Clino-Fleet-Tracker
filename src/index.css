@@ -729,3 +729,43 @@ td {
 .assignment-history-panel {
   margin-top: 18px;
 }
+
+.maintenance-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.maintenance-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #aab4c0;
+  font-size: 12px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 7px;
+  border: 1px solid #293440;
+  background: #0c1218;
+  color: #dce3ea;
+  outline: none;
+}
+
+.form-input:focus,
+.filter-select:focus,
+.search:focus {
+  border-color: #48637d;
+}
+
+.form-textarea {
+  min-height: 100px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.full-width-label {
+  grid-column: 1 / -1;
+}

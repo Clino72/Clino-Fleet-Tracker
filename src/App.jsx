@@ -1776,41 +1776,409 @@ function Assignments() {
 
 function Maintenance() {
   const [records, setRecords] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+
+  const [showForm, setShowForm] = useState(false);
+
+  const [vehicleId, setVehicleId] = useState("");
+  const [maintenanceType, setMaintenanceType] = useState("");
+  const [description, setDescription] = useState("");
+  const [mileage, setMileage] = useState("");
+  const [performedBy, setPerformedBy] = useState("");
+  const [cost, setCost] = useState("");
+  const [status, setStatus] = useState("SCHEDULED");
+  const [performedAt, setPerformedAt] = useState("");
+  const [dueAt, setDueAt] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    const [recordsResult, vehiclesResult] =
+      await Promise.all([
+        supabase
+          .from("maintenance_records")
+          .select(`
+            *,
+            vehicles(fleet_number)
+          `)
+          .order("created_at", {
+            ascending: false,
+          }),
+
+        supabase
+          .from("vehicles")
+          .select("*")
+          .order("fleet_number"),
+      ]);
+
+    if (recordsResult.error) {
+      setError(recordsResult.error.message);
+    }
+
+    if (vehiclesResult.error) {
+      setError(vehiclesResult.error.message);
+    }
+
+    setRecords(recordsResult.data || []);
+    setVehicles(vehiclesResult.data || []);
+    setLoading(false);
+  }
 
   useEffect(() => {
-    supabase
-      .from("maintenance_records")
-      .select(`
-        *,
-        vehicles(fleet_number)
-      `)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setRecords(data || []));
+    loadData();
   }, []);
 
-  return (
-    <section className="panel">
-      <PanelTitle title="Maintenance" />
+  function resetForm() {
+    setVehicleId("");
+    setMaintenanceType("");
+    setDescription("");
+    setMileage("");
+    setPerformedBy("");
+    setCost("");
+    setStatus("SCHEDULED");
+    setPerformedAt("");
+    setDueAt("");
+  }
 
-      <SimpleTable
-        columns={[
-          "Vehicle",
-          "Type",
-          "Description",
-          "Mileage",
-          "Status",
-          "Due",
-        ]}
-        rows={records.map((item) => [
-          item.vehicles?.fleet_number ?? "—",
-          item.maintenance_type,
-          item.description ?? "—",
-          item.mileage ?? "—",
-          item.status,
-          formatDate(item.due_at),
-        ])}
-      />
-    </section>
+  async function createMaintenance(event) {
+    event.preventDefault();
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    if (!vehicleId) {
+      setError("Select a vehicle.");
+      setSaving(false);
+      return;
+    }
+
+    if (!maintenanceType.trim()) {
+      setError("Enter a maintenance type.");
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("maintenance_records")
+      .insert({
+        vehicle_id: vehicleId,
+        maintenance_type: maintenanceType.trim(),
+        description: description.trim() || null,
+        mileage:
+          mileage === "" ? null : Number(mileage),
+        performed_by:
+          performedBy.trim() || null,
+        cost:
+          cost === "" ? 0 : Number(cost),
+        status,
+        performed_at:
+          performedAt || null,
+        due_at:
+          dueAt || null,
+      });
+
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    setMessage("Maintenance record created.");
+    resetForm();
+    setShowForm(false);
+
+    await loadData();
+
+    setSaving(false);
+  }
+
+  return (
+    <>
+      <div className="vehicle-toolbar">
+        <button
+          className="primary-button assignment-button"
+          onClick={() => {
+            setShowForm(true);
+            setError("");
+            setMessage("");
+          }}
+        >
+          + New Maintenance Record
+        </button>
+
+        <button
+          className="secondary-button"
+          onClick={loadData}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {message && (
+        <div className="success-message">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="error fleet-error">
+          {error}
+        </div>
+      )}
+
+      {showForm && (
+        <section className="panel assignment-form-panel">
+          <PanelTitle title="New Maintenance Record" />
+
+          <form
+            className="maintenance-form"
+            onSubmit={createMaintenance}
+          >
+            <label>
+              Vehicle
+              <select
+                className="filter-select full-width"
+                value={vehicleId}
+                onChange={(e) =>
+                  setVehicleId(e.target.value)
+                }
+                required
+              >
+                <option value="">
+                  Select vehicle...
+                </option>
+
+                {vehicles.map((vehicle) => (
+                  <option
+                    key={vehicle.id}
+                    value={vehicle.id}
+                  >
+                    Bus {vehicle.fleet_number}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Maintenance Type
+              <input
+                className="form-input"
+                value={maintenanceType}
+                onChange={(e) =>
+                  setMaintenanceType(e.target.value)
+                }
+                placeholder="Oil change"
+                required
+              />
+            </label>
+
+            <label>
+              Status
+              <select
+                className="filter-select full-width"
+                value={status}
+                onChange={(e) =>
+                  setStatus(e.target.value)
+                }
+              >
+                <option value="SCHEDULED">
+                  Scheduled
+                </option>
+                <option value="IN_PROGRESS">
+                  In Progress
+                </option>
+                <option value="COMPLETED">
+                  Completed
+                </option>
+                <option value="CANCELLED">
+                  Cancelled
+                </option>
+              </select>
+            </label>
+
+            <label>
+              Mileage
+              <input
+                className="form-input"
+                type="number"
+                value={mileage}
+                onChange={(e) =>
+                  setMileage(e.target.value)
+                }
+                placeholder="128442"
+              />
+            </label>
+
+            <label>
+              Performed By
+              <input
+                className="form-input"
+                value={performedBy}
+                onChange={(e) =>
+                  setPerformedBy(e.target.value)
+                }
+                placeholder="Technician"
+              />
+            </label>
+
+            <label>
+              Cost
+              <input
+                className="form-input"
+                type="number"
+                step="0.01"
+                min="0"
+                value={cost}
+                onChange={(e) =>
+                  setCost(e.target.value)
+                }
+                placeholder="0.00"
+              />
+            </label>
+
+            <label>
+              Performed At
+              <input
+                className="form-input"
+                type="datetime-local"
+                value={performedAt}
+                onChange={(e) =>
+                  setPerformedAt(e.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              Due At
+              <input
+                className="form-input"
+                type="datetime-local"
+                value={dueAt}
+                onChange={(e) =>
+                  setDueAt(e.target.value)
+                }
+              />
+            </label>
+
+            <label className="full-width-label">
+              Description
+              <textarea
+                className="form-input form-textarea"
+                value={description}
+                onChange={(e) =>
+                  setDescription(e.target.value)
+                }
+                placeholder="Describe the work performed or scheduled."
+              />
+            </label>
+
+            <div className="assignment-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button assignment-save"
+                disabled={saving}
+              >
+                {saving
+                  ? "Saving..."
+                  : "Create Record"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <section className="panel">
+        <PanelTitle title="Maintenance Records" />
+
+        {records.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Mileage</th>
+                  <th>Status</th>
+                  <th>Performed</th>
+                  <th>Due</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {records.map((record) => (
+                  <tr key={record.id}>
+                    <td>
+                      Bus{" "}
+                      {record.vehicles?.fleet_number ||
+                        "—"}
+                    </td>
+
+                    <td>
+                      {record.maintenance_type}
+                    </td>
+
+                    <td>
+                      {record.description || "—"}
+                    </td>
+
+                    <td>
+                      {record.mileage ?? "—"}
+                    </td>
+
+                    <td>
+                      <StatusBadge
+                        status={record.status}
+                      />
+                    </td>
+
+                    <td>
+                      {formatDate(
+                        record.performed_at
+                      )}
+                    </td>
+
+                    <td>
+                      {formatDate(record.due_at)}
+                    </td>
+
+                    <td>
+                      {record.cost != null
+                        ? `$${Number(
+                            record.cost
+                          ).toFixed(2)}`
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
