@@ -1081,75 +1081,696 @@ function VehicleDetails({ vehicle, onClose }) {
 
 function Drivers() {
   const [drivers, setDrivers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
 
-  useEffect(() => {
-    supabase
+  async function loadDrivers() {
+    setLoading(true);
+    setError("");
+
+    const { data, error } = await supabase
       .from("drivers")
       .select("*")
-      .order("name")
-      .then(({ data }) => setDrivers(data || []));
+      .order("name");
+
+    if (error) {
+      setError(error.message);
+      setDrivers([]);
+      setLoading(false);
+      return;
+    }
+
+    setDrivers(data || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadDrivers();
   }, []);
 
-  return (
-    <section className="panel">
-      <PanelTitle title="Drivers" />
+  const filteredDrivers = drivers.filter((driver) => {
+    const searchValue = search.toLowerCase();
 
-      <SimpleTable
-        columns={[
-          "Name",
-          "Roblox User ID",
-          "Employee #",
-          "Status",
-        ]}
-        rows={drivers.map((driver) => [
-          driver.name,
-          driver.roblox_user_id ?? "—",
-          driver.employee_number ?? "—",
-          driver.status,
-        ])}
-      />
-    </section>
+    const matchesSearch =
+      String(driver.name || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      String(driver.roblox_user_id || "")
+        .includes(searchValue) ||
+      String(driver.employee_number || "")
+        .toLowerCase()
+        .includes(searchValue);
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      driver.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const statuses = [
+    "ALL",
+    ...Array.from(
+      new Set(
+        drivers
+          .map((driver) => driver.status)
+          .filter(Boolean)
+      )
+    ),
+  ];
+
+  return (
+    <>
+      <div className="vehicle-toolbar">
+        <input
+          className="search"
+          placeholder="Search drivers..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <select
+          className="filter-select"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status === "ALL" ? "All Statuses" : status}
+            </option>
+          ))}
+        </select>
+
+        <button
+          className="secondary-button"
+          onClick={loadDrivers}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      <div className="fleet-meta">
+        <span>
+          {filteredDrivers.length} of{" "}
+          {drivers.length} drivers shown
+        </span>
+      </div>
+
+      {error && (
+        <div className="error fleet-error">
+          Unable to load drivers: {error}
+        </div>
+      )}
+
+      <section className="panel">
+        <PanelTitle title="Drivers" />
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Roblox User ID</th>
+                <th>Employee #</th>
+                <th>Status</th>
+                <th>Current Vehicle</th>
+                <th>Current Route</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredDrivers.map((driver) => (
+                <tr
+                  key={driver.id}
+                  className="clickable"
+                  onClick={() => setSelected(driver)}
+                >
+                  <td>{driver.name}</td>
+                  <td>{driver.roblox_user_id ?? "—"}</td>
+                  <td>{driver.employee_number ?? "—"}</td>
+                  <td>
+                    <StatusBadge status={driver.status} />
+                  </td>
+                  <td>
+                    {driver.current_vehicle_id
+                      ? driver.current_vehicle_id
+                      : "—"}
+                  </td>
+                  <td>
+                    {driver.current_route_id
+                      ? driver.current_route_id
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {filteredDrivers.length === 0 && !loading && (
+          <Empty />
+        )}
+      </section>
+
+      {selected && (
+        <DriverDetails
+          driver={selected}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function DriverDetails({ driver, onClose }) {
+  const [liveAssignments, setLiveAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadAssignments() {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("fleet_live")
+      .select("*")
+      .eq("driver_id", driver.id);
+
+    setLiveAssignments(data || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadAssignments();
+
+    const interval = setInterval(
+      loadAssignments,
+      60 * 1000
+    );
+
+    return () => clearInterval(interval);
+  }, [driver.id]);
+
+  const currentBus = liveAssignments[0] || null;
+
+  return (
+    <div className="vehicle-detail-overlay">
+      <div className="vehicle-detail">
+        <div className="vehicle-detail-header">
+          <div>
+            <div className="eyebrow">
+              DRIVER DETAILS
+            </div>
+
+            <h2>{driver.name}</h2>
+          </div>
+
+          <button
+            className="secondary-button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <h3>Driver Information</h3>
+
+          <div className="detail-grid">
+            <Detail
+              label="Name"
+              value={driver.name}
+            />
+
+            <Detail
+              label="Roblox User ID"
+              value={driver.roblox_user_id ?? "—"}
+            />
+
+            <Detail
+              label="Employee Number"
+              value={driver.employee_number ?? "—"}
+            />
+
+            <Detail
+              label="Status"
+              value={driver.status}
+            />
+          </div>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <h3>Current Operation</h3>
+
+          {loading ? (
+            <div className="empty">
+              Loading current assignment...
+            </div>
+          ) : currentBus ? (
+            <div className="detail-grid">
+              <Detail
+                label="Vehicle"
+                value={`Bus ${currentBus.fleet_number}`}
+              />
+
+              <Detail
+                label="Route"
+                value={
+                  currentBus.route_name || "No route"
+                }
+              />
+
+              <Detail
+                label="Status"
+                value={currentBus.effective_status}
+              />
+
+              <Detail
+                label="Speed"
+                value={`${Number(
+                  currentBus.speed || 0
+                ).toFixed(0)} MPH`}
+              />
+
+              <Detail
+                label="Last Ping"
+                value={formatDate(
+                  currentBus.last_ping
+                )}
+              />
+            </div>
+          ) : (
+            <div className="empty">
+              This driver is not currently operating
+              a tracked bus.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
 function Assignments() {
   const [assignments, setAssignments] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [routes, setRoutes] = useState([]);
+
+  const [showForm, setShowForm] = useState(false);
+
+  const [vehicleId, setVehicleId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [routeId, setRouteId] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function loadData() {
+    setLoading(true);
+    setError("");
+
+    const [
+      assignmentsResult,
+      vehiclesResult,
+      driversResult,
+      routesResult,
+    ] = await Promise.all([
+      supabase
+        .from("assignments")
+        .select(`
+          *,
+          vehicles(fleet_number),
+          drivers(name),
+          routes(name)
+        `)
+        .order("started_at", { ascending: false }),
+
+      supabase
+        .from("vehicles")
+        .select("*")
+        .order("fleet_number"),
+
+      supabase
+        .from("drivers")
+        .select("*")
+        .order("name"),
+
+      supabase
+        .from("routes")
+        .select("*")
+        .eq("status", "ACTIVE")
+        .order("name"),
+    ]);
+
+    if (assignmentsResult.error) {
+      setError(assignmentsResult.error.message);
+    }
+
+    if (vehiclesResult.error) {
+      setError(vehiclesResult.error.message);
+    }
+
+    if (driversResult.error) {
+      setError(driversResult.error.message);
+    }
+
+    if (routesResult.error) {
+      setError(routesResult.error.message);
+    }
+
+    setAssignments(assignmentsResult.data || []);
+    setVehicles(vehiclesResult.data || []);
+    setDrivers(driversResult.data || []);
+    setRoutes(routesResult.data || []);
+
+    setLoading(false);
+  }
 
   useEffect(() => {
-    supabase
-      .from("assignments")
-      .select(`
-        *,
-        vehicles(fleet_number),
-        drivers(name),
-        routes(name)
-      `)
-      .eq("status", "ACTIVE")
-      .order("started_at", { ascending: false })
-      .then(({ data }) => setAssignments(data || []));
+    loadData();
   }, []);
 
-  return (
-    <section className="panel">
-      <PanelTitle title="Active Assignments" />
+  async function createAssignment(event) {
+    event.preventDefault();
 
-      <SimpleTable
-        columns={[
-          "Vehicle",
-          "Driver",
-          "Route",
-          "Status",
-          "Started",
-        ]}
-        rows={assignments.map((item) => [
-          item.vehicles?.fleet_number ?? "—",
-          item.drivers?.name ?? "—",
-          item.routes?.name ?? "—",
-          item.status,
-          formatDate(item.started_at),
-        ])}
-      />
-    </section>
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    if (!vehicleId) {
+      setError("Select a vehicle.");
+      setSaving(false);
+      return;
+    }
+
+    const { data: vehicle, error: vehicleError } =
+      await supabase
+        .from("vehicles")
+        .select("fleet_number")
+        .eq("id", vehicleId)
+        .single();
+
+    if (vehicleError || !vehicle) {
+      setError(
+        vehicleError?.message ||
+          "Unable to find selected vehicle."
+      );
+      setSaving(false);
+      return;
+    }
+
+    const { error } = await supabase.rpc(
+      "assign_vehicle",
+      {
+        p_fleet_number: vehicle.fleet_number,
+        p_driver_id: driverId || null,
+        p_route_id: routeId || null,
+      }
+    );
+
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+      return;
+    }
+
+    setMessage(
+      `Bus ${vehicle.fleet_number} assigned successfully.`
+    );
+
+    setVehicleId("");
+    setDriverId("");
+    setRouteId("");
+    setShowForm(false);
+
+    await loadData();
+
+    setSaving(false);
+  }
+
+  const activeAssignments = assignments.filter(
+    (item) => item.status === "ACTIVE"
+  );
+
+  const assignmentHistory = assignments.filter(
+    (item) => item.status !== "ACTIVE"
+  );
+
+  return (
+    <>
+      <div className="vehicle-toolbar">
+        <button
+          className="primary-button assignment-button"
+          onClick={() => {
+            setShowForm(true);
+            setError("");
+            setMessage("");
+          }}
+        >
+          + New Assignment
+        </button>
+
+        <button
+          className="secondary-button"
+          onClick={loadData}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {message && (
+        <div className="success-message">
+          {message}
+        </div>
+      )}
+
+      {error && (
+        <div className="error fleet-error">
+          {error}
+        </div>
+      )}
+
+      {showForm && (
+        <section className="panel assignment-form-panel">
+          <PanelTitle title="New Assignment" />
+
+          <form
+            className="assignment-form"
+            onSubmit={createAssignment}
+          >
+            <label>
+              Vehicle
+              <select
+                className="filter-select full-width"
+                value={vehicleId}
+                onChange={(e) =>
+                  setVehicleId(e.target.value)
+                }
+                required
+              >
+                <option value="">
+                  Select vehicle...
+                </option>
+
+                {vehicles.map((vehicle) => (
+                  <option
+                    key={vehicle.id}
+                    value={vehicle.id}
+                  >
+                    Bus {vehicle.fleet_number}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Driver
+              <select
+                className="filter-select full-width"
+                value={driverId}
+                onChange={(e) =>
+                  setDriverId(e.target.value)
+                }
+              >
+                <option value="">
+                  No driver
+                </option>
+
+                {drivers.map((driver) => (
+                  <option
+                    key={driver.id}
+                    value={driver.id}
+                  >
+                    {driver.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Route
+              <select
+                className="filter-select full-width"
+                value={routeId}
+                onChange={(e) =>
+                  setRouteId(e.target.value)
+                }
+              >
+                <option value="">
+                  No route
+                </option>
+
+                {routes.map((route) => (
+                  <option
+                    key={route.id}
+                    value={route.id}
+                  >
+                    {route.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="assignment-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setShowForm(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button assignment-save"
+                disabled={saving}
+              >
+                {saving
+                  ? "Assigning..."
+                  : "Assign Vehicle"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <section className="panel">
+        <PanelTitle
+          title={`Active Assignments (${activeAssignments.length})`}
+        />
+
+        {activeAssignments.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Driver</th>
+                  <th>Route</th>
+                  <th>Status</th>
+                  <th>Started</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {activeAssignments.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      Bus{" "}
+                      {item.vehicles?.fleet_number ||
+                        "—"}
+                    </td>
+
+                    <td>
+                      {item.drivers?.name || "Unassigned"}
+                    </td>
+
+                    <td>
+                      {item.routes?.name || "No route"}
+                    </td>
+
+                    <td>
+                      <StatusBadge
+                        status={item.status}
+                      />
+                    </td>
+
+                    <td>
+                      {formatDate(item.started_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="panel assignment-history-panel">
+        <PanelTitle title="Assignment History" />
+
+        {assignmentHistory.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Driver</th>
+                  <th>Route</th>
+                  <th>Status</th>
+                  <th>Started</th>
+                  <th>Ended</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {assignmentHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      Bus{" "}
+                      {item.vehicles?.fleet_number ||
+                        "—"}
+                    </td>
+
+                    <td>
+                      {item.drivers?.name || "Unassigned"}
+                    </td>
+
+                    <td>
+                      {item.routes?.name || "No route"}
+                    </td>
+
+                    <td>
+                      <StatusBadge
+                        status={item.status}
+                      />
+                    </td>
+
+                    <td>
+                      {formatDate(item.started_at)}
+                    </td>
+
+                    <td>
+                      {formatDate(item.ended_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 

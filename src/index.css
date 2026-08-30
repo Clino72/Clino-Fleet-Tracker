@@ -675,3 +675,57 @@ td {
   min-height: 60px;
   white-space: pre-wrap;
 }
+
+.assignment-button {
+  width: auto;
+  margin: 0;
+}
+
+.assignment-form-panel {
+  margin-bottom: 18px;
+}
+
+.assignment-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.assignment-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #aab4c0;
+  font-size: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.assignment-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.assignment-save {
+  width: auto;
+  margin: 0;
+}
+
+.success-message {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #1e5138;
+  border-radius: 8px;
+  background: #10271c;
+  color: #71d39f;
+  font-size: 13px;
+}
+
+.assignment-history-panel {
+  margin-top: 18px;
+}
