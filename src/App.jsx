@@ -2494,14 +2494,58 @@ function RoutePointEditor({ route, onClose, onSaved }) {
   const IMAGE_SIZE = 1055;
   const ROBLOX_HALF_SIZE = 3072;
   const ROBLOX_SIZE = 6144;
-  const PIXELS_PER_STUD =
-    IMAGE_SIZE / ROBLOX_SIZE;
+  const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
 
   const [points, setPoints] = useState([]);
+  const [pointType, setPointType] = useState("STRAIGHT");
+  const [selectedPoint, setSelectedPoint] = useState(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  const pointTypeRef = useRef(pointType);
+
+  useEffect(() => {
+    pointTypeRef.current = pointType;
+  }, [pointType]);
+
+  const PointTypes = {
+    STRAIGHT: {
+      label: "Straight",
+      color: "#22c55e",
+      textColor: "#000000",
+      stripe: null,
+    },
+
+    TURN_LEFT: {
+      label: "Turn Left",
+      color: "#eab308",
+      textColor: "#000000",
+      stripe: null,
+    },
+
+    TURN_RIGHT: {
+      label: "Turn Right",
+      color: "#3b82f6",
+      textColor: "#ffffff",
+      stripe: null,
+    },
+
+    STOP_LEFT: {
+      label: "Stop Left",
+      color: "#ef4444",
+      textColor: "#ffffff",
+      stripe: "left",
+    },
+
+    STOP_RIGHT: {
+      label: "Stop Right",
+      color: "#ef4444",
+      textColor: "#ffffff",
+      stripe: "right",
+    },
+  };
 
   function mapToRoblox(lat, lng) {
     const x =
@@ -2597,8 +2641,11 @@ function RoutePointEditor({ route, onClose, onSaved }) {
           x,
           y,
           z,
+          point_type: pointTypeRef.current,
         },
       ]);
+
+      setSelectedPoint(null);
     });
 
     mapInstanceRef.current = map;
@@ -2639,23 +2686,94 @@ function RoutePointEditor({ route, onClose, onSaved }) {
 
       latLngs.push(position);
 
+      const type =
+        PointTypes[point.point_type] ||
+        PointTypes.STRAIGHT;
+
+      let stopHalfHTML = "";
+
+      if (type.stripe === "left") {
+        stopHalfHTML = `
+    <div
+      style="
+        position:absolute;
+        left:0;
+        top:0;
+        width:50%;
+        height:100%;
+        background:#eab308;
+        border-radius:50% 0 0 50%;
+      "
+    ></div>
+  `;
+      }
+
+      if (type.stripe === "right") {
+        stopHalfHTML = `
+    <div
+      style="
+        position:absolute;
+        right:0;
+        top:0;
+        width:50%;
+        height:100%;
+        background:#eab308;
+        border-radius:0 50% 50% 0;
+      "
+    ></div>
+  `;
+      }
+
       const marker = L.marker(position, {
         draggable: true,
 
         icon: L.divIcon({
-          className:
-            "route-point-marker-wrapper",
+          className: "route-point-marker-wrapper",
 
           html: `
-            <div class="route-point-dot">
-              ${index + 1}
-            </div>
-          `,
+			<div
+				class="route-point-dot"
+				style="
+					position:relative;
+					overflow:hidden;
+					display:flex;
+					align-items:center;
+					justify-content:center;
+					width:24px;
+					height:24px;
+					border-radius:50%;
+					background:${type.color};
+					color:${type.textColor};
+					font-weight:700;
+					font-size:12px;
+					border:2px solid #ffffff;
+					box-sizing:border-box;
+				"
+			>
+				${stopHalfHTML}
+
+				<span
+					style="
+						position:relative;
+						z-index:2;
+						line-height:1;
+					"
+				>
+					${index + 1}
+				</span>
+			</div>
+		`,
 
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         }),
       }).addTo(map);
+
+      marker.on("click", (event) => {
+        L.DomEvent.stopPropagation(event);
+
+        setSelectedPoint(index);
+      });
 
       marker.on("dragstart", () => {
         map.dragging.disable();
@@ -2716,13 +2834,8 @@ function RoutePointEditor({ route, onClose, onSaved }) {
       marker.on(
         "contextmenu",
         (event) => {
-          L.DomEvent.stopPropagation(
-            event
-          );
-
-          L.DomEvent.preventDefault(
-            event
-          );
+          L.DomEvent.stopPropagation(event);
+          L.DomEvent.preventDefault(event);
 
           setPoints((current) =>
             current
@@ -2731,16 +2844,14 @@ function RoutePointEditor({ route, onClose, onSaved }) {
                   pointIndex !== index
               )
               .map(
-                (
-                  currentPoint,
-                  pointIndex
-                ) => ({
+                (currentPoint, pointIndex) => ({
                   ...currentPoint,
-                  sequence:
-                    pointIndex + 1,
+                  sequence: pointIndex + 1,
                 })
               )
           );
+
+          setSelectedPoint(null);
         }
       );
 
@@ -2757,6 +2868,33 @@ function RoutePointEditor({ route, onClose, onSaved }) {
         ).addTo(map);
     }
   }, [points]);
+
+  function changePointType(type) {
+    if (
+      selectedPoint === null
+    ) {
+      return;
+    }
+
+    setPoints((current) =>
+      current.map(
+        (point, index) => {
+          if (
+            index !== selectedPoint
+          ) {
+            return point;
+          }
+
+          return {
+            ...point,
+            point_type: type,
+          };
+        }
+      )
+    );
+
+    setSelectedPoint(null);
+  }
 
   async function savePoints() {
     setSaving(true);
@@ -2783,8 +2921,9 @@ function RoutePointEditor({ route, onClose, onSaved }) {
           x: Number(point.x),
           y: Number(point.y),
           z: Number(point.z),
-          speed_limit:
-            point.speed_limit ?? null,
+          point_type:
+            point.point_type ||
+            "STRAIGHT",
         })
       );
 
@@ -2826,10 +2965,13 @@ function RoutePointEditor({ route, onClose, onSaved }) {
           sequence: index + 1,
         }))
     );
+
+    setSelectedPoint(null);
   }
 
   function clearPoints() {
     setPoints([]);
+    setSelectedPoint(null);
     setError("");
     setMessage("");
   }
@@ -2888,6 +3030,86 @@ function RoutePointEditor({ route, onClose, onSaved }) {
         </div>
 
         <div className="vehicle-detail-section">
+          <h3>
+            {selectedPoint !== null
+              ? `Point ${selectedPoint + 1
+              } Type`
+              : "New Point Type"}
+          </h3>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+            }}
+          >
+            {Object.entries(
+              PointTypes
+            ).map(
+              ([value, type]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    if (
+                      selectedPoint !== null
+                    ) {
+                      changePointType(
+                        value
+                      );
+                    } else {
+                      setPointType(
+                        value
+                      );
+                    }
+                  }}
+                  style={{
+                    background: type.color,
+                    color: type.textColor,
+                    border: "2px solid transparent",
+                    borderRadius: "6px",
+                    padding: "8px 14px",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {type.label}
+                </button>
+              )
+            )}
+          </div>
+
+          {selectedPoint !== null && (
+            <button
+              type="button"
+              className="secondary-button"
+              style={{
+                marginTop: "10px",
+              }}
+              onClick={() =>
+                setSelectedPoint(null)
+              }
+            >
+              Cancel
+            </button>
+          )}
+
+          {selectedPoint === null && (
+            <div
+              style={{
+                marginTop: "10px",
+                fontSize: "13px",
+                opacity: 0.7,
+              }}
+            >
+              Choose a type, then click
+              the map to place the point.
+            </div>
+          )}
+        </div>
+
+        <div className="vehicle-detail-section">
           <div className="assignment-form-actions">
             <span>
               {loading
@@ -2934,8 +3156,10 @@ function RoutePointEditor({ route, onClose, onSaved }) {
 
         <div className="vehicle-detail-section">
           <div className="empty">
-            Click the map to add a point.
-            Drag a point to move it.
+            Choose a point type before
+            placing a point. Click an
+            existing point to change its
+            type. Drag a point to move it.
             Right-click a point to delete it.
           </div>
         </div>
