@@ -2503,12 +2503,23 @@ function RoutePointEditor({ route, onClose, onSaved }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [clipboard, setClipboard] = useState([]);
+  const [sendToOpen, setSendToOpen] = useState(false);
+  const [sendToRoutes, setSendToRoutes] = useState([]);
+  const [sendToLoading, setSendToLoading] = useState(false);
 
   const pointTypeRef = useRef(pointType);
+  const selectedPointRef = useRef(selectedPoint);
+  const mapCenterRef = useRef(null);
+  const mapZoomRef = useRef(null);
 
   useEffect(() => {
     pointTypeRef.current = pointType;
   }, [pointType]);
+
+  useEffect(() => {
+    selectedPointRef.current = selectedPoint;
+  }, [selectedPoint]);
 
   const PointTypes = {
     STRAIGHT: {
@@ -2547,14 +2558,17 @@ function RoutePointEditor({ route, onClose, onSaved }) {
     },
   };
 
-  function mapToRoblox(lat, lng) {
-    const x =
-      ROBLOX_HALF_SIZE -
-      lng / PIXELS_PER_STUD;
+  function NormalizePoints(PointList) {
+    return PointList.map((Point, Index) => ({
+      ...Point,
+      sequence: Index + 1,
+    }));
+  }
 
-    const z =
-      lat / PIXELS_PER_STUD -
-      ROBLOX_HALF_SIZE;
+  function mapToRoblox(lat, lng) {
+    const x = ROBLOX_HALF_SIZE - lng / PIXELS_PER_STUD;
+
+    const z = lat / PIXELS_PER_STUD - ROBLOX_HALF_SIZE;
 
     return {
       x,
@@ -2564,13 +2578,9 @@ function RoutePointEditor({ route, onClose, onSaved }) {
   }
 
   function robloxToMap(x, z) {
-    const imageX =
-      (ROBLOX_HALF_SIZE - x) *
-      PIXELS_PER_STUD;
+    const imageX = (ROBLOX_HALF_SIZE - x) * PIXELS_PER_STUD;
 
-    const imageY =
-      (ROBLOX_HALF_SIZE + z) *
-      PIXELS_PER_STUD;
+    const imageY = (ROBLOX_HALF_SIZE + z) * PIXELS_PER_STUD;
 
     return [imageY, imageX];
   }
@@ -2592,7 +2602,7 @@ function RoutePointEditor({ route, onClose, onSaved }) {
       return;
     }
 
-    setPoints(data || []);
+    setPoints(NormalizePoints(data || []));
     setLoading(false);
   }
 
@@ -2628,27 +2638,56 @@ function RoutePointEditor({ route, onClose, onSaved }) {
     map.setMaxBounds(bounds);
 
     map.on("click", (event) => {
-      const { x, y, z } = mapToRoblox(
-        event.latlng.lat,
-        event.latlng.lng
-      );
+      const { x, y, z } = mapToRoblox(event.latlng.lat, event.latlng.lng);
 
-      setPoints((current) => [
-        ...current,
-        {
+      setPoints((current) => {
+        const newPoint = {
           local: true,
-          sequence: current.length + 1,
+          sequence: 0,
           x,
           y,
           z,
           point_type: pointTypeRef.current,
-        },
-      ]);
+        };
+
+        const selectedIndex = selectedPointRef.current;
+
+        if (selectedIndex === null) {
+          newPoint.sequence = current.length + 1;
+
+          return [
+            ...current,
+            newPoint,
+          ];
+        }
+
+        const insertIndex = selectedIndex + 1;
+
+        return [
+          ...current.slice(0, insertIndex),
+          newPoint,
+          ...current.slice(insertIndex),
+        ].map((point, index) => ({
+          ...point,
+          sequence: index + 1,
+        }));
+      });
 
       setSelectedPoint(null);
     });
 
     mapInstanceRef.current = map;
+
+    mapCenterRef.current = map.getCenter();
+    mapZoomRef.current = map.getZoom();
+
+    map.on("moveend", () => {
+      mapCenterRef.current = map.getCenter();
+    });
+
+    map.on("zoomend", () => {
+      mapZoomRef.current = map.getZoom();
+    });
 
     return () => {
       map.remove();
@@ -2694,35 +2733,37 @@ function RoutePointEditor({ route, onClose, onSaved }) {
 
       if (type.stripe === "left") {
         stopHalfHTML = `
-    <div
-      style="
-        position:absolute;
-        left:0;
-        top:0;
-        width:50%;
-        height:100%;
-        background:#eab308;
-        border-radius:50% 0 0 50%;
-      "
-    ></div>
-  `;
+          <div
+            style="
+              position:absolute;
+              left:0;
+              top:0;
+              width:50%;
+              height:100%;
+              background:#eab308;
+              border-radius:50% 0 0 50%;
+            "
+          ></div>
+        `;
       }
 
       if (type.stripe === "right") {
         stopHalfHTML = `
-    <div
-      style="
-        position:absolute;
-        right:0;
-        top:0;
-        width:50%;
-        height:100%;
-        background:#eab308;
-        border-radius:0 50% 50% 0;
-      "
-    ></div>
-  `;
+          <div
+            style="
+              position:absolute;
+              right:0;
+              top:0;
+              width:50%;
+              height:100%;
+              background:#eab308;
+              border-radius:0 50% 50% 0;
+            "
+          ></div>
+        `;
       }
+
+      const IsSelected = selectedPoint === index;
 
       const marker = L.marker(position, {
         draggable: true,
@@ -2731,41 +2772,42 @@ function RoutePointEditor({ route, onClose, onSaved }) {
           className: "route-point-marker-wrapper",
 
           html: `
-			<div
-				class="route-point-dot"
-				style="
-					position:relative;
-					overflow:hidden;
-					display:flex;
-					align-items:center;
-					justify-content:center;
-					width:24px;
-					height:24px;
-					border-radius:50%;
-					background:${type.color};
-					color:${type.textColor};
-					font-weight:700;
-					font-size:12px;
-					border:2px solid #ffffff;
-					box-sizing:border-box;
-				"
-			>
-				${stopHalfHTML}
+            <div
+              class="route-point-dot"
+              style="
+                position:relative;
+                overflow:hidden;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                width:${IsSelected ? "30px" : "24px"};
+                height:${IsSelected ? "30px" : "24px"};
+                border-radius:50%;
+                background:${type.color};
+                color:${type.textColor};
+                font-weight:700;
+                font-size:${IsSelected ? "13px" : "12px"};
+                border:${IsSelected ? "3px solid #ffffff" : "2px solid #ffffff"};
+                box-sizing:border-box;
+                box-shadow:${IsSelected ? "0 0 0 3px rgba(59,130,246,0.9)" : "none"};
+              "
+            >
+              ${stopHalfHTML}
 
-				<span
-					style="
-						position:relative;
-						z-index:2;
-						line-height:1;
-					"
-				>
-					${index + 1}
-				</span>
-			</div>
-		`,
+              <span
+                style="
+                  position:relative;
+                  z-index:2;
+                  line-height:1;
+                "
+              >
+                ${index + 1}
+              </span>
+            </div>
+          `,
 
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
+          iconSize: IsSelected ? [30, 30] : [24, 24],
+          iconAnchor: IsSelected ? [15, 15] : [12, 12],
         }),
       }).addTo(map);
 
@@ -2780,8 +2822,7 @@ function RoutePointEditor({ route, onClose, onSaved }) {
       });
 
       marker.on("drag", () => {
-        const newPosition =
-          marker.getLatLng();
+        const newPosition = marker.getLatLng();
 
         const updatedLatLngs = [
           ...latLngs,
@@ -2802,21 +2843,17 @@ function RoutePointEditor({ route, onClose, onSaved }) {
       marker.on("dragend", () => {
         map.dragging.enable();
 
-        const newPosition =
-          marker.getLatLng();
+        const newPosition = marker.getLatLng();
 
-        const { x, y, z } =
-          mapToRoblox(
-            newPosition.lat,
-            newPosition.lng
-          );
+        const { x, y, z } = mapToRoblox(
+          newPosition.lat,
+          newPosition.lng
+        );
 
         setPoints((current) =>
           current.map(
             (currentPoint, pointIndex) => {
-              if (
-                pointIndex !== index
-              ) {
+              if (pointIndex !== index) {
                 return currentPoint;
               }
 
@@ -2838,17 +2875,12 @@ function RoutePointEditor({ route, onClose, onSaved }) {
           L.DomEvent.preventDefault(event);
 
           setPoints((current) =>
-            current
-              .filter(
+            NormalizePoints(
+              current.filter(
                 (_, pointIndex) =>
                   pointIndex !== index
               )
-              .map(
-                (currentPoint, pointIndex) => ({
-                  ...currentPoint,
-                  sequence: pointIndex + 1,
-                })
-              )
+            )
           );
 
           setSelectedPoint(null);
@@ -2859,29 +2891,65 @@ function RoutePointEditor({ route, onClose, onSaved }) {
     });
 
     if (latLngs.length > 1) {
-      lineRef.current =
-        L.polyline(
-          latLngs,
-          {
-            weight: 4,
-          }
-        ).addTo(map);
+      lineRef.current = L.polyline(
+        latLngs,
+        {
+          weight: 4,
+        }
+      ).addTo(map);
     }
-  }, [points]);
+  }, [points, selectedPoint]);
+
+  useEffect(() => {
+    function HandleKeyDown(event) {
+      if (event.key === "Escape") {
+        setSelectedPoint(null);
+      }
+    }
+
+    window.addEventListener("keydown", HandleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", HandleKeyDown);
+    };
+  }, []);
+
+  function movePoint(Direction) {
+    if (selectedPoint === null) {
+      return;
+    }
+
+    setPoints((current) => {
+      const NewIndex = selectedPoint + Direction;
+
+      if (NewIndex < 0 || NewIndex >= current.length) {
+        return current;
+      }
+
+      const Updated = [...current];
+      const [MovedPoint] = Updated.splice(selectedPoint, 1);
+
+      Updated.splice(NewIndex, 0, MovedPoint);
+
+      return Updated.map((point, index) => ({
+        ...point,
+        sequence: index + 1,
+      }));
+    });
+
+    setSelectedPoint(selectedPoint + Direction);
+  }
 
   function changePointType(type) {
-    if (
-      selectedPoint === null
-    ) {
+    if (selectedPoint === null) {
+      setPointType(type);
       return;
     }
 
     setPoints((current) =>
       current.map(
         (point, index) => {
-          if (
-            index !== selectedPoint
-          ) {
+          if (index !== selectedPoint) {
             return point;
           }
 
@@ -2892,8 +2960,184 @@ function RoutePointEditor({ route, onClose, onSaved }) {
         }
       )
     );
+  }
+
+  function copySelectedPoint() {
+    if (
+      selectedPoint === null ||
+      !points[selectedPoint]
+    ) {
+      return;
+    }
+
+    setClipboard([
+      {
+        ...points[selectedPoint],
+        local: true,
+      },
+    ]);
+
+    setMessage(
+      `Point ${selectedPoint + 1} copied.`
+    );
+  }
+
+  function copyAllPoints() {
+    if (points.length === 0) {
+      return;
+    }
+
+    setClipboard(
+      points.map((point) => ({
+        ...point,
+        local: true,
+      }))
+    );
+
+    setMessage(
+      `${points.length} point${points.length === 1 ? "" : "s"} copied.`
+    );
+  }
+
+  function pastePoints() {
+    if (clipboard.length === 0) {
+      return;
+    }
+
+    setPoints((current) => {
+      const UpdatedPoints = [...current];
+
+      const InsertIndex =
+        selectedPoint === null
+          ? UpdatedPoints.length
+          : selectedPoint + 1;
+
+      const PastedPoints =
+        clipboard.map((point) => ({
+          ...point,
+          local: true,
+        }));
+
+      UpdatedPoints.splice(
+        InsertIndex,
+        0,
+        ...PastedPoints
+      );
+
+      return NormalizePoints(UpdatedPoints);
+    });
 
     setSelectedPoint(null);
+
+    setMessage(
+      `${clipboard.length} point${clipboard.length === 1 ? "" : "s"} pasted.`
+    );
+  }
+
+  async function toggleSendTo() {
+    if (sendToOpen) {
+      setSendToOpen(false);
+      return;
+    }
+
+    setSendToLoading(true);
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("routes")
+      .select("id,name,route_code")
+      .neq("id", route.id)
+      .order("name");
+
+    if (error) {
+      setError(error.message);
+      setSendToLoading(false);
+      return;
+    }
+
+    setSendToRoutes(data || []);
+    setSendToOpen(true);
+    setSendToLoading(false);
+  }
+
+  async function sendPointsToRoute(TargetRoute) {
+    if (!TargetRoute || clipboard.length === 0) {
+      return;
+    }
+
+    const Confirmed = window.confirm(
+      `Send ${clipboard.length} point${clipboard.length === 1 ? "" : "s"} to "${TargetRoute.name}"?`
+    );
+
+    if (!Confirmed) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    const {
+      data: ExistingPoints,
+      error: ExistingError,
+    } = await supabase
+      .from("route_points")
+      .select("*")
+      .eq("route_id", TargetRoute.id)
+      .order("sequence");
+
+    if (ExistingError) {
+      setError(ExistingError.message);
+      return;
+    }
+
+    const NewPoints = NormalizePoints([
+      ...(ExistingPoints || []),
+      ...clipboard,
+    ]);
+
+    const Rows = NewPoints.map(
+      (point, index) => ({
+        route_id: TargetRoute.id,
+        sequence: index + 1,
+        x: Number(point.x),
+        y: Number(point.y),
+        z: Number(point.z),
+        point_type:
+          point.point_type ||
+          "STRAIGHT",
+      })
+    );
+
+    const {
+      error: DeleteError,
+    } = await supabase
+      .from("route_points")
+      .delete()
+      .eq("route_id", TargetRoute.id);
+
+    if (DeleteError) {
+      setError(DeleteError.message);
+      return;
+    }
+
+    if (Rows.length > 0) {
+      const {
+        error: InsertError,
+      } = await supabase
+        .from("route_points")
+        .insert(Rows);
+
+      if (InsertError) {
+        setError(InsertError.message);
+        return;
+      }
+    }
+
+    setMessage(
+      `${clipboard.length} point${clipboard.length === 1 ? "" : "s"} sent to ${TargetRoute.name}.`
+    );
   }
 
   async function savePoints() {
@@ -2901,11 +3145,12 @@ function RoutePointEditor({ route, onClose, onSaved }) {
     setError("");
     setMessage("");
 
-    const { error: deleteError } =
-      await supabase
-        .from("route_points")
-        .delete()
-        .eq("route_id", route.id);
+    const {
+      error: deleteError,
+    } = await supabase
+      .from("route_points")
+      .delete()
+      .eq("route_id", route.id);
 
     if (deleteError) {
       setError(deleteError.message);
@@ -2947,10 +3192,7 @@ function RoutePointEditor({ route, onClose, onSaved }) {
     }
 
     setMessage(
-      `${points.length} route point${points.length === 1
-        ? ""
-        : "s"
-      } saved.`
+      `${points.length} route point${points.length === 1 ? "" : "s"} saved.`
     );
 
     setSaving(false);
@@ -2958,12 +3200,9 @@ function RoutePointEditor({ route, onClose, onSaved }) {
 
   function undoPoint() {
     setPoints((current) =>
-      current
-        .slice(0, -1)
-        .map((point, index) => ({
-          ...point,
-          sequence: index + 1,
-        }))
+      NormalizePoints(
+        current.slice(0, -1)
+      )
     );
 
     setSelectedPoint(null);
@@ -3032,80 +3271,226 @@ function RoutePointEditor({ route, onClose, onSaved }) {
         <div className="vehicle-detail-section">
           <h3>
             {selectedPoint !== null
-              ? `Point ${selectedPoint + 1
-              } Type`
+              ? `Point ${selectedPoint + 1}`
               : "New Point Type"}
           </h3>
 
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-            }}
-          >
-            {Object.entries(
-              PointTypes
-            ).map(
-              ([value, type]) => (
+          {selectedPoint !== null ? (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  alignItems: "flex-start",
+                }}
+              >
+                {Object.entries(PointTypes).map(([value, type]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => changePointType(value)}
+                    style={{
+                      background: type.color,
+                      color: type.textColor,
+                      border: "2px solid transparent",
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "12px",
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
                 <button
-                  key={value}
                   type="button"
-                  onClick={() => {
-                    if (
-                      selectedPoint !== null
-                    ) {
-                      changePointType(
-                        value
-                      );
-                    } else {
-                      setPointType(
-                        value
-                      );
-                    }
-                  }}
+                  className="secondary-button"
+                  onClick={() => movePoint(1)}
+                  disabled={selectedPoint === points.length - 1}
+                >
+                  Increase Stop
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => movePoint(-1)}
+                  disabled={selectedPoint === 0}
+                >
+                  Decrease Stop
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={copySelectedPoint}
+                >
+                  Copy Point
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={copyAllPoints}
+                  disabled={points.length === 0}
+                >
+                  Copy All Points
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={pastePoints}
+                  disabled={clipboard.length === 0}
+                >
+                  Paste Point(s)
+                </button>
+
+                <div
                   style={{
-                    background: type.color,
-                    color: type.textColor,
-                    border: "2px solid transparent",
-                    borderRadius: "6px",
-                    padding: "8px 14px",
-                    cursor: "pointer",
-                    fontWeight: 600,
+                    position: "relative",
                   }}
                 >
-                  {type.label}
-                </button>
-              )
-            )}
-          </div>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={toggleSendTo}
+                    disabled={clipboard.length === 0}
+                  >
+                    Send To...
+                  </button>
 
-          {selectedPoint !== null && (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{
-                marginTop: "10px",
-              }}
-              onClick={() =>
-                setSelectedPoint(null)
-              }
-            >
-              Cancel
-            </button>
-          )}
+                  {sendToOpen && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        zIndex: 10000,
+                        top: "calc(100% + 10px)",
+                        left: 0,
+                        minWidth: "280px",
+                        maxHeight: "224px",
+                        overflowY: "auto",
+                        background: "var(--panel-bg, #151a21)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        borderRadius: "8px",
+                        padding: "6px",
+                        boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+                      }}
+                    >
+                      {sendToLoading && (
+                        <div
+                          style={{
+                            padding: "10px",
+                            opacity: 0.7,
+                          }}
+                        >
+                          Loading routes...
+                        </div>
+                      )}
 
-          {selectedPoint === null && (
-            <div
-              style={{
-                marginTop: "10px",
-                fontSize: "13px",
-                opacity: 0.7,
-              }}
-            >
-              Choose a type, then click
-              the map to place the point.
-            </div>
+                      {!sendToLoading &&
+                        sendToRoutes.map((targetRoute) => (
+                          <button
+                            key={targetRoute.id}
+                            type="button"
+                            className="secondary-button"
+                            style={{
+                              display: "block",
+                              width: "100%",
+                              minHeight: "40px",
+                              textAlign: "left",
+                              marginBottom: "4px",
+                            }}
+                            onClick={async () => {
+                              await sendPointsToRoute(targetRoute);
+                              setSendToOpen(false);
+                            }}
+                          >
+                            {targetRoute.route_code
+                              ? `${targetRoute.route_code} — `
+                              : ""}
+                            {targetRoute.name}
+                          </button>
+                        ))}
+
+                      {!sendToLoading &&
+                        sendToRoutes.length === 0 && (
+                          <div
+                            style={{
+                              padding: "10px",
+                              opacity: 0.7,
+                            }}
+                          >
+                            No other routes found.
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  fontSize: "13px",
+                  opacity: 0.7,
+                }}
+              >
+                Click the map to insert a new point after this point.
+                Press Escape to cancel selection.
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {Object.entries(PointTypes).map(([value, type]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPointType(value)}
+                    style={{
+                      background: type.color,
+                      color: type.textColor,
+                      border: "2px solid transparent",
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "10px",
+                  fontSize: "13px",
+                  opacity: 0.7,
+                }}
+              >
+                Choose a type, then click the map to add a point.
+                Click an existing point to edit it.
+              </div>
+            </>
           )}
         </div>
 
@@ -3156,11 +3541,12 @@ function RoutePointEditor({ route, onClose, onSaved }) {
 
         <div className="vehicle-detail-section">
           <div className="empty">
-            Choose a point type before
-            placing a point. Click an
-            existing point to change its
-            type. Drag a point to move it.
-            Right-click a point to delete it.
+            Click an existing point to
+            select it. Clicking the map while
+            a point is selected inserts the new
+            point before that point. Drag points
+            to move them. Right-click a point to
+            delete it.
           </div>
         </div>
       </div>
