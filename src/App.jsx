@@ -552,7 +552,7 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
     ];
 
     L.imageOverlay(
-      "/map.png",
+      `${import.meta.env.BASE_URL}map.png`,
       bounds
     ).addTo(map);
 
@@ -2630,7 +2630,7 @@ function RoutePointEditor({ route, onClose, onSaved }) {
     ];
 
     L.imageOverlay(
-      "/map.png",
+      `${import.meta.env.BASE_URL}map.png`,
       bounds
     ).addTo(map);
 
@@ -3626,7 +3626,7 @@ function RoutePreview({ route, onClose }) {
     ];
 
     L.imageOverlay(
-      "/map.png",
+      `${import.meta.env.BASE_URL}map.png`,
       bounds
     ).addTo(map);
 
@@ -3783,17 +3783,18 @@ function RoutePreview({ route, onClose }) {
 function Routes() {
   const [routes, setRoutes] = useState([]);
   const [routePointCounts, setRoutePointCounts] = useState({});
-  const [selected, setSelected] = useState(null);
+
   const [editingRoute, setEditingRoute] = useState(null);
   const [previewRoute, setPreviewRoute] = useState(null);
+  const [editingDetails, setEditingDetails] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
+
   const [routeCode, setRouteCode] = useState("");
   const [editRouteCode, setEditRouteCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#3b82f6");
-  const [editingDetails, setEditingDetails] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -3804,11 +3805,10 @@ function Routes() {
     setLoading(true);
     setError("");
 
-    const { data: routeData, error: routeError } =
-      await supabase
-        .from("routes")
-        .select("*")
-        .order("name");
+    const { data: routeData, error: routeError } = await supabase
+      .from("routes")
+      .select("*")
+      .order("name");
 
     if (routeError) {
       setError(routeError.message);
@@ -3817,10 +3817,9 @@ function Routes() {
       return;
     }
 
-    const { data: pointData, error: pointError } =
-      await supabase
-        .from("route_points")
-        .select("route_id");
+    const { data: pointData, error: pointError } = await supabase
+      .from("route_points")
+      .select("route_id");
 
     if (pointError) {
       setError(pointError.message);
@@ -3833,8 +3832,7 @@ function Routes() {
     const counts = {};
 
     (pointData || []).forEach((point) => {
-      counts[point.route_id] =
-        (counts[point.route_id] || 0) + 1;
+      counts[point.route_id] = (counts[point.route_id] || 0) + 1;
     });
 
     setRoutes(routeData || []);
@@ -3898,38 +3896,38 @@ function Routes() {
       return;
     }
 
-    setMessage(
-      `Route "${name.trim()}" created successfully.`
-    );
-
     closeForm();
     await loadRoutes();
 
+    setMessage(`Route "${name.trim()}" created successfully.`);
     setSaving(false);
   }
 
-  function openEditDetails() {
-    setEditRouteCode(selected.route_code ?? "");
-    setName(selected.name ?? "");
-    setDescription(selected.description ?? "");
-    setColor(selected.color ?? "#3b82f6");
+  function openEditDetails(route) {
+    setEditingDetails(route);
+    setEditRouteCode(route.route_code ?? "");
+    setName(route.name ?? "");
+    setDescription(route.description ?? "");
+    setColor(route.color ?? "#3b82f6");
     setError("");
     setMessage("");
-    setEditingDetails(true);
   }
 
   function closeEditDetails() {
-    setEditRouteCode(selected.route_code ?? "");
-    setName(selected.name ?? "");
-    setDescription(selected.description ?? "");
-    setColor(selected.color ?? "#3b82f6");
+    setEditingDetails(null);
+    setEditRouteCode("");
+    setName("");
+    setDescription("");
+    setColor("#3b82f6");
     setError("");
-    setMessage("");
-    setEditingDetails(false);
   }
 
   async function saveRouteDetails(event) {
     event.preventDefault();
+
+    if (!editingDetails) {
+      return;
+    }
 
     if (!editRouteCode.trim()) {
       setError("Route code is required.");
@@ -3953,7 +3951,7 @@ function Routes() {
         description: description.trim() || null,
         color,
       })
-      .eq("id", selected.id)
+      .eq("id", editingDetails.id)
       .select()
       .single();
 
@@ -3963,15 +3961,121 @@ function Routes() {
       return;
     }
 
-    setSelected(data);
-    setEditingDetails(false);
+    setEditingDetails(null);
+    await loadRoutes();
+
+    setMessage(`Route "${data.name}" updated successfully.`);
+    setSaving(false);
+  }
+
+  async function duplicateRoute(route) {
+    const Confirmed = window.confirm(`Duplicate route "${route.name}"?`);
+
+    if (!Confirmed) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setSaving(true);
+
+    const { data: newRoute, error: routeError } = await supabase
+      .from("routes")
+      .insert({
+        route_code: `${route.route_code || "COPY"}-COPY`,
+        name: `${route.name} Copy`,
+        description: route.description || null,
+        color: route.color || "#3b82f6",
+        status: route.status || "ACTIVE",
+      })
+      .select()
+      .single();
+
+    if (routeError) {
+      setError(routeError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { data: sourcePoints, error: pointError } = await supabase
+      .from("route_points")
+      .select("*")
+      .eq("route_id", route.id)
+      .order("sequence");
+
+    if (pointError) {
+      await supabase.from("routes").delete().eq("id", newRoute.id);
+      setError(pointError.message);
+      setSaving(false);
+      return;
+    }
+
+    if ((sourcePoints || []).length > 0) {
+      const copiedPoints = sourcePoints.map((point, index) => ({
+        route_id: newRoute.id,
+        sequence: index + 1,
+        x: Number(point.x),
+        y: Number(point.y),
+        z: Number(point.z),
+        point_type: point.point_type || "STRAIGHT",
+      }));
+
+      const { error: insertPointError } = await supabase
+        .from("route_points")
+        .insert(copiedPoints);
+
+      if (insertPointError) {
+        await supabase.from("routes").delete().eq("id", newRoute.id);
+        setError(insertPointError.message);
+        setSaving(false);
+        return;
+      }
+    }
 
     await loadRoutes();
 
-    setMessage(
-      `Route "${data.name}" updated successfully.`
+    setMessage(`Route "${route.name}" duplicated successfully.`);
+    setSaving(false);
+  }
+
+  async function deleteRoute(route) {
+    const Confirmed = window.confirm(
+      `Delete route "${route.name}"?\n\nThis will permanently delete the route and all of its route points.`
     );
 
+    if (!Confirmed) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setSaving(true);
+
+    const { error: pointError } = await supabase
+      .from("route_points")
+      .delete()
+      .eq("route_id", route.id);
+
+    if (pointError) {
+      setError(pointError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: routeError } = await supabase
+      .from("routes")
+      .delete()
+      .eq("id", route.id);
+
+    if (routeError) {
+      setError(routeError.message);
+      setSaving(false);
+      return;
+    }
+
+    await loadRoutes();
+
+    setMessage(`Route "${route.name}" deleted.`);
     setSaving(false);
   }
 
@@ -3988,7 +4092,7 @@ function Routes() {
         <button
           className="secondary-button"
           onClick={loadRoutes}
-          disabled={loading}
+          disabled={loading || saving}
         >
           {loading ? "Refreshing..." : "Refresh"}
         </button>
@@ -4030,9 +4134,7 @@ function Routes() {
               <input
                 className="filter-select full-width"
                 value={routeCode}
-                onChange={(e) =>
-                  setRouteCode(e.target.value.toUpperCase())
-                }
+                onChange={(e) => setRouteCode(e.target.value.toUpperCase())}
                 placeholder="Example: 1A"
                 required
               />
@@ -4043,9 +4145,7 @@ function Routes() {
               <textarea
                 className="filter-select full-width"
                 value={description}
-                onChange={(e) =>
-                  setDescription(e.target.value)
-                }
+                onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional route description..."
                 rows={3}
               />
@@ -4097,32 +4197,24 @@ function Routes() {
                   <th>Status</th>
                   <th>Points</th>
                   <th>Color</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
                 {routes.map((route) => (
-                  <tr
-                    key={route.id}
-                    className="clickable"
-                    onClick={() => setSelected(route)}
-                  >
+                  <tr key={route.id}>
                     <td>{route.route_code || "—"}</td>
+
                     <td>{route.name}</td>
 
-                    <td>
-                      {route.description || "—"}
-                    </td>
+                    <td>{route.description || "—"}</td>
 
                     <td>
-                      <StatusBadge
-                        status={route.status}
-                      />
+                      <StatusBadge status={route.status} />
                     </td>
 
-                    <td>
-                      {routePointCounts[route.id] ?? 0}
-                    </td>
+                    <td>{routePointCounts[route.id] ?? 0}</td>
 
                     <td>
                       <span
@@ -4131,12 +4223,66 @@ function Routes() {
                           width: "18px",
                           height: "18px",
                           borderRadius: "4px",
-                          background:
-                            route.color || "#3b82f6",
+                          background: route.color || "#3b82f6",
                           border: "1px solid #293440",
                           verticalAlign: "middle",
                         }}
                       />
+                    </td>
+
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "nowrap",
+                          gap: "6px",
+                          alignItems: "center",
+                          justifyContent: "flex-start",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setPreviewRoute(route)}
+                        >
+                          Preview
+                        </button>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => setEditingRoute(route)}
+                        >
+                          Edit Route
+                        </button>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => openEditDetails(route)}
+                        >
+                          Edit Details
+                        </button>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => duplicateRoute(route)}
+                          disabled={saving}
+                        >
+                          Duplicate
+                        </button>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => deleteRoute(route)}
+                          disabled={saving}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -4146,24 +4292,22 @@ function Routes() {
         )}
       </section>
 
-      {selected && (
+      {editingDetails && (
         <div className="vehicle-detail-overlay">
           <div className="vehicle-detail">
             <div className="vehicle-detail-header">
               <div>
                 <div className="eyebrow">
-                  ROUTE DETAILS
+                  EDIT ROUTE DETAILS
                 </div>
 
-                <h2>{selected.name}</h2>
+                <h2>{editingDetails.name}</h2>
               </div>
 
               <button
                 className="secondary-button"
-                onClick={() => {
-                  setEditingDetails(false);
-                  setSelected(null);
-                }}
+                onClick={closeEditDetails}
+                disabled={saving}
               >
                 Close
               </button>
@@ -4172,147 +4316,70 @@ function Routes() {
             <div className="vehicle-detail-section">
               <h3>Route Information</h3>
 
-              {editingDetails ? (
-                <form
-                  className="assignment-form"
-                  onSubmit={saveRouteDetails}
-                >
-                  <label>
-                    Route Code
-                    <input
-                      className="filter-select full-width"
-                      value={editRouteCode}
-                      onChange={(e) =>
-                        setEditRouteCode(
-                          e.target.value.toUpperCase()
-                        )
-                      }
-                      placeholder="Example: 1A"
-                      required
-                    />
-                  </label>
-
-                  <label>
-                    Route Name
-                    <input
-                      className="filter-select full-width"
-                      value={name}
-                      onChange={(e) =>
-                        setName(e.target.value)
-                      }
-                      required
-                    />
-                  </label>
-
-                  <label>
-                    Description
-                    <textarea
-                      className="filter-select full-width"
-                      value={description}
-                      onChange={(e) =>
-                        setDescription(e.target.value)
-                      }
-                      rows={3}
-                    />
-                  </label>
-
-                  <label>
-                    Route Color
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) =>
-                        setColor(e.target.value)
-                      }
-                    />
-                  </label>
-
-                  <div className="assignment-form-actions">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={closeEditDetails}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </button>
-
-                    <button
-                      type="submit"
-                      className="primary-button"
-                      disabled={saving}
-                    >
-                      {saving
-                        ? "Saving..."
-                        : "Save Changes"}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="detail-grid">
-                  <Detail
-                    label="Code"
-                    value={selected.route_code || "—"}
+              <form
+                className="assignment-form"
+                onSubmit={saveRouteDetails}
+              >
+                <label>
+                  Route Code
+                  <input
+                    className="filter-select full-width"
+                    value={editRouteCode}
+                    onChange={(e) => setEditRouteCode(e.target.value.toUpperCase())}
+                    placeholder="Example: 1A"
+                    required
                   />
+                </label>
 
-                  <Detail
-                    label="Name"
-                    value={selected.name}
+                <label>
+                  Route Name
+                  <input
+                    className="filter-select full-width"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
                   />
+                </label>
 
-                  <Detail
-                    label="Status"
-                    value={selected.status}
+                <label>
+                  Description
+                  <textarea
+                    className="filter-select full-width"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Optional route description..."
                   />
+                </label>
 
-                  <Detail
-                    label="Description"
-                    value={selected.description || "—"}
+                <label>
+                  Route Color
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
                   />
+                </label>
 
-                  <Detail
-                    label="Color"
-                    value={selected.color || "—"}
-                  />
+                <div className="assignment-form-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={closeEditDetails}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="primary-button"
+                    disabled={saving}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {!editingDetails && (
-              <div className="vehicle-detail-section">
-                <button
-                  className="primary-button route-preview-button"
-                  onClick={openEditDetails}
-                >
-                  Edit Route Details
-                </button>
-              </div>
-            )}
-
-            <div className="vehicle-detail-section">
-              <h3>Route Data</h3>
-
-              <div className="vehicle-detail-header-actions">
-                <button
-                  className="secondary-button route-preview-button"
-                  onClick={() => {
-                    setPreviewRoute(selected);
-                    setSelected(null);
-                  }}
-                >
-                  Preview Route
-                </button>
-
-                <button
-                  className="primary-button"
-                  onClick={() => {
-                    setEditingRoute(selected);
-                    setSelected(null);
-                  }}
-                >
-                  Edit Route Path
-                </button>
-              </div>
+              </form>
             </div>
           </div>
         </div>
