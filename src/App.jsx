@@ -1220,7 +1220,7 @@ function LiveFleet() {
   );
 }
 
-function Vehicles() {
+function Vehicles({ canEdit }) {
   const [vehicles, setVehicles] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
@@ -1443,13 +1443,14 @@ function Vehicles() {
           vehicle={selected}
           onClose={() => setSelected(null)}
           onSaved={loadVehicles}
+          canEdit={canEdit}
         />
       )}
     </>
   );
 }
 
-function VehicleDetails({ vehicle, onClose, onSaved }) {
+function VehicleDetails({ vehicle, onClose, onSaved, canEdit }) {
   const [live, setLive] = useState(null);
   const [loadingLive, setLoadingLive] = useState(true);
 
@@ -1486,6 +1487,10 @@ function VehicleDetails({ vehicle, onClose, onSaved }) {
 
   async function saveVehicle(event) {
     event.preventDefault();
+
+    if (!canEdit) {
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -1532,7 +1537,7 @@ function VehicleDetails({ vehicle, onClose, onSaved }) {
           </div>
 
           <div className="vehicle-detail-header-actions">
-            {!editing && (
+            {canEdit && !editing && (
               <button
                 className="primary-button"
                 onClick={() => {
@@ -2159,7 +2164,7 @@ function DriverDetails({ driver, onClose }) {
   );
 }
 
-function Assignments() {
+function Assignments({ canEdit }) {
   const [assignments, setAssignments] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -2240,6 +2245,10 @@ function Assignments() {
   async function createAssignment(event) {
     event.preventDefault();
 
+    if (!canEdit) {
+      return;
+    }
+
     setSaving(true);
     setError("");
     setMessage("");
@@ -2296,6 +2305,10 @@ function Assignments() {
   }
 
   async function endAssignment(assignment) {
+    if (!canEdit) {
+      return;
+    }
+
     const fleetNumber =
       assignment.vehicles?.fleet_number;
 
@@ -2349,16 +2362,18 @@ function Assignments() {
   return (
     <>
       <div className="vehicle-toolbar">
-        <button
-          className="primary-button assignment-button"
-          onClick={() => {
-            setShowForm(true);
-            setError("");
-            setMessage("");
-          }}
-        >
-          + New Assignment
-        </button>
+        {canEdit && (
+          <button
+            className="primary-button assignment-button"
+            onClick={() => {
+              setShowForm(true);
+              setError("");
+              setMessage("");
+            }}
+          >
+            + New Assignment
+          </button>
+        )}
 
         <button
           className="secondary-button"
@@ -2541,19 +2556,21 @@ function Assignments() {
                     </td>
 
                     <td>
-                      <button
-                        className="secondary-button"
-                        onClick={() =>
-                          endAssignment(item)
-                        }
-                        disabled={
-                          endingId === item.id
-                        }
-                      >
-                        {endingId === item.id
-                          ? "Ending..."
-                          : "End Assignment"}
-                      </button>
+                      {canEdit && (
+                        <button
+                          className="secondary-button"
+                          onClick={() =>
+                            endAssignment(item)
+                          }
+                          disabled={
+                            endingId === item.id
+                          }
+                        >
+                          {endingId === item.id
+                            ? "Ending..."
+                            : "End Assignment"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -4685,7 +4702,7 @@ function AllRoutesPreview({ routes, onClose }) {
   );
 }
 
-function Routes() {
+function Routes({ canEdit }) {
   const [routes, setRoutes] = useState([]);
   const [routePointCounts, setRoutePointCounts] = useState({});
   const [allRoutesOpen, setAllRoutesOpen] = useState(false);
@@ -4769,6 +4786,10 @@ function Routes() {
   async function createRoute(event) {
     event.preventDefault();
 
+    if (!canEdit) {
+      return;
+    }
+
     if (!routeCode.trim()) {
       setError("Route code is required.");
       return;
@@ -4825,6 +4846,10 @@ function Routes() {
   async function saveRouteDetails(event) {
     event.preventDefault();
 
+    if (!canEdit) {
+      return;
+    }
+
     if (!editingDetails) {
       return;
     }
@@ -4868,6 +4893,10 @@ function Routes() {
   }
 
   async function duplicateRoute(route) {
+    if (!canEdit) {
+      return;
+    }
+
     const Confirmed = window.confirm(`Duplicate route "${route.name}"?`);
 
     if (!Confirmed) {
@@ -4937,6 +4966,10 @@ function Routes() {
   }
 
   async function deleteRoute(route) {
+    if (!canEdit) {
+      return;
+    }
+
     const Confirmed = window.confirm(
       `Delete route "${route.name}"?\n\nThis will permanently delete the route and all of its route points.`
     );
@@ -4980,12 +5013,14 @@ function Routes() {
   return (
     <>
       <div className="vehicle-toolbar">
-        <button
-          className="primary-button assignment-button"
-          onClick={openNewRoute}
-        >
-          + New Route
-        </button>
+        {canEdit && (
+          <button
+            className="primary-button assignment-button"
+            onClick={openNewRoute}
+          >
+            + New Route
+          </button>
+        )}
 
         <button
           className="secondary-button"
@@ -5130,39 +5165,43 @@ function Routes() {
                           Preview
                         </button>
 
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => setEditingRoute(route)}
-                        >
-                          Edit Route
-                        </button>
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => setEditingRoute(route)}
+                            >
+                              Edit Route
+                            </button>
 
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => openEditDetails(route)}
-                        >
-                          Edit Details
-                        </button>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => openEditDetails(route)}
+                            >
+                              Edit Details
+                            </button>
 
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => duplicateRoute(route)}
-                          disabled={saving}
-                        >
-                          Duplicate
-                        </button>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => duplicateRoute(route)}
+                              disabled={saving}
+                            >
+                              Duplicate
+                            </button>
 
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => deleteRoute(route)}
-                          disabled={saving}
-                        >
-                          Delete
-                        </button>
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => deleteRoute(route)}
+                              disabled={saving}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -5173,7 +5212,7 @@ function Routes() {
         )}
       </section>
 
-      {editingDetails && (
+      {canEdit && editingDetails && (
         <div className="vehicle-detail-overlay">
           <div className="vehicle-detail">
             <div className="vehicle-detail-header">
@@ -5257,7 +5296,7 @@ function Routes() {
         </div>
       )}
 
-      {editingRoute && (
+      {canEdit && editingRoute && (
         <RoutePointEditor
           route={editingRoute}
           onClose={() => setEditingRoute(null)}
@@ -5282,7 +5321,7 @@ function Routes() {
   );
 }
 
-function Maintenance() {
+function Maintenance({ canEdit }) {
   const [records, setRecords] = useState([]);
   const [vehicles, setVehicles] = useState([]);
 
@@ -5357,6 +5396,10 @@ function Maintenance() {
   async function createMaintenance(event) {
     event.preventDefault();
 
+    if (!canEdit) {
+      return;
+    }
+
     setSaving(true);
     setError("");
     setMessage("");
@@ -5410,16 +5453,18 @@ function Maintenance() {
   return (
     <>
       <div className="vehicle-toolbar">
-        <button
-          className="primary-button assignment-button"
-          onClick={() => {
-            setShowForm(true);
-            setError("");
-            setMessage("");
-          }}
-        >
-          + New Maintenance Record
-        </button>
+        {canEdit && (
+          <button
+            className="primary-button assignment-button"
+            onClick={() => {
+              setShowForm(true);
+              setError("");
+              setMessage("");
+            }}
+          >
+            + New Maintenance Record
+          </button>
+        )}
 
         <button
           className="secondary-button"
@@ -5442,7 +5487,7 @@ function Maintenance() {
         </div>
       )}
 
-      {showForm && (
+      {canEdit && showForm && (
         <section className="panel assignment-form-panel">
           <PanelTitle title="New Maintenance Record" />
 
@@ -5690,7 +5735,7 @@ function Maintenance() {
   );
 }
 
-function Audits() {
+function Audits({ canEdit }) {
   const [audits, setAudits] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -6049,6 +6094,10 @@ function Audits() {
   async function createAudit(event) {
     event.preventDefault();
 
+    if (!canEdit) {
+      return;
+    }
+
     setSaving(true);
     setError("");
     setMessage("");
@@ -6094,16 +6143,18 @@ function Audits() {
   return (
     <>
       <div className="vehicle-toolbar">
-        <button
-          className="primary-button assignment-button"
-          onClick={() => {
-            setShowForm(true);
-            setError("");
-            setMessage("");
-          }}
-        >
-          + New Audit
-        </button>
+        {canEdit && (
+          <button
+            className="primary-button assignment-button"
+            onClick={() => {
+              setShowForm(true);
+              setError("");
+              setMessage("");
+            }}
+          >
+            + New Audit
+          </button>
+        )}
 
         <button
           className="secondary-button"
