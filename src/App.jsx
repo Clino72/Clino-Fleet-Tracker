@@ -3780,9 +3780,584 @@ function RoutePreview({ route, onClose }) {
   );
 }
 
+function AllRoutesPreview({ routes, onClose }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const routeLayersRef = useRef([]);
+
+  const IMAGE_SIZE = 1055;
+  const ROBLOX_HALF_SIZE = 3072;
+  const ROBLOX_SIZE = 6144;
+  const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
+
+  const [routePoints, setRoutePoints] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [timeFilter, setTimeFilter] = useState("ALL");
+  const [routeTypeFilter, setRouteTypeFilter] = useState("REGULAR");
+  const [hoveredRouteId, setHoveredRouteId] = useState(null);
+
+  function robloxToMap(x, z) {
+    const imageX =
+      (ROBLOX_HALF_SIZE - x) *
+      PIXELS_PER_STUD;
+
+    const imageY =
+      (ROBLOX_HALF_SIZE + z) *
+      PIXELS_PER_STUD;
+
+    return [imageY, imageX];
+  }
+
+  function getRouteType(routeCode) {
+    if (!routeCode) {
+      return "OTHER";
+    }
+
+    const Code = routeCode.trim().toUpperCase();
+
+    if (/^\d+-[AP][12]$/.test(Code)) {
+      return "REGULAR";
+    }
+
+    if (
+      Code === "CAS-E" ||
+      Code === "CAS-H" ||
+      Code === "CAS-M"
+    ) {
+      return "LOT_TO_SCHOOL";
+    }
+
+    if (
+      Code === "E-CAS" ||
+      Code === "H-CAS" ||
+      Code === "M-CAS"
+    ) {
+      return "SCHOOL_TO_LOT";
+    }
+
+    return "SCHOOL_TO_SCHOOL";
+  }
+
+  function getTimeType(routeCode) {
+    if (!routeCode) {
+      return null;
+    }
+
+    const Code = routeCode.trim().toUpperCase();
+
+    const Match = Code.match(
+      /^\d+-([AP])([12])$/
+    );
+
+    if (!Match) {
+      return null;
+    }
+
+    const Period = Match[1];
+    const Timing = Match[2];
+
+    if (Period === "A" && Timing === "1") {
+      return "EARLY_AM";
+    }
+
+    if (Period === "A" && Timing === "2") {
+      return "LATE_AM";
+    }
+
+    if (Period === "P" && Timing === "1") {
+      return "EARLY_PM";
+    }
+
+    if (Period === "P" && Timing === "2") {
+      return "LATE_PM";
+    }
+
+    return null;
+  }
+
+  function getRouteColor(route) {
+    const Type = getRouteType(route.route_code);
+    const TimeType = getTimeType(route.route_code);
+
+    if (Type === "LOT_TO_SCHOOL") {
+      return "#22C55E";
+    }
+
+    if (Type === "SCHOOL_TO_LOT") {
+      return "#22C55E";
+    }
+
+    if (Type === "SCHOOL_TO_SCHOOL") {
+      return "#EF4444";
+    }
+
+    if (TimeType === "EARLY_AM") {
+      return "#F97316";
+    }
+
+    if (TimeType === "LATE_AM") {
+      return "#3B82F6";
+    }
+
+    if (TimeType === "EARLY_PM") {
+      return "#EAB308";
+    }
+
+    if (TimeType === "LATE_PM") {
+      return "#A855F7";
+    }
+
+    return "#6B7280";
+  }
+
+  function matchesFilters(route) {
+    const Type = getRouteType(route.route_code);
+    const TimeType = getTimeType(route.route_code);
+
+    if (
+      timeFilter !== "ALL" &&
+      Type !== "REGULAR"
+    ) {
+      return false;
+    }
+
+    if (timeFilter === "AM") {
+      if (
+        TimeType !== "EARLY_AM" &&
+        TimeType !== "LATE_AM"
+      ) {
+        return false;
+      }
+    }
+
+    if (timeFilter === "PM") {
+      if (
+        TimeType !== "EARLY_PM" &&
+        TimeType !== "LATE_PM"
+      ) {
+        return false;
+      }
+    }
+
+    if (timeFilter === "EARLY") {
+      if (
+        TimeType !== "EARLY_AM" &&
+        TimeType !== "EARLY_PM"
+      ) {
+        return false;
+      }
+    }
+
+    if (timeFilter === "LATE") {
+      if (
+        TimeType !== "LATE_AM" &&
+        TimeType !== "LATE_PM"
+      ) {
+        return false;
+      }
+    }
+
+    if (
+      routeTypeFilter !== "ALL" &&
+      Type !== routeTypeFilter
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  async function loadRoutePoints() {
+    setLoading(true);
+    setError("");
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("route_points")
+      .select("*")
+      .order("route_id")
+      .order("sequence");
+
+    if (error) {
+      setError(error.message);
+      setRoutePoints({});
+      setLoading(false);
+      return;
+    }
+
+    const Grouped = {};
+
+    (data || []).forEach((point) => {
+      if (!Grouped[point.route_id]) {
+        Grouped[point.route_id] = [];
+      }
+
+      Grouped[point.route_id].push(point);
+    });
+
+    setRoutePoints(Grouped);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadRoutePoints();
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) {
+      return;
+    }
+
+    const map = L.map(mapRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: -1,
+      maxZoom: 4,
+      zoomControl: true,
+      attributionControl: false,
+      maxBoundsViscosity: 1.0,
+    });
+
+    const bounds = [
+      [0, 0],
+      [IMAGE_SIZE, IMAGE_SIZE],
+    ];
+
+    L.imageOverlay(
+      "/Clino-Fleet-Tracker/map.png",
+      bounds
+    ).addTo(map);
+
+    map.fitBounds(bounds);
+    map.setMaxBounds(bounds);
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      routeLayersRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    routeLayersRef.current.forEach(
+      (layer) => {
+        layer.remove();
+      }
+    );
+
+    routeLayersRef.current = [];
+
+    const VisibleRoutes =
+      routes.filter(matchesFilters);
+
+    VisibleRoutes.forEach((route) => {
+      const Points =
+        routePoints[route.id] || [];
+
+      if (Points.length < 2) {
+        return;
+      }
+
+      const LatLngs = Points.map((point) =>
+        robloxToMap(
+          Number(point.x),
+          Number(point.z)
+        )
+      );
+
+      const IsHovered =
+        hoveredRouteId === route.id;
+
+      const HasHoveredRoute =
+        hoveredRouteId !== null;
+
+      const RouteColor =
+        getRouteColor(route);
+
+      const Line = L.polyline(
+        LatLngs,
+        {
+          color: RouteColor,
+          weight: IsHovered ? 8 : 4,
+          opacity:
+            HasHoveredRoute && !IsHovered
+              ? 0.18
+              : 0.9,
+          lineCap: "round",
+          lineJoin: "round",
+        }
+      ).addTo(map);
+
+      Line.on("mouseover", () => {
+        setHoveredRouteId(route.id);
+      });
+
+      Line.on("mouseout", () => {
+        setHoveredRouteId(null);
+      });
+
+      routeLayersRef.current.push(Line);
+
+      const PointMarkers = [];
+
+      Points.forEach((point, index) => {
+        const Marker = L.circleMarker(
+          LatLngs[index],
+          {
+            radius: IsHovered ? 6 : 4,
+            color: RouteColor,
+            fillColor: RouteColor,
+            fillOpacity:
+              HasHoveredRoute && !IsHovered
+                ? 0.18
+                : 0.9,
+            opacity:
+              HasHoveredRoute && !IsHovered
+                ? 0.18
+                : 1,
+            weight: IsHovered ? 2 : 1,
+          }
+        ).addTo(map);
+
+        Marker.on("mouseover", () => {
+          setHoveredRouteId(route.id);
+        });
+
+        Marker.on("mouseout", () => {
+          setHoveredRouteId(null);
+        });
+
+        PointMarkers.push(Marker);
+        routeLayersRef.current.push(Marker);
+      });
+    });
+  }, [
+    routes,
+    routePoints,
+    timeFilter,
+    routeTypeFilter,
+    hoveredRouteId,
+  ]);
+
+  const VisibleRoutes =
+    routes.filter(matchesFilters);
+
+  const HoveredRoute =
+    routes.find(
+      (route) => route.id === hoveredRouteId
+    );
+
+  return (
+    <div className="vehicle-detail-overlay">
+      <div
+        className="vehicle-detail"
+        style={{
+          maxWidth: "1400px",
+          width: "95vw",
+        }}
+      >
+        <div className="vehicle-detail-header">
+          <div>
+            <div className="eyebrow">
+              ALL ROUTES
+            </div>
+
+            <h2>Route Map</h2>
+          </div>
+
+          <div className="vehicle-detail-header-actions">
+            <button
+              className="secondary-button"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error fleet-error">
+            {error}
+          </div>
+        )}
+
+        <div className="vehicle-detail-section">
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <strong>Time</strong>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  marginTop: "6px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                  ["ALL", "All"],
+                  ["AM", "AM"],
+                  ["PM", "PM"],
+                  ["EARLY", "Early"],
+                  ["LATE", "Late"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className="secondary-button"
+                    style={{
+                      background:
+                        timeFilter === value
+                          ? "#3b82f6"
+                          : undefined,
+                      borderColor:
+                        timeFilter === value
+                          ? "#3b82f6"
+                          : undefined,
+                    }}
+                    onClick={() =>
+                      setTimeFilter(value)
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <strong>Route Type</strong>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  marginTop: "6px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                  ["ALL", "All"],
+                  ["REGULAR", "Regular"],
+                  [
+                    "LOT_TO_SCHOOL",
+                    "Lot → School",
+                  ],
+                  [
+                    "SCHOOL_TO_LOT",
+                    "School → Lot",
+                  ],
+                  [
+                    "SCHOOL_TO_SCHOOL",
+                    "School → School",
+                  ],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className="secondary-button"
+                    style={{
+                      background:
+                        routeTypeFilter === value
+                          ? "#3b82f6"
+                          : undefined,
+                      borderColor:
+                        routeTypeFilter === value
+                          ? "#3b82f6"
+                          : undefined,
+                    }}
+                    onClick={() =>
+                      setRouteTypeFilter(value)
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <div
+            style={{
+              marginBottom: "10px",
+              fontSize: "13px",
+              opacity: 0.7,
+            }}
+          >
+            {loading
+              ? "Loading route points..."
+              : `${VisibleRoutes.length} route${VisibleRoutes.length === 1 ? "" : "s"} shown`}
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+            }}
+          >
+            <div
+              ref={mapRef}
+              className="fleet-leaflet-map"
+              style={{
+                height: "650px",
+                width: "100%",
+              }}
+            />
+
+            {HoveredRoute && (
+              <div
+                style={{
+                  position: "absolute",
+                  zIndex: 1000,
+                  top: "12px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background:
+                    "var(--panel-bg, #151a21)",
+                  border:
+                    "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  boxShadow:
+                    "0 8px 20px rgba(0,0,0,0.3)",
+                  pointerEvents: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <strong>
+                  {HoveredRoute.name}
+                </strong>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Routes() {
   const [routes, setRoutes] = useState([]);
   const [routePointCounts, setRoutePointCounts] = useState({});
+  const [allRoutesOpen, setAllRoutesOpen] = useState(false);
 
   const [editingRoute, setEditingRoute] = useState(null);
   const [previewRoute, setPreviewRoute] = useState(null);
@@ -4096,6 +4671,13 @@ function Routes() {
         >
           {loading ? "Refreshing..." : "Refresh"}
         </button>
+
+        <button
+          className="secondary-button"
+          onClick={() => setAllRoutesOpen(true)}
+        >
+          View All Routes
+        </button>
       </div>
 
       {message && (
@@ -4397,6 +4979,13 @@ function Routes() {
         <RoutePreview
           route={previewRoute}
           onClose={() => setPreviewRoute(null)}
+        />
+      )}
+
+      {allRoutesOpen && (
+        <AllRoutesPreview
+          routes={routes}
+          onClose={() => setAllRoutesOpen(false)}
         />
       )}
     </>
