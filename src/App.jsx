@@ -17,23 +17,68 @@ const pages = [
 
 function App() {
   const [session, setSession] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState("Dashboard");
+
+  const canEdit = role !== "viewer";
+
+  async function loadUserRole(currentSession) {
+    if (!currentSession?.user?.id) {
+      setRole(null);
+      return;
+    }
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", currentSession.user.id)
+      .single();
+
+    if (error) {
+      console.error("Failed to load user role:", error);
+      setRole(null);
+      return;
+    }
+
+    setRole(data?.role || null);
+  }
 
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session);
-        setLoading(false);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!mounted) {
+        return;
       }
+
+      setSession(data.session);
+
+      if (data.session) {
+        await loadUserRole(data.session);
+      }
+
+      setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!mounted) {
+        return;
+      }
+
       setSession(newSession);
+
+      if (newSession) {
+        await loadUserRole(newSession);
+      } else {
+        setRole(null);
+      }
+
       setLoading(false);
     });
 
@@ -51,9 +96,21 @@ function App() {
     return <Login />;
   }
 
+  if (!role) {
+    return (
+      <div className="loading-screen">
+        Unable to load account permissions.
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      <Sidebar page={page} setPage={setPage} />
+      <Sidebar
+        page={page}
+        setPage={setPage}
+        role={role}
+      />
 
       <main className="main">
         <header className="topbar">
@@ -71,15 +128,68 @@ function App() {
         </header>
 
         <div className="content">
-          {page === "Dashboard" && <Dashboard />}
-          {page === "Live Fleet" && <LiveFleet />}
-          {page === "Vehicles" && <Vehicles />}
-          {page === "Drivers" && <Drivers />}
-          {page === "Assignments" && <Assignments />}
-          {page === "Maintenance" && <Maintenance />}
-          {page === "Audits" && <Audits />}
-          {page === "Routes" && <Routes />}
-          {page === "Settings" && <Settings />}
+          {page === "Dashboard" && (
+            <Dashboard
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Live Fleet" && (
+            <LiveFleet
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Vehicles" && (
+            <Vehicles
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Drivers" && (
+            <Drivers
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Assignments" && (
+            <Assignments
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Maintenance" && (
+            <Maintenance
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Audits" && (
+            <Audits
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Routes" && (
+            <Routes
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
+
+          {page === "Settings" && (
+            <Settings
+              role={role}
+              canEdit={canEdit}
+            />
+          )}
         </div>
       </main>
     </div>
@@ -100,13 +210,11 @@ function Login() {
     const {
       data: UserData,
       error: UserError,
-    } = await supabase
-      .from("user_roles")
-      .select("username, email")
-      .ilike("username", username.trim())
-      .single();
+    } = await supabase.rpc("get_login_email", {
+      p_username: username.trim(),
+    });
 
-    if (UserError || !UserData || !UserData.email) {
+    if (UserError || !UserData) {
       setError("Invalid username or password.");
       setBusy(false);
       return;
@@ -114,7 +222,7 @@ function Login() {
 
     const { error: AuthError } =
       await supabase.auth.signInWithPassword({
-        email: UserData.email,
+        email: UserData,
         password,
       });
 
@@ -180,7 +288,7 @@ function Login() {
   );
 }
 
-function Sidebar({ page, setPage }) {
+function Sidebar({ page, setPage, role }) {
   return (
     <aside className="sidebar">
       <div className="brand">
