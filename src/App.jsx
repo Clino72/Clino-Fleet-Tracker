@@ -187,7 +187,7 @@ function Sidebar({ page, setPage }) {
         <div className="brand-mark">72</div>
         <div>
           <strong>Clino Fleet Tracker</strong>
-          <span>Version 0.0.19 BETA</span>
+          <span>Version 0.0.20 BETA</span>
         </div>
       </div>
 
