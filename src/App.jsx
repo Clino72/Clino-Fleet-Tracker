@@ -58,7 +58,7 @@ function App() {
       <main className="main">
         <header className="topbar">
           <div>
-            <div className="eyebrow">FLEET MANAGEMENT</div>
+            <div className="eyebrow">CLINO FLEET TRACKER</div>
             <h1>{page}</h1>
           </div>
 
@@ -87,7 +87,7 @@ function App() {
 }
 
 function Login() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -97,13 +97,29 @@ function Login() {
     setError("");
     setBusy(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const {
+      data: UserData,
+      error: UserError,
+    } = await supabase
+      .from("user_roles")
+      .select("username, email")
+      .ilike("username", username.trim())
+      .single();
 
-    if (error) {
-      setError(error.message);
+    if (UserError || !UserData || !UserData.email) {
+      setError("Invalid username or password.");
+      setBusy(false);
+      return;
+    }
+
+    const { error: AuthError } =
+      await supabase.auth.signInWithPassword({
+        email: UserData.email,
+        password,
+      });
+
+    if (AuthError) {
+      setError("Invalid username or password.");
     }
 
     setBusy(false);
@@ -112,18 +128,23 @@ function Login() {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={signIn}>
-        <div className="eyebrow">FLEET MANAGEMENT</div>
+        <div className="eyebrow">CLINO FLEET TRACKER</div>
+
         <h1>Sign in</h1>
+
         <p className="muted">
           Private fleet operations dashboard
         </p>
 
         <label>
-          Email
+          Username
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            value={username}
+            onChange={(e) =>
+              setUsername(e.target.value)
+            }
+            autoComplete="username"
             required
           />
         </label>
@@ -133,14 +154,25 @@ function Login() {
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) =>
+              setPassword(e.target.value)
+            }
+            autoComplete="current-password"
             required
           />
         </label>
 
-        {error && <div className="error">{error}</div>}
+        {error && (
+          <div className="error">
+            {error}
+          </div>
+        )}
 
-        <button className="primary-button" disabled={busy}>
+        <button
+          type="submit"
+          className="primary-button"
+          disabled={busy}
+        >
           {busy ? "Signing in..." : "Sign in"}
         </button>
       </form>
@@ -152,10 +184,10 @@ function Sidebar({ page, setPage }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">F</div>
+        <div className="brand-mark">72</div>
         <div>
-          <strong>Fleet</strong>
-          <span>Management</span>
+          <strong>Clino Fleet Tracker</strong>
+          <span>Version 0.0.19 BETA</span>
         </div>
       </div>
 
