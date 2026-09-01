@@ -3569,6 +3569,43 @@ function RoutePreview({ route, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const PointTypes = {
+    STRAIGHT: {
+      label: "Straight",
+      color: "#22c55e",
+      textColor: "#000000",
+      stripe: null,
+    },
+
+    TURN_LEFT: {
+      label: "Turn Left",
+      color: "#eab308",
+      textColor: "#000000",
+      stripe: null,
+    },
+
+    TURN_RIGHT: {
+      label: "Turn Right",
+      color: "#3b82f6",
+      textColor: "#ffffff",
+      stripe: null,
+    },
+
+    STOP_LEFT: {
+      label: "Stop Left",
+      color: "#ef4444",
+      textColor: "#ffffff",
+      stripe: "left",
+    },
+
+    STOP_RIGHT: {
+      label: "Stop Right",
+      color: "#ef4444",
+      textColor: "#ffffff",
+      stripe: "right",
+    },
+  };
+
   function robloxToMap(x, z) {
     const imageX =
       (ROBLOX_HALF_SIZE - x) *
@@ -3626,7 +3663,7 @@ function RoutePreview({ route, onClose }) {
     ];
 
     L.imageOverlay(
-      `${import.meta.env.BASE_URL}map.png`,
+      "/Clino-Fleet-Tracker/map.png",
       bounds
     ).addTo(map);
 
@@ -3672,13 +3709,98 @@ function RoutePreview({ route, onClose }) {
       )
     );
 
+    lineRef.current = L.polyline(
+      latLngs,
+      {
+        weight: 5,
+        color: "#3b82f6",
+        opacity: 0.9,
+        lineCap: "round",
+        lineJoin: "round",
+      }
+    ).addTo(map);
+
     points.forEach((point, index) => {
+      const type =
+        PointTypes[point.point_type] ||
+        PointTypes.STRAIGHT;
+
+      let stopHalfHTML = "";
+
+      if (type.stripe === "left") {
+        stopHalfHTML = `
+          <div
+            style="
+              position:absolute;
+              left:0;
+              top:0;
+              width:50%;
+              height:100%;
+              background:#eab308;
+              border-radius:50% 0 0 50%;
+            "
+          ></div>
+        `;
+      }
+
+      if (type.stripe === "right") {
+        stopHalfHTML = `
+          <div
+            style="
+              position:absolute;
+              right:0;
+              top:0;
+              width:50%;
+              height:100%;
+              background:#eab308;
+              border-radius:0 50% 50% 0;
+            "
+          ></div>
+        `;
+      }
+
       const marker = L.marker(
         latLngs[index],
         {
           icon: L.divIcon({
-            className: "route-point-marker-wrapper",
-            html: `<div class="route-point-dot">${index + 1}</div>`,
+            className:
+              "route-point-marker-wrapper",
+
+            html: `
+              <div
+                class="route-point-dot"
+                style="
+                  position:relative;
+                  overflow:hidden;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  width:24px;
+                  height:24px;
+                  border-radius:50%;
+                  background:${type.color};
+                  color:${type.textColor};
+                  font-weight:700;
+                  font-size:12px;
+                  border:2px solid #ffffff;
+                  box-sizing:border-box;
+                  box-shadow:0 1px 4px rgba(0,0,0,0.35);
+                "
+              >
+                ${stopHalfHTML}
+
+                <span
+                  style="
+                    position:relative;
+                    z-index:2;
+                    line-height:1;
+                  "
+                >
+                  ${index + 1}
+                </span>
+              </div>
+            `,
+
             iconSize: [24, 24],
             iconAnchor: [12, 12],
           }),
@@ -3687,17 +3809,7 @@ function RoutePreview({ route, onClose }) {
 
       markersRef.current.push(marker);
     });
-
-    if (latLngs.length > 1) {
-      lineRef.current = L.polyline(
-        latLngs,
-        {
-          weight: 5,
-          color: route.color || "#3b82f6",
-        }
-      ).addTo(map);
-    }
-  }, [points, route.color]);
+  }, [points]);
 
   return (
     <div className="vehicle-detail-overlay">
@@ -3773,6 +3885,85 @@ function RoutePreview({ route, onClose }) {
                 route.description || "—"
               }
             />
+          </div>
+        </div>
+
+        <div className="vehicle-detail-section">
+          <h3>Point Types</h3>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+            }}
+          >
+            {Object.entries(PointTypes).map(
+              ([value, type]) => (
+                <div
+                  key={value}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "13px",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "relative",
+                      overflow: "hidden",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      background: type.color,
+                      border:
+                        "2px solid #ffffff",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {type.stripe === "left" && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          width: "50%",
+                          height: "100%",
+                          background:
+                            "#eab308",
+                          borderRadius:
+                            "50% 0 0 50%",
+                        }}
+                      />
+                    )}
+
+                    {type.stripe === "right" && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          top: 0,
+                          width: "50%",
+                          height: "100%",
+                          background:
+                            "#eab308",
+                          borderRadius:
+                            "0 50% 50% 0",
+                        }}
+                      />
+                    )}
+                  </span>
+
+                  <span>
+                    {type.label}
+                  </span>
+                </div>
+              )
+            )}
           </div>
         </div>
       </div>
@@ -4369,7 +4560,6 @@ function Routes() {
   const [editRouteCode, setEditRouteCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [color, setColor] = useState("#3b82f6");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -4423,7 +4613,6 @@ function Routes() {
     setRouteCode("");
     setName("");
     setDescription("");
-    setColor("#3b82f6");
     setError("");
     setMessage("");
     setShowForm(true);
@@ -4433,7 +4622,6 @@ function Routes() {
     setRouteCode("");
     setName("");
     setDescription("");
-    setColor("#3b82f6");
     setError("");
     setShowForm(false);
   }
@@ -4461,7 +4649,6 @@ function Routes() {
         route_code: routeCode.trim().toUpperCase(),
         name: name.trim(),
         description: description.trim() || null,
-        color,
         status: "ACTIVE",
       });
 
@@ -4483,7 +4670,6 @@ function Routes() {
     setEditRouteCode(route.route_code ?? "");
     setName(route.name ?? "");
     setDescription(route.description ?? "");
-    setColor(route.color ?? "#3b82f6");
     setError("");
     setMessage("");
   }
@@ -4493,7 +4679,6 @@ function Routes() {
     setEditRouteCode("");
     setName("");
     setDescription("");
-    setColor("#3b82f6");
     setError("");
   }
 
@@ -4524,7 +4709,6 @@ function Routes() {
         route_code: editRouteCode.trim().toUpperCase(),
         name: name.trim(),
         description: description.trim() || null,
-        color,
       })
       .eq("id", editingDetails.id)
       .select()
@@ -4560,7 +4744,6 @@ function Routes() {
         route_code: `${route.route_code || "COPY"}-COPY`,
         name: `${route.name} Copy`,
         description: route.description || null,
-        color: route.color || "#3b82f6",
         status: route.status || "ACTIVE",
       })
       .select()
@@ -4733,15 +4916,6 @@ function Routes() {
               />
             </label>
 
-            <label>
-              Route Color
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-              />
-            </label>
-
             <div className="assignment-form-actions">
               <button
                 type="button"
@@ -4778,7 +4952,6 @@ function Routes() {
                   <th>Description</th>
                   <th>Status</th>
                   <th>Points</th>
-                  <th>Color</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -4797,20 +4970,6 @@ function Routes() {
                     </td>
 
                     <td>{routePointCounts[route.id] ?? 0}</td>
-
-                    <td>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: "18px",
-                          height: "18px",
-                          borderRadius: "4px",
-                          background: route.color || "#3b82f6",
-                          border: "1px solid #293440",
-                          verticalAlign: "middle",
-                        }}
-                      />
-                    </td>
 
                     <td>
                       <div
@@ -4931,15 +5090,6 @@ function Routes() {
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
                     placeholder="Optional route description..."
-                  />
-                </label>
-
-                <label>
-                  Route Color
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
                   />
                 </label>
 
