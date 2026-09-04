@@ -1849,8 +1849,17 @@ function Drivers() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [selected, setSelected] = useState(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingDriver, setEditingDriver] = useState(null);
+
+  const [driverUsername, setDriverUsername] = useState("");
+  const [robloxUserId, setRobloxUserId] = useState("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
 
   async function loadDrivers() {
     setLoading(true);
@@ -1859,14 +1868,14 @@ function Drivers() {
     const { data, error } = await supabase
       .from("drivers")
       .select(`
-      *,
-      vehicles:current_vehicle_id (
-        fleet_number
-      ),
-      routes:current_route_id (
-        name
-      )
-    `)
+        *,
+        vehicles:current_vehicle_id (
+          fleet_number
+        ),
+        routes:current_route_id (
+          name
+        )
+      `)
       .order("name");
 
     if (error) {
@@ -1890,6 +1899,120 @@ function Drivers() {
 
     return () => clearInterval(interval);
   }, []);
+
+  function openAddDriverForm() {
+    setEditingDriver(null);
+    setDriverUsername("");
+    setRobloxUserId("");
+    setEmployeeNumber("");
+    setError("");
+    setMessage("");
+    setShowForm(true);
+  }
+
+  function openEditDriverForm(driver) {
+    setEditingDriver(driver);
+    setDriverUsername(driver.name || "");
+    setRobloxUserId(
+      driver.roblox_user_id !== null &&
+        driver.roblox_user_id !== undefined
+        ? String(driver.roblox_user_id)
+        : ""
+    );
+    setEmployeeNumber(driver.employee_number || "");
+    setError("");
+    setMessage("");
+    setShowForm(true);
+  }
+
+  function closeDriverForm() {
+    setShowForm(false);
+    setEditingDriver(null);
+    setDriverUsername("");
+    setRobloxUserId("");
+    setEmployeeNumber("");
+    setError("");
+  }
+
+  async function saveDriver(event) {
+    event.preventDefault();
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    const username = driverUsername.trim();
+    const userId = robloxUserId.trim();
+    const employee = employeeNumber.trim();
+
+    if (!username) {
+      setError("Enter a Roblox username.");
+      setSaving(false);
+      return;
+    }
+
+    if (!userId) {
+      setError("Enter a Roblox User ID.");
+      setSaving(false);
+      return;
+    }
+
+    if (!/^\d+$/.test(userId)) {
+      setError("Roblox User ID must contain numbers only.");
+      setSaving(false);
+      return;
+    }
+
+    const numericUserId = Number(userId);
+
+    if (!Number.isSafeInteger(numericUserId)) {
+      setError("Roblox User ID is too large.");
+      setSaving(false);
+      return;
+    }
+
+    if (editingDriver) {
+      const { error } = await supabase
+        .from("drivers")
+        .update({
+          name: username,
+          roblox_user_id: numericUserId,
+          employee_number: employee || null,
+        })
+        .eq("id", editingDriver.id);
+
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
+
+      setMessage(`Driver ${username} updated successfully.`);
+    } else {
+      const { error } = await supabase
+        .from("drivers")
+        .insert({
+          name: username,
+          roblox_user_id: numericUserId,
+          employee_number: employee || null,
+          status: "OFFLINE",
+        });
+
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
+
+      setMessage(`Driver ${username} added successfully.`);
+    }
+
+    closeDriverForm();
+
+    await loadDrivers();
+
+    setSaving(false);
+  }
 
   const filteredDrivers = drivers.filter((driver) => {
     const searchValue = search.toLowerCase();
@@ -1941,6 +2064,13 @@ function Drivers() {
         </select>
 
         <button
+          className="primary-button add-driver-button"
+          onClick={openAddDriverForm}
+        >
+          + Add Driver
+        </button>
+
+        <button
           className="secondary-button"
           onClick={loadDrivers}
           disabled={loading}
@@ -1948,6 +2078,12 @@ function Drivers() {
           {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
+
+      {message && (
+        <div className="success-message">
+          {message}
+        </div>
+      )}
 
       <div className="fleet-meta">
         <span>
@@ -1960,6 +2096,83 @@ function Drivers() {
         <div className="error fleet-error">
           Unable to load drivers: {error}
         </div>
+      )}
+
+      {showForm && (
+        <section className="panel assignment-form-panel">
+          <PanelTitle
+            title={editingDriver ? "Edit Driver" : "Add Driver"}
+          />
+
+          <form
+            className="assignment-form"
+            onSubmit={saveDriver}
+          >
+            <label>
+              Roblox Username
+              <input
+                className="filter-select full-width"
+                type="text"
+                value={driverUsername}
+                onChange={(e) =>
+                  setDriverUsername(e.target.value)
+                }
+                placeholder="Username"
+                required
+              />
+            </label>
+
+            <label>
+              Roblox User ID
+              <input
+                className="filter-select full-width"
+                type="text"
+                inputMode="numeric"
+                value={robloxUserId}
+                onChange={(e) =>
+                  setRobloxUserId(e.target.value)
+                }
+                placeholder="User ID"
+                required
+              />
+            </label>
+
+            <label>
+              Employee #
+              <input
+                className="filter-select full-width"
+                type="text"
+                value={employeeNumber}
+                onChange={(e) =>
+                  setEmployeeNumber(e.target.value)
+                }
+                placeholder="Optional"
+              />
+            </label>
+
+            <div className="assignment-form-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeDriverForm}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary-button assignment-save"
+                disabled={saving}
+              >
+                {saving
+                  ? "Saving..."
+                  : editingDriver
+                    ? "Save Changes"
+                    : "Add Driver"}
+              </button>
+            </div>
+          </form>
+        </section>
       )}
 
       <section className="panel">
@@ -1975,6 +2188,7 @@ function Drivers() {
                 <th>Current Route</th>
                 <th>Employee #</th>
                 <th>Roblox User ID</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
@@ -2007,6 +2221,18 @@ function Drivers() {
 
                   <td>
                     {driver.roblox_user_id ?? "—"}
+                  </td>
+
+                  <td>
+                    <button
+                      className="secondary-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditDriverForm(driver);
+                      }}
+                    >
+                      Edit
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -2168,13 +2394,13 @@ function Assignments({ canEdit }) {
   const [assignments, setAssignments] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [routes, setRoutes] = useState([]);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
 
   const [vehicleId, setVehicleId] = useState("");
+  const [routeNumber, setRouteNumber] = useState("");
   const [driverId, setDriverId] = useState("");
-  const [routeId, setRouteId] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -2191,49 +2417,111 @@ function Assignments({ canEdit }) {
       assignmentsResult,
       vehiclesResult,
       driversResult,
-      routesResult,
+      routeAssignmentsResult,
     ] = await Promise.all([
       supabase
         .from("assignments")
         .select(`
-          *,
-          vehicles(fleet_number),
-          drivers(name),
-          routes(name)
+          id,
+          vehicle_id,
+          driver_id,
+          route_number,
+          status,
+          started_at,
+          vehicles(fleet_number, year, garage, status),
+          drivers(name)
         `)
-        .order("started_at", { ascending: false }),
+        .eq("status", "ACTIVE"),
 
       supabase
         .from("vehicles")
-        .select("*")
-        .order("fleet_number"),
+        .select("id, fleet_number, year, garage, status"),
 
       supabase
         .from("drivers")
-        .select("*")
-        .order("name"),
+        .select("id, name")
+        .order("name", { ascending: true }),
 
       supabase
-        .from("routes")
-        .select("*")
-        .eq("status", "ACTIVE")
-        .order("name"),
+        .from("route_assignments")
+        .select(`
+          vehicle_id,
+          route_code,
+          status,
+          routes(route_code)
+        `)
+        .in("status", ["AWAITING", "ACTIVE"]),
     ]);
 
     if (assignmentsResult.error) {
       setError(assignmentsResult.error.message);
-    } else if (vehiclesResult.error) {
-      setError(vehiclesResult.error.message);
-    } else if (driversResult.error) {
-      setError(driversResult.error.message);
-    } else if (routesResult.error) {
-      setError(routesResult.error.message);
+      setLoading(false);
+      return;
     }
 
-    setAssignments(assignmentsResult.data || []);
-    setVehicles(vehiclesResult.data || []);
+    if (vehiclesResult.error) {
+      setError(vehiclesResult.error.message);
+      setLoading(false);
+      return;
+    }
+
+    if (driversResult.error) {
+      setError(driversResult.error.message);
+      setLoading(false);
+      return;
+    }
+
+    if (routeAssignmentsResult.error) {
+      setError(routeAssignmentsResult.error.message);
+      setLoading(false);
+      return;
+    }
+
+    const activeRouteMap = {};
+
+    for (const routeAssignment of routeAssignmentsResult.data || []) {
+      if (routeAssignment.vehicle_id) {
+        activeRouteMap[routeAssignment.vehicle_id] = routeAssignment.route_code || routeAssignment.routes?.route_code || null;
+      }
+    }
+
+    const garageOrder = {
+      CLIO: 0,
+      MAPLECREST: 1,
+    };
+
+    function sortVehicles(a, b) {
+      const garageA = garageOrder[String(a.garage || "").toUpperCase()] ?? 999;
+      const garageB = garageOrder[String(b.garage || "").toUpperCase()] ?? 999;
+
+      if (garageA !== garageB) {
+        return garageA - garageB;
+      }
+
+      const yearA = Number(a.year) || 9999;
+      const yearB = Number(b.year) || 9999;
+
+      if (yearA !== yearB) {
+        return yearA - yearB;
+      }
+
+      return String(a.fleet_number || "").localeCompare(String(b.fleet_number || ""), undefined, { numeric: true });
+    }
+
+    const currentAssignments = (assignmentsResult.data || [])
+      .map((assignment) => ({
+        ...assignment,
+        activeRoute: activeRouteMap[assignment.vehicle_id] || null,
+      }))
+      .sort((a, b) => {
+        return sortVehicles(a.vehicles || {}, b.vehicles || {});
+      });
+
+    const sortedVehicles = [...(vehiclesResult.data || [])].sort(sortVehicles);
+
+    setAssignments(currentAssignments);
+    setVehicles(sortedVehicles);
     setDrivers(driversResult.data || []);
-    setRoutes(routesResult.data || []);
 
     setLoading(false);
   }
@@ -2241,6 +2529,35 @@ function Assignments({ canEdit }) {
   useEffect(() => {
     loadData();
   }, []);
+
+  function openNewAssignmentForm() {
+    setEditingAssignment(null);
+    setVehicleId("");
+    setRouteNumber("");
+    setDriverId("");
+    setError("");
+    setMessage("");
+    setShowForm(true);
+  }
+
+  function openEditAssignmentForm(assignment) {
+    setEditingAssignment(assignment);
+    setVehicleId(assignment.vehicle_id || "");
+    setRouteNumber(assignment.route_number || "");
+    setDriverId(assignment.driver_id || "");
+    setError("");
+    setMessage("");
+    setShowForm(true);
+  }
+
+  function closeAssignmentForm() {
+    setShowForm(false);
+    setEditingAssignment(null);
+    setVehicleId("");
+    setRouteNumber("");
+    setDriverId("");
+    setError("");
+  }
 
   async function createAssignment(event) {
     event.preventDefault();
@@ -2259,18 +2576,22 @@ function Assignments({ canEdit }) {
       return;
     }
 
-    const { data: vehicle, error: vehicleError } =
-      await supabase
-        .from("vehicles")
-        .select("fleet_number")
-        .eq("id", vehicleId)
-        .single();
+    if (!routeNumber.trim()) {
+      setError("Enter a Route #.");
+      setSaving(false);
+      return;
+    }
 
-    if (vehicleError || !vehicle) {
-      setError(
-        vehicleError?.message ||
-        "Unable to find selected vehicle."
-      );
+    if (!driverId) {
+      setError("Select a driver.");
+      setSaving(false);
+      return;
+    }
+
+    const vehicle = vehicles.find((item) => item.id === vehicleId);
+
+    if (!vehicle) {
+      setError("Unable to find selected vehicle.");
       setSaving(false);
       return;
     }
@@ -2279,8 +2600,8 @@ function Assignments({ canEdit }) {
       "assign_vehicle",
       {
         p_fleet_number: vehicle.fleet_number,
-        p_driver_id: driverId || null,
-        p_route_id: routeId || null,
+        p_driver_id: driverId,
+        p_route_number: routeNumber.trim(),
       }
     );
 
@@ -2290,18 +2611,145 @@ function Assignments({ canEdit }) {
       return;
     }
 
-    setMessage(
-      `Bus ${vehicle.fleet_number} assigned successfully.`
-    );
+    setMessage(`Bus ${vehicle.fleet_number} assigned successfully.`);
 
-    setVehicleId("");
-    setDriverId("");
-    setRouteId("");
-    setShowForm(false);
+    closeAssignmentForm();
 
     await loadData();
 
     setSaving(false);
+  }
+
+  async function editAssignment(event) {
+    event.preventDefault();
+
+    if (!canEdit || !editingAssignment) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    if (!vehicleId) {
+      setError("Select a vehicle.");
+      setSaving(false);
+      return;
+    }
+
+    if (!routeNumber.trim()) {
+      setError("Enter a Route #.");
+      setSaving(false);
+      return;
+    }
+
+    if (!driverId) {
+      setError("Select a driver.");
+      setSaving(false);
+      return;
+    }
+
+    const vehicle = vehicles.find((item) => item.id === vehicleId);
+
+    if (!vehicle) {
+      setError("Unable to find selected vehicle.");
+      setSaving(false);
+      return;
+    }
+
+    const previousDriverId = editingAssignment.driver_id;
+
+    if (previousDriverId && previousDriverId !== driverId) {
+      const { error: previousDriverError } = await supabase
+        .from("drivers")
+        .update({
+          current_vehicle_id: null,
+          current_route_id: null,
+        })
+        .eq("id", previousDriverId);
+
+      if (previousDriverError) {
+        setError(previousDriverError.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    const { error: assignmentError } = await supabase
+      .from("assignments")
+      .update({
+        vehicle_id: vehicleId,
+        driver_id: driverId,
+        route_number: routeNumber.trim(),
+      })
+      .eq("id", editingAssignment.id);
+
+    if (assignmentError) {
+      setError(assignmentError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: vehicleError } = await supabase
+      .from("vehicles")
+      .update({
+        current_driver_id: driverId,
+        current_route_id: null,
+      })
+      .eq("id", vehicleId);
+
+    if (vehicleError) {
+      setError(vehicleError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { error: driverError } = await supabase
+      .from("drivers")
+      .update({
+        current_vehicle_id: vehicleId,
+        current_route_id: null,
+      })
+      .eq("id", driverId);
+
+    if (driverError) {
+      setError(driverError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (editingAssignment.vehicle_id !== vehicleId) {
+      const { error: previousVehicleError } = await supabase
+        .from("vehicles")
+        .update({
+          current_driver_id: null,
+          current_route_id: null,
+        })
+        .eq("id", editingAssignment.vehicle_id);
+
+      if (previousVehicleError) {
+        setError(previousVehicleError.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    setMessage(`Assignment for Bus ${vehicle.fleet_number} updated successfully.`);
+
+    closeAssignmentForm();
+
+    await loadData();
+
+    setSaving(false);
+  }
+
+  async function saveAssignment(event) {
+    if (editingAssignment) {
+      await editAssignment(event);
+      return;
+    }
+
+    await createAssignment(event);
   }
 
   async function endAssignment(assignment) {
@@ -2309,8 +2757,7 @@ function Assignments({ canEdit }) {
       return;
     }
 
-    const fleetNumber =
-      assignment.vehicles?.fleet_number;
+    const fleetNumber = assignment.vehicles?.fleet_number;
 
     if (!fleetNumber) {
       setError("Unable to determine vehicle fleet number.");
@@ -2342,22 +2789,26 @@ function Assignments({ canEdit }) {
       return;
     }
 
-    setMessage(
-      `Assignment for Bus ${fleetNumber} ended.`
-    );
+    setMessage(`Assignment for Bus ${fleetNumber} ended.`);
 
     await loadData();
 
     setEndingId(null);
   }
 
-  const activeAssignments = assignments.filter(
-    (item) => item.status === "ACTIVE"
-  );
+  function getActiveRouteLabel(assignment) {
+    if (assignment.activeRoute) {
+      return assignment.activeRoute;
+    }
 
-  const assignmentHistory = assignments.filter(
-    (item) => item.status !== "ACTIVE"
-  );
+    const vehicleStatus = assignment.vehicles?.status;
+
+    if (vehicleStatus === "OUT_OF_SERVICE") {
+      return "Inactive";
+    }
+
+    return "None";
+  }
 
   return (
     <>
@@ -2365,11 +2816,7 @@ function Assignments({ canEdit }) {
         {canEdit && (
           <button
             className="primary-button assignment-button"
-            onClick={() => {
-              setShowForm(true);
-              setError("");
-              setMessage("");
-            }}
+            onClick={openNewAssignmentForm}
           >
             + New Assignment
           </button>
@@ -2398,14 +2845,16 @@ function Assignments({ canEdit }) {
 
       {showForm && (
         <section className="panel assignment-form-panel">
-          <PanelTitle title="New Assignment" />
+          <PanelTitle
+            title={editingAssignment ? "Edit Assignment" : "New Assignment"}
+          />
 
           <form
             className="assignment-form"
-            onSubmit={createAssignment}
+            onSubmit={saveAssignment}
           >
             <label>
-              Vehicle
+              Bus Number
               <select
                 className="filter-select full-width"
                 value={vehicleId}
@@ -2415,7 +2864,7 @@ function Assignments({ canEdit }) {
                 required
               >
                 <option value="">
-                  Select vehicle...
+                  Select bus...
                 </option>
 
                 {vehicles
@@ -2423,15 +2872,37 @@ function Assignments({ canEdit }) {
                     (vehicle) =>
                       vehicle.status !== "MAINTENANCE"
                   )
+                  .filter(
+                    (vehicle) =>
+                      editingAssignment?.vehicle_id === vehicle.id ||
+                      !assignments.some(
+                        (assignment) =>
+                          assignment.vehicle_id === vehicle.id
+                      )
+                  )
                   .map((vehicle) => (
                     <option
                       key={vehicle.id}
                       value={vehicle.id}
                     >
-                      Bus {vehicle.fleet_number}
+                      {vehicle.fleet_number}
                     </option>
                   ))}
               </select>
+            </label>
+
+            <label>
+              Route #
+              <input
+                className="filter-select full-width"
+                type="text"
+                value={routeNumber}
+                onChange={(e) =>
+                  setRouteNumber(e.target.value)
+                }
+                placeholder="e.g. 16-A1"
+                required
+              />
             </label>
 
             <label>
@@ -2442,9 +2913,10 @@ function Assignments({ canEdit }) {
                 onChange={(e) =>
                   setDriverId(e.target.value)
                 }
+                required
               >
                 <option value="">
-                  No driver
+                  Select driver...
                 </option>
 
                 {drivers.map((driver) => (
@@ -2458,35 +2930,11 @@ function Assignments({ canEdit }) {
               </select>
             </label>
 
-            <label>
-              Route
-              <select
-                className="filter-select full-width"
-                value={routeId}
-                onChange={(e) =>
-                  setRouteId(e.target.value)
-                }
-              >
-                <option value="">
-                  No route
-                </option>
-
-                {routes.map((route) => (
-                  <option
-                    key={route.id}
-                    value={route.id}
-                  >
-                    {route.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
             <div className="assignment-form-actions">
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => setShowForm(false)}
+                onClick={closeAssignmentForm}
               >
                 Cancel
               </button>
@@ -2497,8 +2945,12 @@ function Assignments({ canEdit }) {
                 disabled={saving}
               >
                 {saving
-                  ? "Assigning..."
-                  : "Assign Vehicle"}
+                  ? editingAssignment
+                    ? "Saving..."
+                    : "Assigning..."
+                  : editingAssignment
+                    ? "Save Changes"
+                    : "Assign Vehicle"}
               </button>
             </div>
           </form>
@@ -2507,130 +2959,69 @@ function Assignments({ canEdit }) {
 
       <section className="panel">
         <PanelTitle
-          title={`Active Assignments (${activeAssignments.length})`}
+          title={`Assignments (${assignments.length})`}
         />
 
-        {activeAssignments.length === 0 ? (
+        {assignments.length === 0 ? (
           <Empty />
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Vehicle</th>
+                  <th>Bus</th>
+                  <th>Route #</th>
                   <th>Driver</th>
-                  <th>Route</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                  <th>Actions</th>
+                  <th>Active Route</th>
+                  {canEdit && <th>Actions</th>}
                 </tr>
               </thead>
 
               <tbody>
-                {activeAssignments.map((item) => (
-                  <tr key={item.id}>
+                {assignments.map((assignment) => (
+                  <tr key={assignment.id}>
                     <td>
-                      Bus{" "}
-                      {item.vehicles?.fleet_number ||
-                        "—"}
+                      {assignment.vehicles?.fleet_number || "—"}
                     </td>
 
                     <td>
-                      {item.drivers?.name ||
-                        "Unassigned"}
+                      {assignment.route_number || "—"}
                     </td>
 
                     <td>
-                      {item.routes?.name ||
-                        "No route"}
+                      {assignment.drivers?.name || "—"}
                     </td>
 
                     <td>
-                      <StatusBadge
-                        status={item.status}
-                      />
+                      {getActiveRouteLabel(assignment)}
                     </td>
 
-                    <td>
-                      {formatDate(item.started_at)}
-                    </td>
-
-                    <td>
-                      {canEdit && (
+                    {canEdit && (
+                      <td style={{ display: "flex", gap: "8px" }}>
                         <button
                           className="secondary-button"
                           onClick={() =>
-                            endAssignment(item)
-                          }
-                          disabled={
-                            endingId === item.id
+                            openEditAssignmentForm(assignment)
                           }
                         >
-                          {endingId === item.id
+                          Edit
+                        </button>
+
+                        <button
+                          className="secondary-button"
+                          onClick={() =>
+                            endAssignment(assignment)
+                          }
+                          disabled={
+                            endingId === assignment.id
+                          }
+                        >
+                          {endingId === assignment.id
                             ? "Ending..."
                             : "End Assignment"}
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="panel assignment-history-panel">
-        <PanelTitle title="Assignment History" />
-
-        {assignmentHistory.length === 0 ? (
-          <Empty />
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Vehicle</th>
-                  <th>Driver</th>
-                  <th>Route</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                  <th>Ended</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {assignmentHistory.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      Bus{" "}
-                      {item.vehicles?.fleet_number ||
-                        "—"}
-                    </td>
-
-                    <td>
-                      {item.drivers?.name ||
-                        "Unassigned"}
-                    </td>
-
-                    <td>
-                      {item.routes?.name ||
-                        "No route"}
-                    </td>
-
-                    <td>
-                      <StatusBadge
-                        status={item.status}
-                      />
-                    </td>
-
-                    <td>
-                      {formatDate(item.started_at)}
-                    </td>
-
-                    <td>
-                      {formatDate(item.ended_at)}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

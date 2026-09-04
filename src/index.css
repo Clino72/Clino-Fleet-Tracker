@@ -1078,3 +1078,28 @@ td {
   color: #2563eb;
   border-color: #2563eb;
 }
+
+.vehicle-toolbar .search,
+.vehicle-toolbar .filter-select,
+.vehicle-toolbar .primary-button,
+.vehicle-toolbar .secondary-button {
+  height: 40px;
+  box-sizing: border-box;
+  margin-top: 0;
+}
+
+.vehicle-toolbar .filter-select {
+  min-width: 145px;
+  padding: 0 10px;
+}
+
+.vehicle-toolbar .primary-button,
+.vehicle-toolbar .secondary-button {
+  padding: 0 14px;
+}
+
+.add-driver-button {
+  width: fit-content;
+  position: static;
+  top: auto;
+}
