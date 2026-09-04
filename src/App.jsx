@@ -115,7 +115,7 @@ function App() {
       <main className="main">
         <header className="topbar">
           <div>
-            <div className="eyebrow">CLINO FLEET TRACKER</div>
+            <div className="eyebrow">CLINO TRANSPORTATION</div>
             <h1>{page}</h1>
           </div>
 
@@ -236,7 +236,7 @@ function Login() {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={signIn}>
-        <div className="eyebrow">CLINO FLEET TRACKER</div>
+        <div className="eyebrow">CLINO TRANSPORTATION</div>
 
         <h1>Sign in</h1>
 
@@ -294,8 +294,8 @@ function Sidebar({ page, setPage, role }) {
       <div className="brand">
         <div className="brand-mark">72</div>
         <div>
-          <strong>Clino Fleet Tracker</strong>
-          <span>Version 0.0.20 BETA</span>
+          <strong>Clino Transportation</strong>
+          <span>Fleet Management</span>
         </div>
       </div>
 
@@ -6127,6 +6127,103 @@ function Maintenance({ canEdit }) {
 }
 
 function Audits({ canEdit }) {
+  const LIGHT_ITEMS = [
+    { key: "lowBeam", label: "Low Beam Headlights", max: 4 },
+    { key: "highBeam", label: "High Beam Headlights", max: 4 },
+    { key: "runningLights", label: "Running Lights", max: 2 },
+    { key: "markerLights", label: "Marker Lights", max: 6 },
+    { key: "clearanceLights", label: "Clearance Lights", max: 6 },
+    { key: "brakeLights", label: "Brake Lights", max: 2 },
+    { key: "turnSignals", label: "Turn Signals", max: 8 },
+    { key: "reverseLights", label: "Reverse Lights", max: 2 },
+    { key: "amberWarningLights", label: "Amber Warning Lights", max: 4 },
+    { key: "redWarningLights", label: "Red Warning Lights", max: 4 },
+    { key: "licensePlateLights", label: "License-Plate Lights", max: 2 },
+    { key: "stopArmLights", label: "Stop-Arm Lights", max: 8 },
+  ];
+
+  const INITIAL_CHECKLIST = {
+    outsideMirrors: "PASS",
+    crossoverMirror: "PASS",
+    windshield: "PASS",
+    wipers: "PASS",
+    washerFluid: "PASS",
+    defroster: "PASS",
+
+    bodyPanels: "PASS",
+    serviceDoor: "PASS",
+    stopArm: "PASS",
+    crossingGate: "PASS",
+    fuelDoor: "PASS",
+
+    frontTires: "PASS",
+    rearTires: "PASS",
+    tireTread: "PASS",
+    wheelLugNuts: "PASS",
+    wheels: "PASS",
+
+    serviceBrakes: "PASS",
+    parkingBrake: "PASS",
+    steering: "PASS",
+    axles: "PASS",
+    suspension: "PASS",
+    frame: "PASS",
+
+    engineOil: "PASS",
+    coolant: "PASS",
+    transmissionFluid: "PASS",
+    fuelSystem: "PASS",
+    beltsHoses: "PASS",
+    exhaustSystem: "PASS",
+    dpf: "N/A",
+
+    seats: "PASS",
+    seatBelts: "PASS",
+    aisle: "PASS",
+    floor: "PASS",
+    interiorLighting: "PASS",
+    handrails: "PASS",
+    gauges: "PASS",
+    horn: "PASS",
+    interiorMirrors: "PASS",
+    warningIndicators: "PASS",
+    heater: "PASS",
+    defrosterFan: "PASS",
+    fans: "PASS",
+
+    emergencyDoor: "PASS",
+    emergencyWindows: "PASS",
+    roofHatches: "PASS",
+    emergencyExitAlarms: "PASS",
+    fireExtinguisher: "PASS",
+    firstAidKit: "PASS",
+    emergencyReflectors: "PASS",
+
+    absWarning: "PASS",
+    electronicStabilityControl: "PASS",
+
+    highVoltagePlacards: "N/A",
+    highVoltageWiring: "N/A",
+    batteryCooling: "N/A",
+    batteryCarriage: "N/A",
+    electricDriveMotor: "N/A",
+  };
+
+  const INITIAL_LIGHT_COUNTS = {
+    lowBeam: 0,
+    highBeam: 0,
+    runningLights: 0,
+    markerLights: 0,
+    clearanceLights: 0,
+    brakeLights: 0,
+    turnSignals: 0,
+    reverseLights: 0,
+    amberWarningLights: 0,
+    redWarningLights: 0,
+    licensePlateLights: 0,
+    stopArmLights: 0,
+  };
+
   const [audits, setAudits] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -6136,90 +6233,10 @@ function Audits({ canEdit }) {
   const [vehicleId, setVehicleId] = useState("");
   const [driverId, setDriverId] = useState("");
   const [auditType, setAuditType] = useState("DAILY");
-  const [result, setResult] = useState("PENDING");
   const [notes, setNotes] = useState("");
 
-  const [checklist, setChecklist] = useState({
-    // Exterior lighting
-    headlights: false,
-    highBeams: false,
-    markerLights: false,
-    clearanceLights: false,
-    brakeLights: false,
-    turnSignals: false,
-    fourWayFlashers: false,
-    reverseLights: false,
-    licensePlate: false,
-
-    // School bus warning equipment
-    amberWarningLights: false,
-    redWarningLights: false,
-    stopArm: false,
-    stopArmLights: false,
-    crossingGate: false,
-
-    // Visibility
-    outsideMirrors: false,
-    crossoverMirror: false,
-    windshield: false,
-    wipers: false,
-    washerFluid: false,
-    defroster: false,
-
-    // Body and emergency exits
-    bodyPanels: false,
-    doors: false,
-    emergencyDoor: false,
-    emergencyWindows: false,
-    roofHatches: false,
-    fuelDoor: false,
-
-    // Tires and wheels
-    frontTires: false,
-    rearTires: false,
-    tireCondition: false,
-    wheelLugNuts: false,
-    wheels: false,
-
-    // Brakes and steering
-    serviceBrakes: false,
-    parkingBrake: false,
-    steering: false,
-
-    // Engine and fluids
-    engineOil: false,
-    coolant: false,
-    transmissionFluid: false,
-    fuelSystem: false,
-    beltsHoses: false,
-    exhaustSystem: false,
-
-    // Interior
-    seats: false,
-    seatBelts: false,
-    aisle: false,
-    floor: false,
-    interiorLighting: false,
-    handrails: false,
-
-    // Safety equipment
-    fireExtinguisher: false,
-    firstAidKit: false,
-    emergencyReflectors: false,
-    emergencyExits: false,
-    emergencyExitAlarms: false,
-
-    // Driver controls and instruments
-    gauges: false,
-    horn: false,
-    interiorMirrors: false,
-    parkingBrakeIndicator: false,
-    warningIndicators: false,
-
-    // HVAC
-    heater: false,
-    defrosterFan: false,
-  });
+  const [checklist, setChecklist] = useState(INITIAL_CHECKLIST);
+  const [lightCounts, setLightCounts] = useState(INITIAL_LIGHT_COUNTS);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -6228,119 +6245,205 @@ function Audits({ canEdit }) {
 
   const checklistSections = [
     {
-      title: "Exterior Lighting",
+      title: "Lights",
+      lightCounters: LIGHT_ITEMS,
+    },
+    {
+      title: "School Bus Equipment",
       items: [
-        ["headlights", "Headlights"],
-        ["highBeams", "High beams"],
-        ["markerLights", "Marker lights"],
-        ["clearanceLights", "Clearance lights"],
-        ["brakeLights", "Brake lights"],
-        ["turnSignals", "Turn signals"],
-        ["fourWayFlashers", "Four-way flashers"],
-        ["reverseLights", "Reverse lights"],
-        ["licensePlate", "License plate"],
+        ["stopArm", "Stop Arm"],
+        ["crossingGate", "Crossing Gate"],
       ],
     },
     {
-      title: "School Bus Warning Equipment",
+      title: "Body & Visibility",
       items: [
-        ["amberWarningLights", "Amber warning lights"],
-        ["redWarningLights", "Red warning lights"],
-        ["stopArm", "Stop arm"],
-        ["stopArmLights", "Stop-arm lights"],
-        ["crossingGate", "Crossing gate"],
-      ],
-    },
-    {
-      title: "Visibility",
-      items: [
-        ["outsideMirrors", "Outside mirrors"],
-        ["crossoverMirror", "Crossover mirror"],
-        ["windshield", "Windshield"],
-        ["wipers", "Windshield wipers"],
-        ["washerFluid", "Windshield washer fluid"],
+        ["outsideMirrors", "Outside Mirrors"],
+        ["crossoverMirror", "Crossover Mirror"],
+        ["windshield", "Windshield / Glass"],
+        ["wipers", "Windshield Wipers"],
+        ["washerFluid", "Windshield Washer Fluid"],
         ["defroster", "Defroster"],
+        ["bodyPanels", "Body Panels"],
+        ["serviceDoor", "Service Door"],
+        ["fuelDoor", "Fuel Door"],
       ],
     },
     {
-      title: "Body & Emergency Exits",
+      title: "Tires, Wheels & Chassis",
       items: [
-        ["bodyPanels", "Body panels"],
-        ["doors", "Service door"],
-        ["emergencyDoor", "Emergency door"],
-        ["emergencyWindows", "Emergency windows"],
-        ["roofHatches", "Roof hatches"],
-        ["fuelDoor", "Fuel door"],
-      ],
-    },
-    {
-      title: "Tires & Wheels",
-      items: [
-        ["frontTires", "Front tires"],
-        ["rearTires", "Rear tires"],
-        ["tireCondition", "Overall tire condition"],
-        ["wheelLugNuts", "Wheel lug nuts"],
-        ["wheels", "Wheels / rims"],
+        ["frontTires", "Front Tires"],
+        ["rearTires", "Rear Tires"],
+        ["tireTread", "Tire Tread"],
+        ["wheelLugNuts", "Wheel Lug Nuts"],
+        ["wheels", "Wheels / Rims"],
+        ["axles", "Axles"],
+        ["suspension", "Suspension"],
+        ["frame", "Frame / Structural Supports"],
       ],
     },
     {
       title: "Brakes & Steering",
       items: [
-        ["serviceBrakes", "Service brakes"],
-        ["parkingBrake", "Parking brake"],
+        ["serviceBrakes", "Service Brakes"],
+        ["parkingBrake", "Parking Brake"],
         ["steering", "Steering"],
+        ["absWarning", "ABS Warning System"],
+        ["electronicStabilityControl", "Electronic Stability Control"],
       ],
     },
     {
-      title: "Engine & Fluids",
+      title: "Engine & Mechanical",
       items: [
-        ["engineOil", "Engine oil"],
-        ["coolant", "Engine coolant"],
-        ["transmissionFluid", "Transmission fluid"],
-        ["fuelSystem", "Fuel system"],
-        ["beltsHoses", "Belts and hoses"],
-        ["exhaustSystem", "Exhaust system"],
+        ["engineOil", "Engine Oil"],
+        ["coolant", "Coolant"],
+        ["transmissionFluid", "Transmission / Drive Fluid"],
+        ["fuelSystem", "Fuel System"],
+        ["beltsHoses", "Belts & Hoses"],
+        ["exhaustSystem", "Exhaust System"],
+        ["dpf", "DPF / Aftertreatment"],
       ],
     },
     {
       title: "Interior",
       items: [
-        ["seats", "Passenger seats"],
-        ["seatBelts", "Seat belts"],
-        ["aisle", "Aisle clear"],
-        ["floor", "Floor condition"],
-        ["interiorLighting", "Interior lighting"],
+        ["seats", "Passenger Seats"],
+        ["seatBelts", "Seat Belts"],
+        ["aisle", "Aisle Clear"],
+        ["floor", "Floor Condition"],
+        ["interiorLighting", "Interior / Dome Lighting"],
         ["handrails", "Handrails"],
-      ],
-    },
-    {
-      title: "Safety Equipment",
-      items: [
-        ["fireExtinguisher", "Fire extinguisher"],
-        ["firstAidKit", "First-aid kit"],
-        ["emergencyReflectors", "Emergency reflectors"],
-        ["emergencyExits", "Emergency exits"],
-        ["emergencyExitAlarms", "Emergency-exit alarms"],
-      ],
-    },
-    {
-      title: "Driver Controls & Instruments",
-      items: [
-        ["gauges", "Gauges / instruments"],
+        ["gauges", "Gauges / Instruments"],
         ["horn", "Horn"],
-        ["interiorMirrors", "Interior mirrors"],
-        ["parkingBrakeIndicator", "Parking-brake indicator"],
-        ["warningIndicators", "Warning indicators"],
+        ["interiorMirrors", "Interior Mirrors"],
+        ["warningIndicators", "Warning Indicators"],
+        ["heater", "Heater"],
+        ["defrosterFan", "Defroster Fan"],
+        ["fans", "Passenger Fans"],
       ],
     },
     {
-      title: "HVAC",
+      title: "Emergency & Safety Equipment",
       items: [
-        ["heater", "Heater"],
-        ["defrosterFan", "Defroster fan"],
+        ["emergencyDoor", "Emergency Door"],
+        ["emergencyWindows", "Emergency Windows"],
+        ["roofHatches", "Emergency Roof Hatches"],
+        ["emergencyExitAlarms", "Emergency-Exit Alarms"],
+        ["fireExtinguisher", "Fire Extinguisher"],
+        ["firstAidKit", "First-Aid Kit"],
+        ["emergencyReflectors", "Emergency Reflectors"],
+      ],
+    },
+    {
+      title: "Electric School Bus",
+      items: [
+        ["highVoltagePlacards", "High-Voltage Placards"],
+        ["highVoltageWiring", "High-Voltage Wiring"],
+        ["batteryCooling", "Battery Cooling System"],
+        ["batteryCarriage", "Battery Carriage / Mounting"],
+        ["electricDriveMotor", "Electric Drive Motor"],
       ],
     },
   ];
+
+  const selectedVehicle = vehicles.find(
+    (vehicle) => vehicle.id === vehicleId
+  );
+
+  const isElectricVehicle = /electric|ev/i.test(
+    `${selectedVehicle?.engine || ""} ${selectedVehicle?.model || ""}`
+  );
+
+  const dieselOnlyItems = [
+    "dpf",
+  ];
+
+  const electricOnlyItems = [
+    "highVoltagePlacards",
+    "highVoltageWiring",
+    "batteryCooling",
+    "batteryCarriage",
+    "electricDriveMotor",
+  ];
+
+  const severityMap = {
+    lowBeam: "MAJOR",
+    highBeam: "MAJOR",
+    runningLights: "MINOR",
+    markerLights: "MINOR",
+    clearanceLights: "MINOR",
+    brakeLights: "MAJOR",
+    turnSignals: "MAJOR",
+    reverseLights: "MINOR",
+    amberWarningLights: "MAJOR",
+    redWarningLights: "CRITICAL",
+    licensePlateLights: "MINOR",
+    stopArmLights: "MAJOR",
+
+    stopArm: "CRITICAL",
+    crossingGate: "MAJOR",
+
+    outsideMirrors: "MAJOR",
+    crossoverMirror: "MAJOR",
+    windshield: "MAJOR",
+    wipers: "MAJOR",
+    washerFluid: "MINOR",
+    defroster: "CRITICAL",
+    bodyPanels: "MINOR",
+    serviceDoor: "MAJOR",
+    fuelDoor: "MINOR",
+
+    frontTires: "CRITICAL",
+    rearTires: "MAJOR",
+    tireTread: "CRITICAL",
+    wheelLugNuts: "CRITICAL",
+    wheels: "CRITICAL",
+    axles: "CRITICAL",
+    suspension: "MAJOR",
+    frame: "CRITICAL",
+
+    serviceBrakes: "CRITICAL",
+    parkingBrake: "CRITICAL",
+    steering: "CRITICAL",
+    absWarning: "MAJOR",
+    electronicStabilityControl: "MAJOR",
+
+    engineOil: "MAJOR",
+    coolant: "MAJOR",
+    transmissionFluid: "MAJOR",
+    fuelSystem: "MAJOR",
+    beltsHoses: "MAJOR",
+    exhaustSystem: "MAJOR",
+    dpf: "MINOR",
+
+    seats: "MAJOR",
+    seatBelts: "MAJOR",
+    aisle: "CRITICAL",
+    floor: "MAJOR",
+    interiorLighting: "MINOR",
+    handrails: "MAJOR",
+    gauges: "MAJOR",
+    horn: "MINOR",
+    interiorMirrors: "MINOR",
+    warningIndicators: "MAJOR",
+    heater: "MAJOR",
+    defrosterFan: "CRITICAL",
+    fans: "MINOR",
+
+    emergencyDoor: "CRITICAL",
+    emergencyWindows: "CRITICAL",
+    roofHatches: "CRITICAL",
+    emergencyExitAlarms: "MAJOR",
+    fireExtinguisher: "MAJOR",
+    firstAidKit: "MINOR",
+    emergencyReflectors: "MINOR",
+
+    highVoltagePlacards: "MINOR",
+    highVoltageWiring: "CRITICAL",
+    batteryCooling: "CRITICAL",
+    batteryCarriage: "CRITICAL",
+    electricDriveMotor: "CRITICAL",
+  };
 
   async function loadData() {
     setLoading(true);
@@ -6354,10 +6457,10 @@ function Audits({ canEdit }) {
       supabase
         .from("audits")
         .select(`
-          *,
-          vehicles(fleet_number),
-          drivers(name)
-        `)
+      *,
+      vehicles(fleet_number),
+      drivers(name)
+    `)
         .order("created_at", {
           ascending: false,
         }),
@@ -6365,7 +6468,9 @@ function Audits({ canEdit }) {
       supabase
         .from("vehicles")
         .select("*")
-        .order("fleet_number"),
+        .order("garage", { ascending: true })
+        .order("year", { ascending: true })
+        .order("fleet_number", { ascending: true }),
 
       supabase
         .from("drivers")
@@ -6400,94 +6505,156 @@ function Audits({ canEdit }) {
     setVehicleId("");
     setDriverId("");
     setAuditType("DAILY");
-    setResult("PENDING");
     setNotes("");
-
-    setChecklist({
-      headlights: false,
-      highBeams: false,
-      markerLights: false,
-      clearanceLights: false,
-      brakeLights: false,
-      turnSignals: false,
-      fourWayFlashers: false,
-      reverseLights: false,
-      licensePlate: false,
-
-      amberWarningLights: false,
-      redWarningLights: false,
-      stopArm: false,
-      stopArmLights: false,
-      crossingGate: false,
-
-      outsideMirrors: false,
-      crossoverMirror: false,
-      windshield: false,
-      wipers: false,
-      washerFluid: false,
-      defroster: false,
-
-      bodyPanels: false,
-      doors: false,
-      emergencyDoor: false,
-      emergencyWindows: false,
-      roofHatches: false,
-      fuelDoor: false,
-
-      frontTires: false,
-      rearTires: false,
-      tireCondition: false,
-      wheelLugNuts: false,
-      wheels: false,
-
-      serviceBrakes: false,
-      parkingBrake: false,
-      steering: false,
-
-      engineOil: false,
-      coolant: false,
-      transmissionFluid: false,
-      fuelSystem: false,
-      beltsHoses: false,
-      exhaustSystem: false,
-
-      seats: false,
-      seatBelts: false,
-      aisle: false,
-      floor: false,
-      interiorLighting: false,
-      handrails: false,
-
-      fireExtinguisher: false,
-      firstAidKit: false,
-      emergencyReflectors: false,
-      emergencyExits: false,
-      emergencyExitAlarms: false,
-
-      gauges: false,
-      horn: false,
-      interiorMirrors: false,
-      parkingBrakeIndicator: false,
-      warningIndicators: false,
-
-      heater: false,
-      defrosterFan: false,
-    });
+    setChecklist(INITIAL_CHECKLIST);
+    setLightCounts(INITIAL_LIGHT_COUNTS);
   }
 
-  function toggleChecklistItem(item) {
+  function setChecklistResult(item, value) {
     setChecklist((current) => ({
       ...current,
-      [item]: !current[item],
+      [item]: value,
     }));
+  }
+
+  function incrementLight(item) {
+    const light = LIGHT_ITEMS.find((entry) => entry.key === item);
+    if (!light) return;
+
+    setLightCounts((current) => ({
+      ...current,
+      [item]: Math.min(light.max, current[item] + 1),
+    }));
+  }
+
+  function decrementLight(item) {
+    setLightCounts((current) => ({
+      ...current,
+      [item]: Math.max(0, current[item] - 1),
+    }));
+  }
+
+  function getEffectiveChecklist() {
+    const effectiveChecklist = {
+      ...checklist,
+      lights: {
+        ...lightCounts,
+      },
+    };
+
+    dieselOnlyItems.forEach((item) => {
+      if (isElectricVehicle) {
+        effectiveChecklist[item] = "N/A";
+      }
+    });
+
+    electricOnlyItems.forEach((item) => {
+      if (!isElectricVehicle) {
+        effectiveChecklist[item] = "N/A";
+      }
+    });
+
+    return effectiveChecklist;
+  }
+
+  function buildDefects() {
+    const defects = [];
+    const effectiveChecklist = getEffectiveChecklist();
+
+    Object.entries(effectiveChecklist).forEach(
+      ([item, value]) => {
+        if (item === "lights") {
+          Object.entries(value).forEach(
+            ([lightItem, quantity]) => {
+              if (quantity > 0) {
+                const lightLabel =
+                  LIGHT_ITEMS.find(
+                    (light) => light.key === lightItem
+                  )?.label || lightItem;
+
+                defects.push({
+                  category: "Lights",
+                  item: lightLabel,
+                  description: `${quantity} defective ${lightLabel.toLowerCase()}.`,
+                  severity: severityMap[lightItem] || "MINOR",
+                  quantity,
+                });
+              }
+            }
+          );
+
+          return;
+        }
+
+        if (value !== "FAIL") {
+          return;
+        }
+
+        let category = "Inspection";
+
+        checklistSections.forEach((section) => {
+          if (
+            section.items?.some(
+              ([key]) => key === item
+            )
+          ) {
+            category = section.title;
+          }
+        });
+
+        const label =
+          checklistSections
+            .flatMap((section) => section.items || [])
+            .find(([key]) => key === item)?.[1] ||
+          item;
+
+        defects.push({
+          category,
+          item: label,
+          description: `${label} failed inspection.`,
+          severity: severityMap[item] || "MINOR",
+          quantity: 1,
+        });
+      }
+    );
+
+    return defects;
+  }
+
+  function calculateResult(defects) {
+    let critical = 0;
+    let major = 0;
+    let minor = 0;
+
+    defects.forEach((defect) => {
+      if (defect.severity === "CRITICAL") {
+        critical += defect.quantity;
+      } else if (defect.severity === "MAJOR") {
+        major += defect.quantity;
+      } else if (defect.severity === "MINOR") {
+        minor += defect.quantity;
+      }
+    });
+
+    if (critical >= 1 || major >= 3 || minor >= 7) {
+      return {
+        result: "FAIL",
+        critical,
+        major,
+        minor,
+      };
+    }
+
+    return {
+      result: "PASS",
+      critical,
+      major,
+      minor,
+    };
   }
 
   async function createAudit(event) {
     event.preventDefault();
-
-    if (!canEdit) {
-      return;
-    }
 
     setSaving(true);
     setError("");
@@ -6499,22 +6666,18 @@ function Audits({ canEdit }) {
       return;
     }
 
-    const completedAt =
-      result === "PENDING"
-        ? null
-        : new Date().toISOString();
+    const defects = buildDefects();
+    const calculated = calculateResult(defects);
+    const effectiveChecklist = getEffectiveChecklist();
 
-    const { error } = await supabase
-      .from("audits")
-      .insert({
-        vehicle_id: vehicleId,
-        driver_id: driverId || null,
-        audit_type: auditType,
-        result,
-        checklist,
-        notes: notes.trim() || null,
-        completed_at: completedAt,
-      });
+    const { data, error } = await supabase.rpc("submit_vehicle_inspection", {
+      p_vehicle_id: vehicleId,
+      p_checklist: effectiveChecklist,
+      p_defects: defects,
+      p_driver_id: driverId || null,
+      p_audit_type: auditType,
+      p_notes: notes.trim() || null,
+    });
 
     if (error) {
       setError(error.message);
@@ -6522,7 +6685,15 @@ function Audits({ canEdit }) {
       return;
     }
 
-    setMessage("Audit created.");
+    const resultText =
+      data?.result || calculated.result;
+
+    setMessage(
+      resultText === "FAIL"
+        ? `Inspection failed. ${calculated.critical} critical, ${calculated.major} major, ${calculated.minor} minor defect(s). Vehicle moved to Maintenance.`
+        : "Inspection passed."
+    );
+
     resetForm();
     setShowForm(false);
 
@@ -6531,21 +6702,23 @@ function Audits({ canEdit }) {
     setSaving(false);
   }
 
+  const currentDefects = calculateResult(
+    buildDefects()
+  );
+
   return (
     <>
       <div className="vehicle-toolbar">
-        {canEdit && (
-          <button
-            className="primary-button assignment-button"
-            onClick={() => {
-              setShowForm(true);
-              setError("");
-              setMessage("");
-            }}
-          >
-            + New Audit
-          </button>
-        )}
+        <button
+          className="primary-button assignment-button"
+          onClick={() => {
+            setShowForm(true);
+            setError("");
+            setMessage("");
+          }}
+        >
+          + New Inspection
+        </button>
 
         <button
           className="secondary-button"
@@ -6564,13 +6737,13 @@ function Audits({ canEdit }) {
 
       {error && (
         <div className="error fleet-error">
-          {error}
+          Unable to save inspection: {error}
         </div>
       )}
 
       {showForm && (
         <section className="panel audit-form-panel">
-          <PanelTitle title="New Vehicle Audit" />
+          <PanelTitle title="New Vehicle Inspection" />
 
           <form
             className="audit-form"
@@ -6595,7 +6768,7 @@ function Audits({ canEdit }) {
                     key={vehicle.id}
                     value={vehicle.id}
                   >
-                    Bus {vehicle.fleet_number}
+                    {vehicle.fleet_number}
                   </option>
                 ))}
               </select>
@@ -6626,7 +6799,7 @@ function Audits({ canEdit }) {
             </label>
 
             <label>
-              Audit Type
+              Inspection Type
               <select
                 className="filter-select full-width"
                 value={auditType}
@@ -6642,22 +6815,26 @@ function Audits({ canEdit }) {
               </select>
             </label>
 
-            <label>
-              Result
-              <select
-                className="filter-select full-width"
-                value={result}
-                onChange={(e) =>
-                  setResult(e.target.value)
-                }
-              >
-                <option value="PENDING">
-                  Pending
-                </option>
-                <option value="PASS">Pass</option>
-                <option value="FAIL">Fail</option>
-              </select>
-            </label>
+            <div className="audit-result-summary">
+              <div>
+                <strong>Current Result</strong>
+                <StatusBadge
+                  status={currentDefects.result}
+                />
+              </div>
+
+              <div>
+                Critical: {currentDefects.critical}
+              </div>
+
+              <div>
+                Major: {currentDefects.major}
+              </div>
+
+              <div>
+                Minor: {currentDefects.minor}
+              </div>
+            </div>
 
             <div className="audit-checklist">
               {checklistSections.map((section) => (
@@ -6669,28 +6846,128 @@ function Audits({ canEdit }) {
                     {section.title}
                   </div>
 
-                  <div className="audit-checklist-items">
-                    {section.items.map(
-                      ([key, label]) => (
-                        <label
-                          className="check-item"
-                          key={key}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checklist[key]}
-                            onChange={() =>
-                              toggleChecklistItem(
-                                key
-                              )
-                            }
-                          />
+                  {section.lightCounters && (
+                    <div className="audit-checklist-items audit-light-grid">
+                      {section.lightCounters.map((light) => (
+                        <div className="audit-light-item" key={light.key}>
+                          <span className="audit-light-label">
+                            {light.label}
+                          </span>
 
-                          {label}
-                        </label>
-                      )
-                    )}
-                  </div>
+                          <div className="audit-counter">
+                            <button
+                              type="button"
+                              className="audit-counter-button"
+                              onClick={() => decrementLight(light.key)}
+                              disabled={lightCounts[light.key] === 0}
+                            >
+                              −
+                            </button>
+
+                            <span className="audit-counter-value">
+                              {lightCounts[light.key]}
+                            </span>
+
+                            <button
+                              type="button"
+                              className="audit-counter-button"
+                              onClick={() => incrementLight(light.key)}
+                              disabled={lightCounts[light.key] >= light.max}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {section.items && (
+                    <div className="audit-checklist-items">
+                      {section.items.map(
+                        ([key, label]) => {
+                          const isDieselOnly =
+                            dieselOnlyItems.includes(
+                              key
+                            );
+
+                          const isElectricOnly =
+                            electricOnlyItems.includes(
+                              key
+                            );
+
+                          const automaticallyNA =
+                            (isDieselOnly &&
+                              isElectricVehicle) ||
+                            (isElectricOnly &&
+                              !isElectricVehicle);
+
+                          const value =
+                            automaticallyNA
+                              ? "N/A"
+                              : checklist[key];
+
+                          return (
+                            <div
+                              className="audit-check-item"
+                              key={key}
+                            >
+                              <span>
+                                {label}
+                              </span>
+
+                              <div className="audit-result-controls">
+                                <button
+                                  type="button"
+                                  className={`audit-result-button pass ${value === "PASS" ? "active" : ""}`}
+                                  onClick={() =>
+                                    setChecklistResult(
+                                      key,
+                                      "PASS"
+                                    )
+                                  }
+                                  disabled={
+                                    automaticallyNA
+                                  }
+                                >
+                                  Pass
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className={`audit-result-button ${value === "FAIL" ? "active fail" : ""}`}
+                                  onClick={() =>
+                                    setChecklistResult(
+                                      key,
+                                      "FAIL"
+                                    )
+                                  }
+                                  disabled={
+                                    automaticallyNA
+                                  }
+                                >
+                                  Fail
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className={`audit-result-button ${value === "N/A" ? "active na" : ""}`}
+                                  onClick={() =>
+                                    setChecklistResult(
+                                      key,
+                                      "N/A"
+                                    )
+                                  }
+                                >
+                                  N/A
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -6726,7 +7003,7 @@ function Audits({ canEdit }) {
               >
                 {saving
                   ? "Saving..."
-                  : "Create Audit"}
+                  : "Complete Inspection"}
               </button>
             </div>
           </form>
@@ -6734,7 +7011,7 @@ function Audits({ canEdit }) {
       )}
 
       <section className="panel">
-        <PanelTitle title="Audit History" />
+        <PanelTitle title="Inspection History" />
 
         {audits.length === 0 ? (
           <Empty />
@@ -6756,9 +7033,7 @@ function Audits({ canEdit }) {
                 {audits.map((audit) => (
                   <tr key={audit.id}>
                     <td>
-                      Bus{" "}
-                      {audit.vehicles?.fleet_number ||
-                        "—"}
+                      {audit.vehicles?.fleet_number || "—"}
                     </td>
 
                     <td>
