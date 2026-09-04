@@ -5715,6 +5715,7 @@ function Routes({ canEdit }) {
 function Maintenance({ canEdit }) {
   const [records, setRecords] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [defects, setDefects] = useState([]);
 
   const [showForm, setShowForm] = useState(false);
 
@@ -5727,6 +5728,12 @@ function Maintenance({ canEdit }) {
   const [status, setStatus] = useState("SCHEDULED");
   const [performedAt, setPerformedAt] = useState("");
   const [dueAt, setDueAt] = useState("");
+  const [dueMileage, setDueMileage] = useState("");
+  const [recurrenceDays, setRecurrenceDays] = useState("");
+  const [recurrenceMiles, setRecurrenceMiles] = useState("");
+  const [repairingDefectId, setRepairingDefectId] = useState("");
+  const [completingRepairId, setCompletingRepairId] = useState("");
+  const [closingDefectId, setClosingDefectId] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -5737,23 +5744,31 @@ function Maintenance({ canEdit }) {
     setLoading(true);
     setError("");
 
-    const [recordsResult, vehiclesResult] =
-      await Promise.all([
-        supabase
-          .from("maintenance_records")
-          .select(`
-            *,
-            vehicles(fleet_number)
-          `)
-          .order("created_at", {
-            ascending: false,
-          }),
+    const [recordsResult, vehiclesResult, defectsResult] = await Promise.all([
+      supabase
+        .from("maintenance_records")
+        .select(`
+          *,
+          vehicles(fleet_number)
+        `)
+        .order("created_at", { ascending: false }),
 
-        supabase
-          .from("vehicles")
-          .select("*")
-          .order("fleet_number"),
-      ]);
+      supabase
+        .from("vehicles")
+        .select("*")
+        .order("garage", { ascending: true })
+        .order("year", { ascending: true })
+        .order("fleet_number", { ascending: true }),
+
+      supabase
+        .from("vehicle_defects")
+        .select(`
+          *,
+          vehicles(fleet_number)
+        `)
+        .neq("status", "CLOSED")
+        .order("reported_at", { ascending: false }),
+    ]);
 
     if (recordsResult.error) {
       setError(recordsResult.error.message);
@@ -5763,8 +5778,13 @@ function Maintenance({ canEdit }) {
       setError(vehiclesResult.error.message);
     }
 
+    if (defectsResult.error) {
+      setError(defectsResult.error.message);
+    }
+
     setRecords(recordsResult.data || []);
     setVehicles(vehiclesResult.data || []);
+    setDefects(defectsResult.data || []);
     setLoading(false);
   }
 
@@ -5782,6 +5802,105 @@ function Maintenance({ canEdit }) {
     setStatus("SCHEDULED");
     setPerformedAt("");
     setDueAt("");
+    setDueMileage("");
+    setRecurrenceDays("");
+    setRecurrenceMiles("");
+  }
+
+  async function startDefectRepair(defect) {
+    if (!canEdit || repairingDefectId) {
+      return;
+    }
+
+    setRepairingDefectId(defect.id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase
+      .from("maintenance_records")
+      .insert({
+        vehicle_id: defect.vehicle_id,
+        defect_id: defect.id,
+        maintenance_type: `Repair: ${defect.item}`,
+        description: defect.description,
+        status: "IN_PROGRESS",
+        mileage: null,
+        performed_by: null,
+        cost: 0,
+        performed_at: null,
+        due_at: null,
+        due_mileage: null,
+        recurrence_days: null,
+        recurrence_miles: null,
+      });
+
+    if (error) {
+      setError(error.message);
+      setRepairingDefectId("");
+      return;
+    }
+
+    setMessage(`Repair started for ${defect.item}.`);
+
+    await loadData();
+
+    setRepairingDefectId("");
+  }
+
+  async function completeDefectRepair(record) {
+    if (!canEdit || completingRepairId) {
+      return;
+    }
+
+    setCompletingRepairId(record.id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase.rpc("complete_vehicle_repair", {
+      p_maintenance_id: record.id,
+    });
+
+    if (error) {
+      setError(error.message);
+      setCompletingRepairId("");
+      return;
+    }
+
+    setMessage("Repair completed. Defect marked as repaired.");
+
+    await loadData();
+
+    setCompletingRepairId("");
+  }
+
+  async function closeDefect(defect) {
+    if (!canEdit || closingDefectId) {
+      return;
+    }
+
+    setClosingDefectId(defect.id);
+    setError("");
+    setMessage("");
+
+    const { error } = await supabase
+      .from("vehicle_defects")
+      .update({
+        status: "CLOSED",
+      })
+      .eq("id", defect.id)
+      .eq("status", "REPAIRED");
+
+    if (error) {
+      setError(error.message);
+      setClosingDefectId("");
+      return;
+    }
+
+    setMessage("Defect closed.");
+
+    await loadData();
+
+    setClosingDefectId("");
   }
 
   async function createMaintenance(event) {
@@ -5813,17 +5932,15 @@ function Maintenance({ canEdit }) {
         vehicle_id: vehicleId,
         maintenance_type: maintenanceType.trim(),
         description: description.trim() || null,
-        mileage:
-          mileage === "" ? null : Number(mileage),
-        performed_by:
-          performedBy.trim() || null,
-        cost:
-          cost === "" ? 0 : Number(cost),
+        mileage: mileage === "" ? null : Number(mileage),
+        performed_by: performedBy.trim() || null,
+        cost: cost === "" ? 0 : Number(cost),
         status,
-        performed_at:
-          performedAt || null,
-        due_at:
-          dueAt || null,
+        performed_at: performedAt || null,
+        due_at: dueAt || null,
+        due_mileage: dueMileage === "" ? null : Number(dueMileage),
+        recurrence_days: recurrenceDays === "" ? null : Number(recurrenceDays),
+        recurrence_miles: recurrenceMiles === "" ? null : Number(recurrenceMiles),
       });
 
     if (error) {
@@ -5840,6 +5957,38 @@ function Maintenance({ canEdit }) {
 
     setSaving(false);
   }
+
+  const scheduledCount = records.filter(
+    (record) => record.status === "SCHEDULED"
+  ).length;
+
+  const inProgressCount = records.filter(
+    (record) => record.status === "IN_PROGRESS"
+  ).length;
+
+  const completedCount = records.filter(
+    (record) => record.status === "COMPLETED"
+  ).length;
+
+  const maintenanceVehicleCount = vehicles.filter(
+    (vehicle) => vehicle.status === "MAINTENANCE"
+  ).length;
+
+  const criticalDefects = defects.filter(
+    (defect) => defect.severity === "CRITICAL"
+  ).length;
+
+  const majorDefects = defects.filter(
+    (defect) => defect.severity === "MAJOR"
+  ).length;
+
+  const selectedVehicle = vehicles.find(
+    (vehicle) => vehicle.id === vehicleId
+  );
+
+  const selectedVehicleDefects = defects.filter(
+    (defect) => defect.vehicle_id === vehicleId
+  );
 
   return (
     <>
@@ -5878,6 +6027,36 @@ function Maintenance({ canEdit }) {
         </div>
       )}
 
+      <div className="maintenance-summary">
+        <div className="panel">
+          <PanelTitle title="Scheduled" />
+          <div className="maintenance-summary-value">
+            {scheduledCount}
+          </div>
+        </div>
+
+        <div className="panel">
+          <PanelTitle title="In Progress" />
+          <div className="maintenance-summary-value">
+            {inProgressCount}
+          </div>
+        </div>
+
+        <div className="panel">
+          <PanelTitle title="Completed" />
+          <div className="maintenance-summary-value">
+            {completedCount}
+          </div>
+        </div>
+
+        <div className="panel">
+          <PanelTitle title="Vehicles In Maintenance" />
+          <div className="maintenance-summary-value">
+            {maintenanceVehicleCount}
+          </div>
+        </div>
+      </div>
+
       {canEdit && showForm && (
         <section className="panel assignment-form-panel">
           <PanelTitle title="New Maintenance Record" />
@@ -5891,9 +6070,7 @@ function Maintenance({ canEdit }) {
               <select
                 className="filter-select full-width"
                 value={vehicleId}
-                onChange={(e) =>
-                  setVehicleId(e.target.value)
-                }
+                onChange={(e) => setVehicleId(e.target.value)}
                 required
               >
                 <option value="">
@@ -5905,7 +6082,7 @@ function Maintenance({ canEdit }) {
                     key={vehicle.id}
                     value={vehicle.id}
                   >
-                    Bus {vehicle.fleet_number}
+                    {vehicle.fleet_number}
                   </option>
                 ))}
               </select>
@@ -5919,7 +6096,7 @@ function Maintenance({ canEdit }) {
                 onChange={(e) =>
                   setMaintenanceType(e.target.value)
                 }
-                placeholder="Oil change"
+                placeholder="Brake repair"
                 required
               />
             </label>
@@ -5953,6 +6130,7 @@ function Maintenance({ canEdit }) {
               <input
                 className="form-input"
                 type="number"
+                min="0"
                 value={mileage}
                 onChange={(e) =>
                   setMileage(e.target.value)
@@ -6012,6 +6190,97 @@ function Maintenance({ canEdit }) {
               />
             </label>
 
+            <label>
+              Due Mileage
+              <input
+                className="form-input"
+                type="number"
+                min="0"
+                value={dueMileage}
+                onChange={(e) => setDueMileage(e.target.value)}
+                placeholder="134442"
+              />
+            </label>
+
+            <label>
+              Repeat Every
+              <input
+                className="form-input"
+                type="number"
+                min="1"
+                value={recurrenceDays}
+                onChange={(e) => setRecurrenceDays(e.target.value)}
+                placeholder="180"
+              />
+              <span className="form-help">
+                Days
+              </span>
+            </label>
+
+            <label>
+              Repeat Every
+              <input
+                className="form-input"
+                type="number"
+                min="1"
+                value={recurrenceMiles}
+                onChange={(e) => setRecurrenceMiles(e.target.value)}
+                placeholder="6000"
+              />
+              <span className="form-help">
+                Miles
+              </span>
+            </label>
+
+            {selectedVehicle && (
+              <div className="maintenance-vehicle-info">
+                <strong>
+                  Vehicle {selectedVehicle.fleet_number}
+                </strong>
+
+                <span>
+                  {selectedVehicle.year}{" "}
+                  {selectedVehicle.make}{" "}
+                  {selectedVehicle.model}
+                </span>
+
+                <StatusBadge
+                  status={selectedVehicle.status}
+                />
+              </div>
+            )}
+
+            {selectedVehicle && selectedVehicleDefects.length > 0 && (
+              <div className="maintenance-defect-panel">
+                <div className="maintenance-defect-title">
+                  Open Service Orders
+                </div>
+
+                <div className="maintenance-defect-list">
+                  {selectedVehicleDefects.map((defect) => (
+                    <div
+                      className="maintenance-defect-item"
+                      key={defect.id}
+                    >
+                      <div>
+                        <strong>
+                          {defect.item}
+                        </strong>
+
+                        <span>
+                          {defect.description}
+                        </span>
+                      </div>
+
+                      <StatusBadge
+                        status={defect.severity}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <label className="full-width-label">
               Description
               <textarea
@@ -6051,6 +6320,120 @@ function Maintenance({ canEdit }) {
       )}
 
       <section className="panel">
+        <PanelTitle title="Open Service Orders" />
+
+        {defects.length === 0 ? (
+          <Empty />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Category</th>
+                  <th>Item</th>
+                  <th>Description</th>
+                  <th>Severity</th>
+                  <th>Quantity</th>
+                  <th>Status</th>
+                  <th>Reported</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {defects.map((defect) => {
+                  const linkedRepair = records.find(
+                    (record) =>
+                      record.defect_id === defect.id &&
+                      record.status === "IN_PROGRESS"
+                  );
+
+                  return (
+                    <tr key={defect.id}>
+                      <td>
+                        {defect.vehicles?.fleet_number || "—"}
+                      </td>
+
+                      <td>
+                        {defect.category}
+                      </td>
+
+                      <td>
+                        {defect.item}
+                      </td>
+
+                      <td>
+                        {defect.description}
+                      </td>
+
+                      <td>
+                        <StatusBadge
+                          status={defect.severity}
+                        />
+                      </td>
+
+                      <td>
+                        {defect.quantity}
+                      </td>
+
+                      <td>
+                        <StatusBadge
+                          status={defect.status}
+                        />
+                      </td>
+
+                      <td>
+                        {formatDate(defect.reported_at)}
+                      </td>
+
+                      <td>
+                        {canEdit && defect.status === "REPORTED" && !linkedRepair && (
+                          <button
+                            className="secondary-button"
+                            onClick={() => startDefectRepair(defect)}
+                            disabled={repairingDefectId === defect.id}
+                          >
+                            {repairingDefectId === defect.id
+                              ? "Starting..."
+                              : "Start Repair"}
+                          </button>
+                        )}
+
+                        {canEdit && linkedRepair && (
+                          <button
+                            className="primary-button"
+                            onClick={() => completeDefectRepair(linkedRepair)}
+                            disabled={completingRepairId === linkedRepair.id}
+                          >
+                            {completingRepairId === linkedRepair.id
+                              ? "Completing..."
+                              : "Complete Repair"}
+                          </button>
+                        )}
+
+                        {canEdit && defect.status === "REPAIRED" && (
+                          <button
+                            className="secondary-button"
+                            onClick={() => closeDefect(defect)}
+                            disabled={closingDefectId === defect.id}
+                          >
+                            {closingDefectId === defect.id
+                              ? "Closing..."
+                              : "Close Defect"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="panel maintenance-records-panel">
         <PanelTitle title="Maintenance Records" />
 
         {records.length === 0 ? (
@@ -6067,7 +6450,6 @@ function Maintenance({ canEdit }) {
                   <th>Status</th>
                   <th>Performed</th>
                   <th>Due</th>
-                  <th>Cost</th>
                 </tr>
               </thead>
 
@@ -6075,9 +6457,7 @@ function Maintenance({ canEdit }) {
                 {records.map((record) => (
                   <tr key={record.id}>
                     <td>
-                      Bus{" "}
-                      {record.vehicles?.fleet_number ||
-                        "—"}
+                      {record.vehicles?.fleet_number || "—"}
                     </td>
 
                     <td>
@@ -6099,21 +6479,11 @@ function Maintenance({ canEdit }) {
                     </td>
 
                     <td>
-                      {formatDate(
-                        record.performed_at
-                      )}
+                      {formatDate(record.performed_at)}
                     </td>
 
                     <td>
                       {formatDate(record.due_at)}
-                    </td>
-
-                    <td>
-                      {record.cost != null
-                        ? `$${Number(
-                          record.cost
-                        ).toFixed(2)}`
-                        : "—"}
                     </td>
                   </tr>
                 ))}

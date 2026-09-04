@@ -1258,3 +1258,134 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+.maintenance-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.maintenance-summary .panel {
+  margin: 0;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.maintenance-summary-value {
+  margin-top: 10px;
+  color: #cdd6df;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.maintenance-records-panel {
+  margin-top: 18px;
+}
+
+.maintenance-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.maintenance-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #aab4c0;
+  font-size: 12px;
+}
+
+.maintenance-vehicle-info {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-top: 2px;
+  border-radius: 9px;
+  background: #0c1218;
+  border: 1px solid #1d2731;
+}
+
+.maintenance-vehicle-info strong {
+  color: #cdd6df;
+}
+
+.maintenance-vehicle-info span {
+  color: #aab4c0;
+}
+
+.maintenance-defect-panel {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  margin-top: 2px;
+  border-radius: 9px;
+  background: #0c1218;
+  border: 1px solid #1d2731;
+}
+
+.maintenance-defect-title {
+  color: #cdd6df;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.maintenance-defect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maintenance-defect-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: #101820;
+  border: 1px solid #1d2731;
+}
+
+.maintenance-defect-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.maintenance-defect-item strong {
+  color: #cdd6df;
+  font-size: 12px;
+}
+
+.maintenance-defect-item span {
+  color: #aab4c0;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .maintenance-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .maintenance-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .maintenance-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .maintenance-form {
+    grid-template-columns: 1fr;
+  }
+}
