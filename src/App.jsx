@@ -5985,7 +5985,6 @@ function Maintenance({ canEdit }) {
       String(record.performed_by || "").toLowerCase().includes(normalizedSearch);
 
     const matchesStatus = statusFilter === "ALL" || record.status === statusFilter;
-
     const matchesType = typeFilter === "ALL" || record.maintenance_type === typeFilter;
 
     return matchesSearch && matchesStatus && matchesType;
@@ -6189,7 +6188,7 @@ function Maintenance({ canEdit }) {
 
   return (
     <>
-      <section className="page-section">
+      <section className="page-section maintenance-page">
         <div className="page-header">
           <div>
             <div className="eyebrow">SERVICE OPERATIONS</div>
@@ -6213,7 +6212,7 @@ function Maintenance({ canEdit }) {
         {error && <div className="alert alert-danger">{error}</div>}
         {message && <div className="alert alert-success">{message}</div>}
 
-        <div className="stats-grid">
+        <div className="stats-grid maintenance-stats">
           <div className="stat-card">
             <span className="stat-label">Open Service Orders</span>
             <strong>{openRecords.length}</strong>
@@ -6251,36 +6250,42 @@ function Maintenance({ canEdit }) {
           </div>
         </div>
 
-        <div className="content-grid-2">
-          <section className="panel">
+        <div className="content-grid-2 maintenance-layout">
+          <section className="panel maintenance-work-queue">
             <PanelTitle title="Service Queue" />
 
-            <div className="toolbar">
-              <div className="search-box">
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search fleet, service type, description..."
-                />
+            <div className="maintenance-toolbar">
+              <div className="maintenance-toolbar-left">
+                <div className="maintenance-search">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search fleet, service type, description..."
+                  />
+                </div>
+
+                <select className="maintenance-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="ALL">All statuses</option>
+                  <option value="SCHEDULED">Scheduled</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="OVERDUE">Overdue</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+
+                <select className="maintenance-filter" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                  <option value="ALL">All service types</option>
+                  {maintenanceTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="ALL">All statuses</option>
-                <option value="SCHEDULED">Scheduled</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="OVERDUE">Overdue</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-
-              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                <option value="ALL">All service types</option>
-                {maintenanceTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+              <div className="maintenance-toolbar-meta">
+                <span>{filteredRecords.length} records</span>
+              </div>
             </div>
 
             {loading ? (
@@ -6289,7 +6294,7 @@ function Maintenance({ canEdit }) {
               <div className="empty-state">No maintenance records match the current filters.</div>
             ) : (
               <div className="table-wrap">
-                <table className="data-table">
+                <table className="data-table maintenance-table">
                   <thead>
                     <tr>
                       <th>Vehicle</th>
@@ -6298,7 +6303,7 @@ function Maintenance({ canEdit }) {
                       <th>Status</th>
                       <th>Due</th>
                       <th>Technician</th>
-                      <th></th>
+                      <th>Action</th>
                     </tr>
                   </thead>
 
@@ -6309,7 +6314,7 @@ function Maintenance({ canEdit }) {
                       return (
                         <tr key={record.id}>
                           <td>
-                            <div className="table-primary">{vehicle?.fleet_number || "—"}</div>
+                            <div className="table-primary">Fleet {vehicle?.fleet_number || "—"}</div>
                             <div className="table-secondary">
                               {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : "Vehicle unavailable"}
                             </div>
@@ -6338,10 +6343,12 @@ function Maintenance({ canEdit }) {
 
                           <td>{record.performed_by || "—"}</td>
 
-                          <td>
-                            <button className="button button-small button-secondary" onClick={() => setSelectedRecord(record)}>
-                              View
-                            </button>
+                          <td className="table-action-cell">
+                            <div className="table-actions">
+                              <button className="button button-small button-secondary" onClick={() => setSelectedRecord(record)}>
+                                View
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -6352,28 +6359,26 @@ function Maintenance({ canEdit }) {
             )}
           </section>
 
-          <section className="panel">
+          <section className="panel maintenance-vehicles-panel">
             <PanelTitle title="Vehicles Requiring Service" />
 
             {maintenanceVehicles.length === 0 ? (
               <div className="empty-state">No vehicles are currently marked for maintenance.</div>
             ) : (
-              <div className="dashboard-list">
+              <div className="dashboard-list maintenance-vehicle-list">
                 {maintenanceVehicles.map((vehicle) => {
                   const vehicleOrders = records.filter((record) => record.vehicle_id === vehicle.id && record.status !== "COMPLETED");
 
                   return (
-                    <div className="dashboard-list-item" key={vehicle.id}>
-                      <div>
-                        <strong>{vehicle.fleet_number}</strong>
+                    <div className="dashboard-list-item maintenance-vehicle-row" key={vehicle.id}>
+                      <div className="maintenance-vehicle-info">
+                        <strong>Fleet {vehicle.fleet_number}</strong>
                         <span>{vehicle.year} {vehicle.make} {vehicle.model}</span>
                       </div>
 
-                      <div className="dashboard-list-item-right">
+                      <div className="maintenance-vehicle-meta">
                         <span>{vehicle.garage || "—"}</span>
-                        <span className="status-badge status-danger">
-                          {vehicleOrders.length} open
-                        </span>
+                        <span className="status-badge status-danger">{vehicleOrders.length} open</span>
                       </div>
                     </div>
                   );
@@ -6474,13 +6479,16 @@ function Maintenance({ canEdit }) {
                 </label>
               </div>
 
-              <div className="modal-footer">
-                <button type="button" className="button button-secondary" onClick={() => setShowCreate(false)} disabled={saving}>
-                  Cancel
-                </button>
-                <button type="submit" className="button button-primary" disabled={saving}>
-                  {saving ? "Creating..." : "Create Service Order"}
-                </button>
+              <div className="modal-footer maintenance-modal-actions">
+                <div className="modal-action-group">
+                  <button type="button" className="button button-secondary" onClick={() => setShowCreate(false)} disabled={saving}>
+                    Cancel
+                  </button>
+
+                  <button type="submit" className="button button-primary" disabled={saving}>
+                    {saving ? "Creating..." : "Create Service Order"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -6493,9 +6501,7 @@ function Maintenance({ canEdit }) {
             <div className="modal-header">
               <div>
                 <div className="eyebrow">SERVICE ORDER</div>
-                <h2>
-                  Fleet {selectedRecord.vehicles?.fleet_number || "—"}
-                </h2>
+                <h2>Fleet {selectedRecord.vehicles?.fleet_number || "—"}</h2>
               </div>
 
               <button className="icon-button" onClick={() => setSelectedRecord(null)}>×</button>
@@ -6564,34 +6570,40 @@ function Maintenance({ canEdit }) {
               </div>
             </div>
 
-            <div className="modal-footer">
-              {canEdit && selectedRecord.status === "SCHEDULED" && (
-                <button className="button button-secondary" onClick={() => updateStatus(selectedRecord, "IN_PROGRESS")} disabled={saving}>
-                  Start Service
-                </button>
-              )}
+            <div className="modal-footer maintenance-modal-actions">
+              <div className="modal-action-group">
+                {canEdit && selectedRecord.status === "SCHEDULED" && (
+                  <button
+                    className="button button-primary"
+                    onClick={() => selectedRecord.defect_id ? startDefectRepair(selectedRecord) : updateStatus(selectedRecord, "IN_PROGRESS")}
+                    disabled={saving}
+                  >
+                    Start Service
+                  </button>
+                )}
 
-              {canEdit && selectedRecord.status === "IN_PROGRESS" && selectedRecord.defect_id && (
-                <button className="button button-primary" onClick={() => completeDefectRepair(selectedRecord)} disabled={completingRepairId === selectedRecord.id}>
-                  {completingRepairId === selectedRecord.id ? "Completing..." : "Complete Repair"}
-                </button>
-              )}
+                {canEdit && selectedRecord.status === "IN_PROGRESS" && selectedRecord.defect_id && (
+                  <button className="button button-primary" onClick={() => completeDefectRepair(selectedRecord)} disabled={completingRepairId === selectedRecord.id}>
+                    {completingRepairId === selectedRecord.id ? "Completing..." : "Complete Repair"}
+                  </button>
+                )}
 
-              {canEdit && selectedRecord.status === "IN_PROGRESS" && !selectedRecord.defect_id && (
-                <button className="button button-primary" onClick={() => updateStatus(selectedRecord, "COMPLETED")} disabled={saving}>
-                  Complete Service
-                </button>
-              )}
+                {canEdit && selectedRecord.status === "IN_PROGRESS" && !selectedRecord.defect_id && (
+                  <button className="button button-primary" onClick={() => updateStatus(selectedRecord, "COMPLETED")} disabled={saving}>
+                    Complete Service
+                  </button>
+                )}
 
-              {canEdit && !["COMPLETED", "CANCELLED"].includes(selectedRecord.status) && (
-                <button className="button button-danger" onClick={() => updateStatus(selectedRecord, "CANCELLED")} disabled={saving}>
-                  Cancel
-                </button>
-              )}
+                {canEdit && !["COMPLETED", "CANCELLED"].includes(selectedRecord.status) && (
+                  <button className="button button-danger" onClick={() => updateStatus(selectedRecord, "CANCELLED")} disabled={saving}>
+                    Cancel
+                  </button>
+                )}
 
-              <button className="button button-secondary" onClick={() => setSelectedRecord(null)}>
-                Close
-              </button>
+                <button className="button button-secondary" onClick={() => setSelectedRecord(null)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -6905,7 +6917,7 @@ function Audits() {
 
   return (
     <>
-      <section className="page-section">
+      <section className="page-section audits-page">
         <div className="page-header">
           <div>
             <div className="eyebrow">COMPLIANCE & INSPECTIONS</div>
@@ -6927,7 +6939,7 @@ function Audits() {
         {error && <div className="alert alert-danger">{error}</div>}
         {message && <div className="alert alert-success">{message}</div>}
 
-        <div className="stats-grid">
+        <div className="stats-grid audit-stats">
           <div className="stat-card">
             <span className="stat-label">Inspections Today</span>
             <strong>{todayAudits.length}</strong>
@@ -6959,34 +6971,40 @@ function Audits() {
           </div>
         </div>
 
-        <div className="content-grid-2">
-          <section className="panel">
+        <div className="content-grid-2 audit-layout">
+          <section className="panel audit-history-panel">
             <PanelTitle title="Inspection History" />
 
-            <div className="toolbar">
-              <div className="search-box">
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search fleet or inspector..."
-                />
+            <div className="audit-toolbar">
+              <div className="audit-toolbar-left">
+                <div className="audit-search">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search fleet or inspector..."
+                  />
+                </div>
+
+                <select className="audit-filter" value={resultFilter} onChange={(event) => setResultFilter(event.target.value)}>
+                  <option value="ALL">All results</option>
+                  <option value="PASS">Pass</option>
+                  <option value="FAIL">Fail</option>
+                  <option value="PENDING">Pending</option>
+                </select>
+
+                <select className="audit-filter" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                  <option value="ALL">All inspection types</option>
+                  {auditTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <select value={resultFilter} onChange={(event) => setResultFilter(event.target.value)}>
-                <option value="ALL">All results</option>
-                <option value="PASS">Pass</option>
-                <option value="FAIL">Fail</option>
-                <option value="PENDING">Pending</option>
-              </select>
-
-              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                <option value="ALL">All inspection types</option>
-                {auditTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+              <div className="audit-toolbar-meta">
+                <span>{filteredAudits.length} inspections</span>
+              </div>
             </div>
 
             {loading ? (
@@ -6995,7 +7013,7 @@ function Audits() {
               <div className="empty-state">No inspections match the current filters.</div>
             ) : (
               <div className="table-wrap">
-                <table className="data-table">
+                <table className="data-table audit-table">
                   <thead>
                     <tr>
                       <th>Vehicle</th>
@@ -7003,7 +7021,7 @@ function Audits() {
                       <th>Inspector</th>
                       <th>Result</th>
                       <th>Completed</th>
-                      <th></th>
+                      <th>Action</th>
                     </tr>
                   </thead>
 
@@ -7011,7 +7029,7 @@ function Audits() {
                     {filteredAudits.map((audit) => (
                       <tr key={audit.id}>
                         <td>
-                          <div className="table-primary">{audit.vehicles?.fleet_number || "—"}</div>
+                          <div className="table-primary">Fleet {audit.vehicles?.fleet_number || "—"}</div>
                           <div className="table-secondary">
                             {audit.vehicles
                               ? `${audit.vehicles.year} ${audit.vehicles.make} ${audit.vehicles.model}`
@@ -7031,10 +7049,12 @@ function Audits() {
 
                         <td>{formatDateTime(audit.completed_at || audit.created_at)}</td>
 
-                        <td>
-                          <button className="button button-small button-secondary" onClick={() => setSelectedAudit(audit)}>
-                            View
-                          </button>
+                        <td className="table-action-cell">
+                          <div className="table-actions">
+                            <button className="button button-small button-secondary" onClick={() => setSelectedAudit(audit)}>
+                              View
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -7044,31 +7064,34 @@ function Audits() {
             )}
           </section>
 
-          <section className="panel">
+          <section className="panel inspection-attention-panel">
             <PanelTitle title="Inspection Attention" />
 
-            <div className="dashboard-list">
-              <div className="dashboard-list-item">
-                <div>
+            <div className="dashboard-list inspection-attention-list">
+              <div className="dashboard-list-item inspection-attention-row">
+                <div className="inspection-attention-copy">
                   <strong>Failed inspections</strong>
                   <span>Vehicles requiring follow-up service</span>
                 </div>
+
                 <span className="status-badge status-danger">{failCount}</span>
               </div>
 
-              <div className="dashboard-list-item">
-                <div>
+              <div className="dashboard-list-item inspection-attention-row">
+                <div className="inspection-attention-copy">
                   <strong>Pending inspections</strong>
                   <span>Inspections not yet finalized</span>
                 </div>
+
                 <span className="status-badge status-warning">{pendingCount}</span>
               </div>
 
-              <div className="dashboard-list-item">
-                <div>
+              <div className="dashboard-list-item inspection-attention-row">
+                <div className="inspection-attention-copy">
                   <strong>Fleet unavailable</strong>
                   <span>Vehicles currently in maintenance</span>
                 </div>
+
                 <span className="status-badge status-danger">{failedVehicles.length}</span>
               </div>
             </div>
@@ -7124,17 +7147,18 @@ function Audits() {
                     </div>
                   </div>
 
-                  <div className="inspection-grid">
+                  <div className="inspection-grid audit-inspection-grid">
                     {group.items.map(([key, label]) => (
-                      <div className="inspection-item" key={key}>
+                      <div className="inspection-item audit-inspection-item" key={key}>
                         <div className="inspection-item-header">
                           <strong>{label}</strong>
+
                           <span className={`severity severity-${checklist[key].severity.toLowerCase()}`}>
                             {checklist[key].severity}
                           </span>
                         </div>
 
-                        <div className="inspection-result-buttons">
+                        <div className="inspection-result-buttons audit-result-buttons">
                           {["PASS", "FAIL", "N/A"].map((result) => (
                             <button
                               type="button"
@@ -7160,6 +7184,7 @@ function Audits() {
 
               <label className="form-span-2">
                 <span>Inspection Notes</span>
+
                 <textarea
                   rows="4"
                   value={inspection.notes}
@@ -7170,19 +7195,22 @@ function Audits() {
 
               <div className="inspection-threshold-note">
                 <strong>Automatic result calculation</strong>
+
                 <span>
                   Any Critical failure, 3 Major failures, or 7 Minor failures results in a failed inspection.
                 </span>
               </div>
 
-              <div className="modal-footer">
-                <button type="button" className="button button-secondary" onClick={() => setShowInspection(false)} disabled={saving}>
-                  Cancel
-                </button>
+              <div className="modal-footer audit-modal-actions">
+                <div className="modal-action-group">
+                  <button type="button" className="button button-secondary" onClick={() => setShowInspection(false)} disabled={saving}>
+                    Cancel
+                  </button>
 
-                <button type="submit" className="button button-primary" disabled={saving}>
-                  {saving ? "Submitting..." : "Submit Inspection"}
-                </button>
+                  <button type="submit" className="button button-primary" disabled={saving}>
+                    {saving ? "Submitting..." : "Submit Inspection"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -7204,6 +7232,7 @@ function Audits() {
             <div className="detail-grid">
               <div className="detail-item">
                 <span>Vehicle</span>
+
                 <strong>
                   {selectedAudit.vehicles
                     ? `${selectedAudit.vehicles.year} ${selectedAudit.vehicles.make} ${selectedAudit.vehicles.model}`
@@ -7223,6 +7252,7 @@ function Audits() {
 
               <div className="detail-item">
                 <span>Result</span>
+
                 <strong>
                   <span className={resultClass(selectedAudit.result)}>
                     {resultLabel(selectedAudit.result)}
@@ -7249,6 +7279,7 @@ function Audits() {
                   <div className="inspection-review-item" key={key}>
                     <div>
                       <strong>{key.replaceAll("_", " ")}</strong>
+
                       {item?.notes && <span>{item.notes}</span>}
                     </div>
 
@@ -7275,10 +7306,12 @@ function Audits() {
               </div>
             )}
 
-            <div className="modal-footer">
-              <button className="button button-secondary" onClick={() => setSelectedAudit(null)}>
-                Close
-              </button>
+            <div className="modal-footer audit-modal-actions">
+              <div className="modal-action-group">
+                <button className="button button-secondary" onClick={() => setSelectedAudit(null)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
