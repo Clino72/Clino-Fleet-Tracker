@@ -313,8 +313,7 @@ function App() {
           {page === "Vehicles" && (
             <Vehicles
               canEdit={canEdit}
-              navigateTo={navigate}
-              onViewVehicle={openVehicleDetails}
+              openVehicleDetails={openVehicleDetails}
             />
           )}
 
@@ -322,16 +321,14 @@ function App() {
             <VehicleDetails
               canEdit={canEdit}
               vehicleId={selectedVehicleId}
-              navigateTo={navigate}
-              onBack={returnToVehicles}
+              returnToVehicles={returnToVehicles}
             />
           )}
 
           {page === "Drivers" && (
             <Drivers
               canEdit={canEdit}
-              navigateTo={navigate}
-              onViewDriver={openDriverDetails}
+              openDriverDetails={openDriverDetails}
             />
           )}
 
@@ -339,8 +336,7 @@ function App() {
             <DriverDetails
               canEdit={canEdit}
               driverId={selectedDriverId}
-              navigateTo={navigate}
-              onBack={returnToDrivers}
+              returnToDrivers={returnToDrivers}
             />
           )}
 
@@ -1896,7 +1892,7 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
   );
 }
 
-function Vehicles({ canEdit, navigateTo }) {
+function Vehicles({ canEdit, openVehicleDetails }) {
   const [vehicles, setVehicles] = useState([]);
   const [liveVehicles, setLiveVehicles] = useState([]);
   const [search, setSearch] = useState("");
@@ -2035,9 +2031,7 @@ function Vehicles({ canEdit, navigateTo }) {
   }
 
   function openVehicle(vehicle) {
-    navigateTo("Vehicle Details", {
-      vehicleId: vehicle.id,
-    });
+    openVehicleDetails(vehicle.id);
   }
 
   return (
@@ -2232,7 +2226,7 @@ function Vehicles({ canEdit, navigateTo }) {
   );
 }
 
-function VehicleDetails({ canEdit, vehicleId, navigateTo }) {
+function VehicleDetails({ canEdit, vehicleId, returnToVehicles }) {
   const [vehicle, setVehicle] = useState(null);
   const [liveData, setLiveData] = useState(null);
   const [driver, setDriver] = useState(null);
@@ -2497,7 +2491,7 @@ function VehicleDetails({ canEdit, vehicleId, navigateTo }) {
           </div>
 
           <div className="page-intro-actions">
-            <button type="button" className="button button-secondary" onClick={() => navigateTo("Vehicles")}>
+            <button type="button" className="button button-secondary" onClick={returnToVehicles}>
               Back to Vehicles
             </button>
           </div>
@@ -2514,7 +2508,7 @@ function VehicleDetails({ canEdit, vehicleId, navigateTo }) {
       <div className="page-intro vehicle-detail-intro">
         <div className="page-intro-copy">
           <div className="breadcrumb-row">
-            <button type="button" className="breadcrumb-button" onClick={() => navigateTo("Vehicles")}>
+            <button type="button" className="breadcrumb-button" onClick={returnToVehicles}>
               Vehicles
             </button>
             <span>/</span>
@@ -3010,7 +3004,7 @@ function VehicleDetails({ canEdit, vehicleId, navigateTo }) {
   );
 }
 
-function Drivers({ openDriverDetails }) {
+function Drivers({ canEdit, openDriverDetails }) {
   const [drivers, setDrivers] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -3397,7 +3391,7 @@ function Drivers({ openDriverDetails }) {
   );
 }
 
-function DriverDetails({ driverId, returnToDrivers }) {
+function DriverDetails({ canEdit, driverId, returnToDrivers }) {
   const [driver, setDriver] = useState(null);
   const [vehicle, setVehicle] = useState(null);
   const [route, setRoute] = useState(null);
@@ -4713,7 +4707,6 @@ function Routes({ canEdit }) {
   );
 }
 
-
 function RouteEditor({ route, onClose, onSaved }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -5409,7 +5402,6 @@ function RouteEditor({ route, onClose, onSaved }) {
   );
 }
 
-
 function RoutePreview({ route, onClose }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -5632,7 +5624,6 @@ function RoutePreview({ route, onClose }) {
     </div>
   );
 }
-
 
 function AllRoutesPreview({ routes, onClose }) {
   const mapRef = useRef(null);
