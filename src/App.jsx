@@ -177,8 +177,8 @@ function App() {
           <div className="brand-mark">72</div>
 
           <div className="brand-wordmark">
-            <strong>CLINO</strong>
-            <span>TRANSPORTATION</span>
+            <strong>CLINO TRANSPORTATION</strong>
+            <span>Fleet Management</span>
           </div>
         </div>
 
@@ -316,6 +316,145 @@ function App() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function Login() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function signIn(event) {
+    event.preventDefault();
+    setError("");
+    setBusy(true);
+
+    const {
+      data: UserData,
+      error: UserError,
+    } = await supabase.rpc("get_login_email", {
+      p_username: username.trim(),
+    });
+
+    if (UserError || !UserData) {
+      setError("Invalid username or password.");
+      setBusy(false);
+      return;
+    }
+
+    const { error: AuthError } = await supabase.auth.signInWithPassword({
+      email: UserData,
+      password,
+    });
+
+    if (AuthError) {
+      setError("Invalid username or password.");
+    }
+
+    setBusy(false);
+  }
+
+  return (
+    <div className="login-screen">
+      <div className="login-background">
+        <div className="login-grid" />
+        <div className="login-glow login-glow-one" />
+        <div className="login-glow login-glow-two" />
+      </div>
+
+      <div className="login-layout">
+        <div className="login-branding">
+          <div className="login-brand-mark">
+            72
+          </div>
+
+          <div className="login-brand-wordmark">
+            <strong>CLINO TRANSPORTATION</strong>
+            <span>Fleet Management</span>
+          </div>
+
+          <div className="login-brand-divider" />
+
+          <div className="login-brand-copy">
+            <span className="eyebrow">FLEET OPERATIONS</span>
+
+            <h1>Fleet tracking, operations, and service.</h1>
+
+            <p>
+              A centralized operations workspace for fleet activity,
+              assignments, routes, inspections, maintenance, and live
+              vehicle telemetry.
+            </p>
+          </div>
+        </div>
+
+        <form className="login-card" onSubmit={signIn}>
+          <div className="login-card-header">
+            <span className="panel-kicker">ACCOUNT ACCESS</span>
+
+            <h2>Sign in</h2>
+
+            <p>
+              Enter your account credentials to access fleet operations.
+            </p>
+          </div>
+
+          <div className="login-form">
+            <label className="form-field">
+              <span>Username</span>
+
+              <input
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+                placeholder="Enter username"
+                disabled={busy}
+                required
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Password</span>
+
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="Enter password"
+                disabled={busy}
+                required
+              />
+            </label>
+
+            {error && (
+              <div className="login-error">
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="button button-primary login-submit"
+              disabled={busy}
+            >
+              {busy ? "Signing in..." : "Sign in"}
+            </button>
+          </div>
+
+          <div className="login-card-footer">
+            <span className="login-status-indicator" />
+
+            <div>
+              <strong>Private fleet system</strong>
+              <span>Authorized users only</span>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
