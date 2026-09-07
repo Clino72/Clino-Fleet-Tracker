@@ -352,7 +352,7 @@ function App() {
 
           {page === "Maintenance" && <Maintenance canEdit={canEdit} />}
 
-          {page === "Audits" && <Audits canEdit={canEdit} />}
+          {page === "Inspections" && <Inspections canEdit={canEdit} />}
 
           {page === "Settings" && (
             <Settings
@@ -382,7 +382,7 @@ function Sidebar({ page, setPage, role, mobileNavOpen, setMobileNavOpen }) {
     },
     {
       label: "Service",
-      items: ["Maintenance", "Audits"],
+      items: ["Maintenance", "Inspections"],
     },
   ];
 
@@ -488,7 +488,7 @@ function NavIcon({ name }) {
     Assignments: "M6 3h12v18H6zM9 7h6M9 11h6M9 15h4",
     Routes: "M5 19c0-4 4-4 4-8s-4-4-4-8M19 5c0 4-4 4-4 8s4 4 4 8",
     Maintenance: "M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-2-2 2.2-2.2Z",
-    Audits: "M7 3h10v18H7zM9 7h6M9 11h6M9 15h3",
+    Inspections: "M7 3h10v18H7zM9 7h6M9 11h6M9 15h3",
     Settings: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1",
   };
 
@@ -1097,6 +1097,8 @@ function DashboardIcon({ name }) {
     active: "M5 12h4l2-5 3 10 2-5h3",
     available: "M12 3v18M3 12h18",
     maintenance: "M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-2-2Z",
+    assigned: "M8 7h8M8 12h8M8 17h5M5 4h14v16H5z",
+    "out-of-service": "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM8 8l8 8",
   };
 
   return (
@@ -1142,6 +1144,7 @@ function LiveFleet({ canEdit }) {
   const [selectedFleetNumber, setSelectedFleetNumber] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -1438,7 +1441,7 @@ function LiveFleet({ canEdit }) {
 
           <button
             type="button"
-            className="button button-secondary"
+            className="button button-secondary refresh-button"
             onClick={() => loadFleet(false)}
             disabled={refreshing}
           >
@@ -1493,46 +1496,85 @@ function LiveFleet({ canEdit }) {
         />
       </div>
 
-      <div className="panel live-fleet-toolbar">
-        <div className="toolbar-heading">
+      <div className="panel">
+        <div className="panel-header">
           <div>
             <span className="eyebrow">FLEET FILTER</span>
-            <strong>Vehicle activity</strong>
+            <h3>Vehicle activity</h3>
           </div>
 
-          <span className="toolbar-result-count">
+          <span className="panel-count">
             {filteredFleet.length} of {fleet.length}
           </span>
         </div>
 
-        <div className="toolbar-controls">
-          <label className="search-control">
-            <span>Search</span>
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
 
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Fleet, driver, or route"
-            />
-          </label>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Fleet, driver, or route"
+              />
+            </label>
 
-          <label className="select-control">
-            <span>Status</span>
+            <label className="select-control">
+              <span>Status</span>
 
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="ALL">All statuses</option>
-              <option value="IN_SERVICE">In service</option>
-              <option value="ASSIGNED">Assigned</option>
-              <option value="AVAILABLE">Available</option>
-              <option value="MAINTENANCE">Maintenance</option>
-              <option value="STALE">Stale telemetry</option>
-              <option value="OFFLINE">Offline</option>
-            </select>
-          </label>
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      IN_SERVICE: "In service",
+                      ASSIGNED: "Assigned",
+                      AVAILABLE: "Available",
+                      MAINTENANCE: "Maintenance",
+                      STALE: "Stale telemetry",
+                      OFFLINE: "Offline",
+                    }[statusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["IN_SERVICE", "In service"],
+                      ["ASSIGNED", "Assigned"],
+                      ["AVAILABLE", "Available"],
+                      ["MAINTENANCE", "Maintenance"],
+                      ["STALE", "Stale telemetry"],
+                      ["OFFLINE", "Offline"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${statusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setStatusFilter(value);
+                          setStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1727,51 +1769,125 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerMapRef = useRef(new Map());
+  const resizeObserverRef = useRef(null);
 
-  const IMAGE_SIZE = 1055;
-  const ROBLOX_HALF_SIZE = 3072;
-  const ROBLOX_SIZE = 6144;
-  const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
+  const IMAGE_WIDTH = 1055;
+  const IMAGE_HEIGHT = 1055;
 
   function robloxToMap(x, z) {
-    const imageX = (ROBLOX_HALF_SIZE - Number(x)) * PIXELS_PER_STUD;
-    const imageY = (ROBLOX_HALF_SIZE + Number(z)) * PIXELS_PER_STUD;
+    const imageX = 961.5 - Number(x) * 0.17138671875;
+    const imageY = 540.5 - Number(z) * 0.17138671875;
 
     return [imageY, imageX];
   }
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) {
+    const container = mapRef.current;
+
+    if (!container || mapInstanceRef.current) {
       return;
     }
 
-    const bounds = [[0, 0], [IMAGE_SIZE, IMAGE_SIZE]];
+    let cancelled = false;
 
-    const map = L.map(mapRef.current, {
-      crs: L.CRS.Simple,
-      minZoom: -1,
-      maxZoom: 4,
-      zoomControl: true,
-      attributionControl: false,
-      preferCanvas: true,
-    });
+    function initializeMap() {
+      if (cancelled || !mapRef.current || mapInstanceRef.current) {
+        return;
+      }
 
-    L.imageOverlay(`${import.meta.env.BASE_URL}map.png`, bounds).addTo(map);
+      const width = mapRef.current.clientWidth;
+      const height = mapRef.current.clientHeight;
 
-    map.fitBounds(bounds);
+      if (width <= 0 || height <= 0) {
+        requestAnimationFrame(initializeMap);
+        return;
+      }
 
-    map.setMaxBounds([
-      [-IMAGE_SIZE * 0.15, -IMAGE_SIZE * 0.15],
-      [IMAGE_SIZE * 1.15, IMAGE_SIZE * 1.15],
-    ]);
+      const bounds = [[0, 0], [IMAGE_HEIGHT, IMAGE_WIDTH]];
 
-    mapInstanceRef.current = map;
+      const map = L.map(mapRef.current, {
+        crs: L.CRS.Simple,
+        minZoom: -1,
+        maxZoom: 4,
+        zoomControl: true,
+        attributionControl: false,
+        preferCanvas: true,
+        zoomSnap: 0.25,
+        zoomDelta: 0.5,
+      });
+
+      mapInstanceRef.current = map;
+
+      const imageUrl = `${import.meta.env.BASE_URL}map.png`;
+
+      const imageOverlay = L.imageOverlay(imageUrl, bounds, {
+        interactive: false,
+      });
+
+      imageOverlay.on("load", () => {
+        if (!cancelled && mapInstanceRef.current === map) {
+          map.invalidateSize(false);
+          map.fitBounds(bounds, {
+            animate: false,
+            padding: [0, 0],
+          });
+        }
+      });
+
+      imageOverlay.on("error", () => {
+        console.error(`Fleet map image failed to load: ${imageUrl}`);
+      });
+
+      imageOverlay.addTo(map);
+
+      map.fitBounds(bounds, {
+        animate: false,
+        padding: [0, 0],
+      });
+
+      map.setMaxBounds([
+        [-IMAGE_HEIGHT * 0.15, -IMAGE_WIDTH * 0.15],
+        [IMAGE_HEIGHT * 1.15, IMAGE_WIDTH * 1.15],
+      ]);
+
+      requestAnimationFrame(() => {
+        if (!cancelled && mapInstanceRef.current === map) {
+          map.invalidateSize(false);
+        }
+      });
+
+      resizeObserverRef.current = new ResizeObserver(() => {
+        if (mapInstanceRef.current === map) {
+          map.invalidateSize(false);
+        }
+      });
+
+      resizeObserverRef.current.observe(mapRef.current);
+
+      const mapPanel = mapRef.current.closest(".live-fleet-map-panel");
+
+      if (mapPanel) {
+        resizeObserverRef.current.observe(mapPanel);
+      }
+    }
+
+    initializeMap();
 
     return () => {
+      cancelled = true;
+
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+
       markerMapRef.current.forEach((marker) => marker.remove());
       markerMapRef.current.clear();
-      map.remove();
-      mapInstanceRef.current = null;
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
     };
   }, []);
 
@@ -1797,9 +1913,21 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
         return;
       }
 
+      const x = Number(bus.x);
+      const z = Number(bus.z);
+
+      if (!Number.isFinite(x) || !Number.isFinite(z)) {
+        return;
+      }
+
+      const position = robloxToMap(x, z);
+
+      if (!Number.isFinite(position[0]) || !Number.isFinite(position[1])) {
+        return;
+      }
+
       activeFleetNumbers.add(fleetNumber);
 
-      const position = robloxToMap(bus.x, bus.z);
       let marker = markerMap.get(fleetNumber);
 
       if (!marker) {
@@ -1892,12 +2020,15 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
   );
 }
 
-function Vehicles({ canEdit, openVehicleDetails }) {
+function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
   const [vehicles, setVehicles] = useState([]);
   const [liveVehicles, setLiveVehicles] = useState([]);
+  const [drivers, setDrivers] = useState(new Map());
   const [search, setSearch] = useState("");
   const [garageFilter, setGarageFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [garageDropdownOpen, setGarageDropdownOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -1911,9 +2042,14 @@ function Vehicles({ canEdit, openVehicleDetails }) {
 
     setError("");
 
-    const [{ data: vehicleData, error: vehicleError }, { data: liveData, error: liveError }] = await Promise.all([
+    const [
+      { data: vehicleData, error: vehicleError },
+      { data: liveData, error: liveError },
+      { data: driverData, error: driverError },
+    ] = await Promise.all([
       supabase.from("vehicles").select("*"),
       supabase.from("fleet_live").select("*"),
+      supabase.from("drivers").select("id, name, employee_number, status"),
     ]);
 
     if (vehicleError) {
@@ -1930,6 +2066,17 @@ function Vehicles({ canEdit, openVehicleDetails }) {
       return;
     }
 
+    if (driverError) {
+      setError(driverError.message);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const driverById = new Map(
+      (driverData || []).map((driver) => [String(driver.id), driver])
+    );
+
     const sortedVehicles = [...(vehicleData || [])].sort((a, b) => {
       const garageOrder = {
         CLIO: 0,
@@ -1943,11 +2090,19 @@ function Vehicles({ canEdit, openVehicleDetails }) {
         return garageA - garageB;
       }
 
+      const yearA = Number(a.year) || 0;
+      const yearB = Number(b.year) || 0;
+
+      if (yearA !== yearB) {
+        return yearA - yearB;
+      }
+
       return String(a.fleet_number || "").localeCompare(String(b.fleet_number || ""), undefined, { numeric: true });
     });
 
     setVehicles(sortedVehicles);
     setLiveVehicles(liveData || []);
+    setDrivers(driverById);
     setLoading(false);
     setRefreshing(false);
   }
@@ -1962,15 +2117,25 @@ function Vehicles({ canEdit, openVehicleDetails }) {
 
   const vehicleRows = vehicles.map((vehicle) => {
     const live = liveByFleet.get(String(vehicle.fleet_number));
+    const assignedDriver = drivers.get(String(vehicle.current_driver_id));
+    const liveDriver = live?.driver_id ? drivers.get(String(live.driver_id)) : null;
 
     return {
       ...vehicle,
       live,
+      driverName: live?.driver_name || liveDriver?.name || assignedDriver?.name || "Unassigned",
       displayStatus: live?.effective_status || vehicle.status || "UNKNOWN",
     };
   });
 
-  const garages = [...new Set(vehicleRows.map((vehicle) => vehicle.garage).filter(Boolean))].sort();
+  const garages = [...new Set(vehicleRows.map((vehicle) => vehicle.garage).filter(Boolean))].sort((a, b) => {
+    const garageOrder = {
+      CLIO: 0,
+      MAPLECREST: 1,
+    };
+
+    return (garageOrder[String(a).toUpperCase()] ?? 99) - (garageOrder[String(b).toUpperCase()] ?? 99);
+  });
 
   const statuses = [...new Set(vehicleRows.map((vehicle) => vehicle.displayStatus).filter(Boolean))].sort();
 
@@ -1986,7 +2151,7 @@ function Vehicles({ canEdit, openVehicleDetails }) {
       vehicle.garage,
       vehicle.status,
       vehicle.displayStatus,
-      vehicle.live?.driver_name,
+      vehicle.driverName,
       vehicle.live?.route_name,
     ].some((value) => String(value ?? "").toLowerCase().includes(query));
 
@@ -1997,15 +2162,10 @@ function Vehicles({ canEdit, openVehicleDetails }) {
   });
 
   const totalCount = vehicleRows.length;
-
   const availableCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "AVAILABLE").length;
-
   const assignedCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "ASSIGNED").length;
-
   const inServiceCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "IN_SERVICE").length;
-
   const maintenanceCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "MAINTENANCE").length;
-
   const outOfServiceCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "OUT_OF_SERVICE").length;
 
   function getStatusClass(status) {
@@ -2030,6 +2190,10 @@ function Vehicles({ canEdit, openVehicleDetails }) {
     return "status-badge";
   }
 
+  function getStatusLabel(status) {
+    return String(status || "UNKNOWN").replaceAll("_", " ");
+  }
+
   function openVehicle(vehicle) {
     openVehicleDetails(vehicle.id);
   }
@@ -2044,8 +2208,20 @@ function Vehicles({ canEdit, openVehicleDetails }) {
         </div>
 
         <div className="page-intro-actions">
-          <button type="button" className="button button-secondary" onClick={() => loadVehicles(false)} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh Fleet"}
+          {canEdit && (
+            <button type="button" className="button button-primary" onClick={openNewVehicle}>
+              New Vehicle
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="button button-secondary refresh-button"
+            onClick={() => loadVehicles(false)}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
+            <span>{refreshing ? "Refreshing" : "Refresh Fleet"}</span>
           </button>
         </div>
       </div>
@@ -2056,49 +2232,55 @@ function Vehicles({ canEdit, openVehicleDetails }) {
         </div>
       )}
 
-      <div className="stat-grid vehicle-stat-grid">
-        <div className="stat-card">
-          <span className="stat-card-label">Total Fleet</span>
-          <strong>{totalCount}</strong>
-          <span className="stat-card-meta">Registered vehicles</span>
-        </div>
+      <div className="dashboard-kpi-grid vehicle-stat-grid">
+        <DashboardKpi
+          label="Total Fleet"
+          value={totalCount}
+          detail="Registered vehicles"
+          icon="fleet"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Available</span>
-          <strong>{availableCount}</strong>
-          <span className="stat-card-meta">Ready for assignment</span>
-        </div>
+        <DashboardKpi
+          label="Available"
+          value={availableCount}
+          detail="Ready for assignment"
+          icon="available"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Assigned</span>
-          <strong>{assignedCount}</strong>
-          <span className="stat-card-meta">Currently assigned</span>
-        </div>
+        <DashboardKpi
+          label="Assigned"
+          value={assignedCount}
+          detail="Currently assigned"
+          icon="assigned"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">In Service</span>
-          <strong>{inServiceCount}</strong>
-          <span className="stat-card-meta">Currently operating</span>
-        </div>
+        <DashboardKpi
+          label="In Service"
+          value={inServiceCount}
+          detail="Currently operating"
+          icon="active"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Maintenance</span>
-          <strong>{maintenanceCount}</strong>
-          <span className="stat-card-meta">Unavailable for service</span>
-        </div>
+        <DashboardKpi
+          label="Maintenance"
+          value={maintenanceCount}
+          detail="Unavailable for service"
+          icon="maintenance"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Out of Service</span>
-          <strong>{outOfServiceCount}</strong>
-          <span className="stat-card-meta">Not operational</span>
-        </div>
+        <DashboardKpi
+          label="Out of Service"
+          value={outOfServiceCount}
+          detail="Not operational"
+          icon="out-of-service"
+        />
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="panel-kicker">Fleet Inventory</span>
-            <h2>Vehicle Directory</h2>
+            <span className="eyebrow">Fleet Inventory</span>
+            <h3>Vehicle Directory</h3>
           </div>
 
           <span className="panel-count">
@@ -2120,26 +2302,90 @@ function Vehicles({ canEdit, openVehicleDetails }) {
 
             <label className="select-control">
               <span>Garage</span>
-              <select value={garageFilter} onChange={(event) => setGarageFilter(event.target.value)}>
-                <option value="ALL">All garages</option>
-                {garages.map((garage) => (
-                  <option key={garage} value={garage}>
-                    {garage}
-                  </option>
-                ))}
-              </select>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setGarageDropdownOpen((open) => !open);
+                    setStatusDropdownOpen(false);
+                  }}
+                >
+                  <span>
+                    {garageFilter === "ALL" ? "All garages" : garageFilter}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {garageDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All garages"],
+                      ...garages.map((garage) => [garage, garage]),
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${garageFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setGarageFilter(value);
+                          setGarageDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </label>
 
             <label className="select-control">
               <span>Status</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="ALL">All statuses</option>
-                {statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {String(status).replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setStatusDropdownOpen((open) => !open);
+                    setGarageDropdownOpen(false);
+                  }}
+                >
+                  <span>
+                    {statusFilter === "ALL" ? "All statuses" : getStatusLabel(statusFilter)}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ...statuses.map((status) => [status, getStatusLabel(status)]),
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${statusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setStatusFilter(value);
+                          setStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </label>
           </div>
         </div>
@@ -2196,9 +2442,7 @@ function Vehicles({ canEdit, openVehicleDetails }) {
 
                     <td>{vehicle.garage || "—"}</td>
 
-                    <td>
-                      {vehicle.live?.driver_name || "Unassigned"}
-                    </td>
+                    <td>{vehicle.driverName}</td>
 
                     <td>
                       {vehicle.live?.route_name || "No active route"}
@@ -2206,7 +2450,7 @@ function Vehicles({ canEdit, openVehicleDetails }) {
 
                     <td>
                       <span className={getStatusClass(vehicle.displayStatus)}>
-                        {String(vehicle.displayStatus || "UNKNOWN").replaceAll("_", " ")}
+                        {getStatusLabel(vehicle.displayStatus)}
                       </span>
                     </td>
 
@@ -3008,13 +3252,19 @@ function Drivers({ canEdit, openDriverDetails }) {
   const [drivers, setDrivers] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(showLoading = false) {
+    if (showLoading) {
+      setLoading(true);
+    }
+
+    setRefreshing(true);
     setError("");
 
     const { data, error: queryError } = await supabase.from("drivers").select(`
@@ -3046,6 +3296,7 @@ function Drivers({ canEdit, openDriverDetails }) {
 
     if (queryError) {
       setError(queryError.message);
+      setRefreshing(false);
       setLoading(false);
       return;
     }
@@ -3054,6 +3305,7 @@ function Drivers({ canEdit, openDriverDetails }) {
 
     if (liveError) {
       setError(liveError.message);
+      setRefreshing(false);
       setLoading(false);
       return;
     }
@@ -3071,13 +3323,16 @@ function Drivers({ canEdit, openDriverDetails }) {
     });
 
     setDrivers(enriched);
+    setRefreshing(false);
     setLoading(false);
   }
 
   useEffect(() => {
-    loadData();
+    loadData(true);
 
-    const interval = window.setInterval(loadData, 15000);
+    const interval = window.setInterval(() => {
+      loadData(false);
+    }, 15000);
 
     return () => {
       window.clearInterval(interval);
@@ -3212,8 +3467,20 @@ function Drivers({ canEdit, openDriverDetails }) {
         </div>
 
         <div className="page-intro-actions">
-          <button type="button" className="button button-secondary" onClick={loadData} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
+          {canEdit && (
+            <button type="button" className="button button-primary" onClick={() => openDriverDetails(null)}>
+              Add Driver
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="button button-secondary refresh-button"
+            onClick={() => loadData(false)}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
+            <span>{refreshing ? "Refreshing" : "Refresh Drivers"}</span>
           </button>
         </div>
       </div>
@@ -3232,63 +3499,107 @@ function Drivers({ canEdit, openDriverDetails }) {
         </div>
       )}
 
-      <div className="stat-grid stat-grid-4">
-        <div className="stat-card">
-          <span className="stat-card-label">Total Drivers</span>
-          <strong className="stat-card-value">{drivers.length}</strong>
-          <span className="stat-card-meta">Personnel records</span>
-        </div>
+      <div className="dashboard-kpi-grid driver-stat-grid">
+        <DashboardKpi
+          label="Total Drivers"
+          value={drivers.length}
+          detail="Personnel records"
+          icon="fleet"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Active</span>
-          <strong className="stat-card-value">{activeCount}</strong>
-          <span className="stat-card-meta">Currently transmitting</span>
-        </div>
+        <DashboardKpi
+          label="Active"
+          value={activeCount}
+          detail="Currently transmitting"
+          icon="active"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Assigned</span>
-          <strong className="stat-card-value">{assignedCount}</strong>
-          <span className="stat-card-meta">Vehicle or route assignment</span>
-        </div>
+        <DashboardKpi
+          label="Assigned"
+          value={assignedCount}
+          detail="Vehicle or route assignment"
+          icon="assigned"
+        />
 
-        <div className="stat-card">
-          <span className="stat-card-label">Offline</span>
-          <strong className="stat-card-value">{offlineCount}</strong>
-          <span className="stat-card-meta">No active telemetry</span>
-        </div>
+        <DashboardKpi
+          label="Offline"
+          value={offlineCount}
+          detail="No active telemetry"
+          icon="out-of-service"
+        />
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="panel-eyebrow">DRIVER DIRECTORY</span>
+            <span className="eyebrow">DRIVER DIRECTORY</span>
             <h3>Personnel Records</h3>
           </div>
 
-          <div className="panel-header-meta">
-            <span>{filteredDrivers.length} shown</span>
-          </div>
+          <span className="panel-count">
+            {filteredDrivers.length} of {drivers.length}
+          </span>
         </div>
 
-        <div className="toolbar-controls">
-          <label className="search-control">
-            <span>Search</span>
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name, employee number, fleet, or route"
-            />
-          </label>
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
 
-          <label className="select-control">
-            <span>Status</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="ALL">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="OFFLINE">Offline</option>
-            </select>
-          </label>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Name, employee number, fleet, or route"
+              />
+            </label>
+
+            <label className="select-control">
+              <span>Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      ACTIVE: "Active",
+                      OFFLINE: "Offline",
+                    }[statusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["ACTIVE", "Active"],
+                      ["OFFLINE", "Offline"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${statusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setStatusFilter(value);
+                          setStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
         </div>
 
         <div className="table-wrap">
@@ -3366,18 +3677,24 @@ function Drivers({ canEdit, openDriverDetails }) {
 
                     <td className="table-action-cell">
                       <div className="table-actions">
-                        <button type="button" className="button button-secondary button-small" onClick={() => openDriverDetails(driver.id)}>
+                        <button
+                          type="button"
+                          className="button button-secondary button-small"
+                          onClick={() => openDriverDetails(driver.id)}
+                        >
                           View
                         </button>
 
-                        <button
-                          type="button"
-                          className="button button-danger button-small"
-                          onClick={() => deleteDriver(driver)}
-                          disabled={deletingId === driver.id}
-                        >
-                          {deletingId === driver.id ? "Deleting..." : "Delete"}
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="button button-danger button-small"
+                            onClick={() => deleteDriver(driver)}
+                            disabled={deletingId === driver.id}
+                          >
+                            {deletingId === driver.id ? "Deleting..." : "Delete"}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -3969,6 +4286,884 @@ function DriverDetails({ canEdit, driverId, returnToDrivers }) {
   );
 }
 
+function Assignments({ canEdit }) {
+  const [assignments, setAssignments] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [endingId, setEndingId] = useState(null);
+
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
+
+  const [formVehicleId, setFormVehicleId] = useState("");
+  const [formDriverId, setFormDriverId] = useState("");
+  const [formRouteNumber, setFormRouteNumber] = useState("");
+  const [formNotes, setFormNotes] = useState("");
+
+  async function loadData(showLoading = false) {
+    if (showLoading) {
+      setLoading(true);
+    }
+
+    setRefreshing(true);
+    setError("");
+
+    const { data: assignmentData, error: assignmentError } = await supabase.from("assignments").select(`
+      id,
+      vehicle_id,
+      driver_id,
+      route_number,
+      status,
+      started_at,
+      ended_at,
+      notes
+    `).order("started_at", { ascending: false });
+
+    if (assignmentError) {
+      setError(assignmentError.message);
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+
+    const { data: vehicleData, error: vehicleError } = await supabase.from("vehicles").select(`
+      id,
+      fleet_number,
+      year,
+      make,
+      model,
+      garage,
+      status,
+      current_driver_id
+    `).order("fleet_number");
+
+    if (vehicleError) {
+      setError(vehicleError.message);
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+
+    const { data: driverData, error: driverError } = await supabase.from("drivers").select(`
+      id,
+      name,
+      employee_number,
+      roblox_user_id,
+      status,
+      current_vehicle_id
+    `).order("name");
+
+    if (driverError) {
+      setError(driverError.message);
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+
+    const vehicleMap = new Map((vehicleData || []).map((vehicle) => [vehicle.id, vehicle]));
+    const driverMap = new Map((driverData || []).map((driver) => [driver.id, driver]));
+
+    const enrichedAssignments = (assignmentData || []).map((assignment) => ({
+      ...assignment,
+      vehicle: vehicleMap.get(assignment.vehicle_id) || null,
+      driver: driverMap.get(assignment.driver_id) || null,
+    }));
+
+    setAssignments(enrichedAssignments);
+    setVehicles(vehicleData || []);
+    setDrivers(driverData || []);
+    setRefreshing(false);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadData(true);
+
+    const interval = window.setInterval(() => {
+      loadData(false);
+    }, 15000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  function resetForm() {
+    setEditingAssignment(null);
+    setFormVehicleId("");
+    setFormDriverId("");
+    setFormRouteNumber("");
+    setFormNotes("");
+    setShowForm(false);
+  }
+
+  function openNewAssignment() {
+    setError("");
+    setMessage("");
+    setEditingAssignment(null);
+    setFormVehicleId("");
+    setFormDriverId("");
+    setFormRouteNumber("");
+    setFormNotes("");
+    setShowForm(true);
+  }
+
+  function openEditAssignment(assignment) {
+    setError("");
+    setMessage("");
+    setEditingAssignment(assignment);
+    setFormVehicleId(assignment.vehicle_id || "");
+    setFormDriverId(assignment.driver_id || "");
+    setFormRouteNumber(assignment.route_number || "");
+    setFormNotes(assignment.notes || "");
+    setShowForm(true);
+  }
+
+  async function saveAssignment(event) {
+    event.preventDefault();
+
+    if (saving) {
+      return;
+    }
+
+    if (!formVehicleId || !formDriverId || !formRouteNumber.trim()) {
+      setError("Bus, driver, and route number are required.");
+      return;
+    }
+
+    const selectedVehicle = vehicles.find((vehicle) => vehicle.id === formVehicleId);
+    const selectedDriver = drivers.find((driver) => driver.id === formDriverId);
+
+    if (!selectedVehicle) {
+      setError("The selected vehicle could not be found.");
+      return;
+    }
+
+    if (!selectedDriver) {
+      setError("The selected driver could not be found.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+
+    if (editingAssignment) {
+      const oldVehicleId = editingAssignment.vehicle_id;
+      const oldDriverId = editingAssignment.driver_id;
+
+      const { error: assignmentError } = await supabase.from("assignments").update({
+        vehicle_id: formVehicleId,
+        driver_id: formDriverId,
+        route_number: formRouteNumber.trim(),
+        notes: formNotes.trim() || null,
+      }).eq("id", editingAssignment.id);
+
+      if (assignmentError) {
+        setError(assignmentError.message);
+        setSaving(false);
+        return;
+      }
+
+      if (oldVehicleId !== formVehicleId) {
+        const { error: oldVehicleError } = await supabase.from("vehicles").update({ current_driver_id: null }).eq("id", oldVehicleId).eq("current_driver_id", oldDriverId);
+
+        if (oldVehicleError) {
+          setError(oldVehicleError.message);
+          setSaving(false);
+          return;
+        }
+
+        const { error: newVehicleError } = await supabase.from("vehicles").update({ current_driver_id: formDriverId }).eq("id", formVehicleId);
+
+        if (newVehicleError) {
+          setError(newVehicleError.message);
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { error: vehicleError } = await supabase.from("vehicles").update({ current_driver_id: formDriverId }).eq("id", formVehicleId);
+
+        if (vehicleError) {
+          setError(vehicleError.message);
+          setSaving(false);
+          return;
+        }
+      }
+
+      if (oldDriverId !== formDriverId) {
+        const { error: oldDriverError } = await supabase.from("drivers").update({ current_vehicle_id: null }).eq("id", oldDriverId).eq("current_vehicle_id", oldVehicleId);
+
+        if (oldDriverError) {
+          setError(oldDriverError.message);
+          setSaving(false);
+          return;
+        }
+      }
+
+      const { error: driverError } = await supabase.from("drivers").update({ current_vehicle_id: formVehicleId }).eq("id", formDriverId);
+
+      if (driverError) {
+        setError(driverError.message);
+        setSaving(false);
+        return;
+      }
+
+      setMessage("Assignment updated successfully.");
+      resetForm();
+      setSaving(false);
+      await loadData(false);
+      return;
+    }
+
+    const { error: rpcError } = await supabase.rpc("assign_vehicle", {
+      p_fleet_number: selectedVehicle.fleet_number,
+      p_driver_id: formDriverId,
+      p_route_number: formRouteNumber.trim(),
+    });
+
+    if (rpcError) {
+      setError(rpcError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { data: createdAssignment, error: createdAssignmentError } = await supabase.from("assignments").select("id").eq("vehicle_id", formVehicleId).eq("driver_id", formDriverId).eq("status", "ACTIVE").order("started_at", { ascending: false }).limit(1).maybeSingle();
+
+    if (createdAssignmentError) {
+      setError(createdAssignmentError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (createdAssignment?.id) {
+      const { error: notesError } = await supabase.from("assignments").update({
+        notes: formNotes.trim() || null,
+      }).eq("id", createdAssignment.id);
+
+      if (notesError) {
+        setError(notesError.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    setMessage(`${selectedVehicle.fleet_number} was assigned to ${selectedDriver.name || "the selected driver"}.`);
+    resetForm();
+    setSaving(false);
+    await loadData(false);
+  }
+
+  async function endAssignment(assignment) {
+    if (endingId) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `End the assignment for bus ${assignment.vehicle?.fleet_number || "Unknown"}?\n\nThis will end the driver's current assignment and move the record into assignment history.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setEndingId(assignment.id);
+    setError("");
+    setMessage("");
+
+    const { error: rpcError } = await supabase.rpc("end_vehicle_assignment", {
+      p_fleet_number: assignment.vehicle?.fleet_number,
+    });
+
+    if (rpcError) {
+      setError(rpcError.message);
+      setEndingId(null);
+      return;
+    }
+
+    setMessage(`Assignment for ${assignment.vehicle?.fleet_number || "the selected vehicle"} was ended.`);
+    setEndingId(null);
+    await loadData(false);
+  }
+
+  const activeAssignments = assignments.filter((assignment) => {
+    return String(assignment.status || "").toUpperCase() === "ACTIVE";
+  });
+
+  const historyAssignments = assignments.filter((assignment) => {
+    return String(assignment.status || "").toUpperCase() !== "ACTIVE";
+  });
+
+  const assignedVehicleIds = new Set(activeAssignments.map((assignment) => assignment.vehicle_id));
+  const assignedDriverIds = new Set(activeAssignments.map((assignment) => assignment.driver_id));
+
+  const availableVehicleCount = vehicles.filter((vehicle) => {
+    return !assignedVehicleIds.has(vehicle.id) && String(vehicle.status || "").toUpperCase() !== "OUT_OF_SERVICE" && String(vehicle.status || "").toUpperCase() !== "MAINTENANCE";
+  }).length;
+
+  const availableDriverCount = drivers.filter((driver) => {
+    return !assignedDriverIds.has(driver.id);
+  }).length;
+
+  const filteredAssignments = activeAssignments.filter((assignment) => {
+    const query = search.trim().toLowerCase();
+
+    const matchesSearch = !query || [
+      assignment.vehicle?.fleet_number,
+      assignment.vehicle?.garage,
+      assignment.vehicle?.year,
+      assignment.vehicle?.make,
+      assignment.vehicle?.model,
+      assignment.driver?.name,
+      assignment.driver?.employee_number,
+      assignment.route_number,
+      assignment.notes,
+    ].some((value) => value?.toString().toLowerCase().includes(query));
+
+    const matchesStatus = statusFilter === "ALL" || String(assignment.status || "").toUpperCase() === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  function formatDate(timestamp) {
+    if (!timestamp) {
+      return "—";
+    }
+
+    return new Date(timestamp).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function formatDuration(startedAt, endedAt) {
+    if (!startedAt) {
+      return "—";
+    }
+
+    const start = new Date(startedAt).getTime();
+    const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+    const elapsed = Math.max(0, end - start);
+
+    const minutes = Math.floor(elapsed / 60000);
+
+    if (minutes < 60) {
+      return `${minutes}m`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (hours < 24) {
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+    }
+
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+
+    return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+  }
+
+  const availableFormVehicles = vehicles.filter((vehicle) => {
+    if (editingAssignment?.vehicle_id === vehicle.id) {
+      return true;
+    }
+
+    return !assignedVehicleIds.has(vehicle.id) && String(vehicle.status || "").toUpperCase() !== "OUT_OF_SERVICE" && String(vehicle.status || "").toUpperCase() !== "MAINTENANCE";
+  }).sort((a, b) => {
+    const garageOrder = {
+      CLIO: 0,
+      MAPLECREST: 1,
+    };
+
+    const garageA = garageOrder[String(a.garage || "").toUpperCase()] ?? 99;
+    const garageB = garageOrder[String(b.garage || "").toUpperCase()] ?? 99;
+
+    if (garageA !== garageB) {
+      return garageA - garageB;
+    }
+
+    const yearA = Number(a.year) || 0;
+    const yearB = Number(b.year) || 0;
+
+    if (yearA !== yearB) {
+      return yearA - yearB;
+    }
+
+    return String(a.fleet_number || "").localeCompare(String(b.fleet_number || ""), undefined, { numeric: true });
+  });
+
+  const availableFormDrivers = drivers.filter((driver) => {
+    if (editingAssignment?.driver_id === driver.id) {
+      return true;
+    }
+
+    return !assignedDriverIds.has(driver.id);
+  }).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+  return (
+    <section className="page-section assignments-page">
+      <div className="page-intro">
+        <div className="page-intro-copy">
+          <span className="eyebrow">FLEET OPERATIONS / ASSIGNMENTS</span>
+          <h2>Assignments</h2>
+          <p>Manage current driver, vehicle, and route assignments.</p>
+        </div>
+
+        <div className="page-intro-actions">
+          {canEdit && (
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={openNewAssignment}
+            >
+              New Assignment
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="button button-secondary refresh-button"
+            onClick={() => loadData(false)}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
+            <span>{refreshing ? "Refreshing" : "Refresh Assignments"}</span>
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <div className="panel panel-success">
+          <div className="panel-alert-title">Assignment updated</div>
+          <div className="panel-alert-copy">{message}</div>
+        </div>
+      )}
+
+      {error && (
+        <div className="panel panel-alert">
+          <div className="panel-alert-title">Assignment operation failed</div>
+          <div className="panel-alert-copy">{error}</div>
+        </div>
+      )}
+
+      <div className="dashboard-kpi-grid assignment-stat-grid">
+        <DashboardKpi
+          label="Active Assignments"
+          value={activeAssignments.length}
+          detail="Currently assigned"
+          icon="assigned"
+        />
+
+        <DashboardKpi
+          label="Assigned Buses"
+          value={assignedVehicleIds.size}
+          detail="Currently in service"
+          icon="active"
+        />
+
+        <DashboardKpi
+          label="Available Buses"
+          value={availableVehicleCount}
+          detail="Ready for assignment"
+          icon="available"
+        />
+
+        <DashboardKpi
+          label="Assignment History"
+          value={historyAssignments.length}
+          detail="Completed records"
+          icon="fleet"
+        />
+      </div>
+
+      {showForm && canEdit && (
+        <section className="panel assignment-form-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">
+                {editingAssignment ? "ASSIGNMENT MANAGEMENT" : "NEW ASSIGNMENT"}
+              </span>
+              <h3>{editingAssignment ? "Edit Assignment" : "Create Assignment"}</h3>
+            </div>
+          </div>
+
+          <form className="assignment-form" onSubmit={saveAssignment}>
+            <div className="form-grid form-grid-three">
+              <label className="form-field">
+                <span>Bus</span>
+
+                <select
+                  value={formVehicleId}
+                  onChange={(event) => setFormVehicleId(event.target.value)}
+                  required
+                >
+                  <option value="">Select bus</option>
+
+                  {availableFormVehicles.map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.fleet_number} — {vehicle.year} {vehicle.make} {vehicle.model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Driver</span>
+
+                <select
+                  value={formDriverId}
+                  onChange={(event) => setFormDriverId(event.target.value)}
+                  required
+                >
+                  <option value="">Select driver</option>
+
+                  {availableFormDrivers.map((driver) => (
+                    <option key={driver.id} value={driver.id}>
+                      {driver.name}{driver.employee_number ? ` — ${driver.employee_number}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="form-field">
+                <span>Route Number</span>
+
+                <input
+                  type="text"
+                  value={formRouteNumber}
+                  onChange={(event) => setFormRouteNumber(event.target.value)}
+                  placeholder="e.g. 16-A1"
+                  required
+                />
+              </label>
+
+              <label className="form-field form-field-wide">
+                <span>Notes <span className="form-optional">Optional</span></span>
+
+                <textarea
+                  value={formNotes}
+                  onChange={(event) => setFormNotes(event.target.value)}
+                  placeholder="Add assignment notes if needed..."
+                />
+              </label>
+            </div>
+
+            <div className="assignment-form-actions">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={resetForm}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="button button-primary"
+                disabled={saving}
+              >
+                {saving ? "Saving..." : editingAssignment ? "Save Changes" : "Assign Vehicle"}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="eyebrow">CURRENT ASSIGNMENTS</span>
+            <h3>Active Fleet Assignments</h3>
+          </div>
+
+          <span className="panel-count">
+            {filteredAssignments.length} of {activeAssignments.length}
+          </span>
+        </div>
+
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
+
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Fleet, driver, route, or notes"
+              />
+            </label>
+
+            <label className="select-control">
+              <span>Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      ACTIVE: "Active",
+                    }[statusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["ACTIVE", "Active"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${statusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setStatusFilter(value);
+                          setStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Vehicle</th>
+                <th>Driver</th>
+                <th>Route</th>
+                <th>Started</th>
+                <th>Duration</th>
+                <th />
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading && assignments.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="table-empty">
+                    Loading assignments...
+                  </td>
+                </tr>
+              ) : filteredAssignments.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="table-empty">
+                    No current assignments match the selected filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredAssignments.map((assignment) => (
+                  <tr key={assignment.id}>
+                    <td>
+                      <div className="table-primary">
+                        {assignment.vehicle?.fleet_number || "Unknown"}
+                      </div>
+
+                      <div className="table-secondary">
+                        {assignment.vehicle
+                          ? `${assignment.vehicle.year || ""} ${assignment.vehicle.make || ""} ${assignment.vehicle.model || ""}`.trim()
+                          : "Vehicle unavailable"}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="table-primary">
+                        {assignment.driver?.name || "Unknown Driver"}
+                      </div>
+
+                      <div className="table-secondary">
+                        {assignment.driver?.employee_number || "No employee number"}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="table-primary">
+                        {assignment.route_number || "—"}
+                      </div>
+
+                      {assignment.notes && (
+                        <div className="table-secondary">
+                          {assignment.notes}
+                        </div>
+                      )}
+                    </td>
+
+                    <td>
+                      <span className="table-secondary">
+                        {formatDate(assignment.started_at)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="table-secondary">
+                        {formatDuration(assignment.started_at)}
+                      </span>
+                    </td>
+
+                    <td className="table-action-cell">
+                      <div className="table-actions">
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              className="button button-secondary button-small"
+                              onClick={() => openEditAssignment(assignment)}
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              className="button button-danger button-small"
+                              onClick={() => endAssignment(assignment)}
+                              disabled={endingId === assignment.id}
+                            >
+                              {endingId === assignment.id ? "Ending..." : "End"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="eyebrow">ASSIGNMENT HISTORY</span>
+            <h3>Completed Assignments</h3>
+          </div>
+
+          <span className="panel-count">
+            {historyAssignments.length}
+          </span>
+        </div>
+
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Vehicle</th>
+                <th>Driver</th>
+                <th>Route</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading && assignments.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="table-empty">
+                    Loading assignment history...
+                  </td>
+                </tr>
+              ) : historyAssignments.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="table-empty">
+                    No completed assignments yet.
+                  </td>
+                </tr>
+              ) : (
+                historyAssignments.map((assignment) => (
+                  <tr key={assignment.id}>
+                    <td>
+                      <div className="table-primary">
+                        {assignment.vehicle?.fleet_number || "Unknown"}
+                      </div>
+
+                      <div className="table-secondary">
+                        {assignment.vehicle?.garage || "Unknown garage"}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="table-primary">
+                        {assignment.driver?.name || "Unknown Driver"}
+                      </div>
+
+                      <div className="table-secondary">
+                        {assignment.driver?.employee_number || "No employee number"}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="table-primary">
+                        {assignment.route_number || "—"}
+                      </div>
+
+                      {assignment.notes && (
+                        <div className="table-secondary">
+                          {assignment.notes}
+                        </div>
+                      )}
+                    </td>
+
+                    <td>
+                      <span className="table-secondary">
+                        {formatDate(assignment.started_at)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="table-secondary">
+                        {formatDate(assignment.ended_at)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="table-secondary">
+                        {formatDuration(assignment.started_at, assignment.ended_at)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Routes({ canEdit }) {
   const [routes, setRoutes] = useState([]);
   const [routePointCounts, setRoutePointCounts] = useState({});
@@ -3989,15 +5184,15 @@ function Routes({ canEdit }) {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const loadRoutes = async (silent = false) => {
-    if (silent) {
-      setRefreshing(true);
-    } else {
+  async function loadRoutes(showLoading = false) {
+    if (showLoading) {
       setLoading(true);
     }
 
+    setRefreshing(true);
     setError("");
 
     try {
@@ -4092,10 +5287,18 @@ function Routes({ canEdit }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }
 
   useEffect(() => {
-    loadRoutes();
+    loadRoutes(true);
+
+    const interval = window.setInterval(() => {
+      loadRoutes(false);
+    }, 15000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -4110,14 +5313,15 @@ function Routes({ canEdit }) {
     return () => window.clearTimeout(timer);
   }, [message]);
 
-  const resetForm = () => {
+  function resetForm() {
     setRouteCode("");
+    setEditRouteCode("");
     setName("");
     setDescription("");
     setEditingDetails(null);
-  };
+  }
 
-  const createRoute = async (event) => {
+  async function createRoute(event) {
     event.preventDefault();
 
     if (!canEdit) {
@@ -4151,23 +5355,23 @@ function Routes({ canEdit }) {
       setShowForm(false);
       resetForm();
       setMessage("Route created.");
-      await loadRoutes(true);
+      await loadRoutes(false);
     } catch (err) {
       setError(err.message || "Unable to create route.");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const openDetailsEditor = (route) => {
+  function openDetailsEditor(route) {
     setEditingDetails(route);
     setEditRouteCode(route.route_code || "");
     setName(route.name || "");
     setDescription(route.description || "");
     setError("");
-  };
+  }
 
-  const saveRouteDetails = async (event) => {
+  async function saveRouteDetails(event) {
     event.preventDefault();
 
     if (!canEdit || !editingDetails) {
@@ -4191,7 +5395,6 @@ function Routes({ canEdit }) {
         route_code: cleanCode,
         name: cleanName,
         description: cleanDescription || null,
-        updated_at: new Date().toISOString(),
       }).eq("id", editingDetails.id);
 
       if (updateError) {
@@ -4201,15 +5404,15 @@ function Routes({ canEdit }) {
       setEditingDetails(null);
       resetForm();
       setMessage("Route details updated.");
-      await loadRoutes(true);
+      await loadRoutes(false);
     } catch (err) {
       setError(err.message || "Unable to update route.");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const duplicateRoute = async (route) => {
+  async function duplicateRoute(route) {
     if (!canEdit) {
       return;
     }
@@ -4282,24 +5485,24 @@ function Routes({ canEdit }) {
       }
 
       setMessage(`Route duplicated as ${newName}.`);
-      await loadRoutes(true);
+      await loadRoutes(false);
     } catch (err) {
       setError(err.message || "Unable to duplicate route.");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const requestDeleteRoute = (route) => {
+  function requestDeleteRoute(route) {
     if (!canEdit) {
       return;
     }
 
     setDeleteTarget(route);
     setError("");
-  };
+  }
 
-  const deleteRoute = async () => {
+  async function deleteRoute() {
     if (!canEdit || !deleteTarget) {
       return;
     }
@@ -4331,13 +5534,13 @@ function Routes({ canEdit }) {
 
       setDeleteTarget(null);
       setMessage(`${route.name} deleted.`);
-      await loadRoutes(true);
+      await loadRoutes(false);
     } catch (err) {
       setError(err.message || "Unable to delete route.");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   const filteredRoutes = routes.filter((route) => {
     const query = search.trim().toLowerCase();
@@ -4355,16 +5558,15 @@ function Routes({ canEdit }) {
 
   const activeCount = routes.filter((route) => route.status === "ACTIVE").length;
   const inactiveCount = routes.filter((route) => route.status === "INACTIVE").length;
-  const archivedCount = routes.filter((route) => route.status === "ARCHIVED").length;
   const totalPoints = routes.reduce((total, route) => total + (routePointCounts[route.id] || 0), 0);
 
-  if (loading) {
+  if (loading && routes.length === 0) {
     return (
       <section className="page-section">
         <div className="page-intro">
           <div className="page-intro-copy">
-            <span className="eyebrow">Route Operations</span>
-            <h1>Routes</h1>
+            <span className="eyebrow">ROUTE OPERATIONS</span>
+            <h2>Routes</h2>
             <p>Loading route registry...</p>
           </div>
         </div>
@@ -4373,72 +5575,172 @@ function Routes({ canEdit }) {
   }
 
   return (
-    <section className="page-section">
+    <section className="page-section routes-page">
       <div className="page-intro">
         <div className="page-intro-copy">
-          <span className="eyebrow">Route Operations</span>
-          <h1>Routes</h1>
+          <span className="eyebrow">ROUTE OPERATIONS</span>
+          <h2>Routes</h2>
           <p>Manage route definitions, geometry, status, and operational usage.</p>
         </div>
 
         <div className="page-intro-actions">
-          <button type="button" className="button button-secondary" onClick={() => setAllRoutesOpen(true)}>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setAllRoutesOpen(true)}
+          >
             View All Routes
           </button>
 
           {canEdit && (
-            <button type="button" className="button button-primary" onClick={() => {
-              resetForm();
-              setShowForm(true);
-              setError("");
-            }}>
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+                setError("");
+              }}
+            >
               New Route
             </button>
           )}
+
+          <button
+            type="button"
+            className="button button-secondary refresh-button"
+            onClick={() => loadRoutes(false)}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
+            <span>{refreshing ? "Refreshing" : "Refresh Routes"}</span>
+          </button>
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {message && <div className="alert alert-success">{message}</div>}
+      {error && (
+        <div className="panel panel-alert">
+          <div className="panel-alert-title">Route operation failed</div>
+          <div className="panel-alert-copy">{error}</div>
+        </div>
+      )}
 
-      <div className="stats-grid">
-        <Stat label="Total Routes" value={routes.length} />
-        <Stat label="Active" value={activeCount} />
-        <Stat label="Inactive" value={inactiveCount} />
-        <Stat label="Route Points" value={totalPoints} />
+      {message && (
+        <div className="panel panel-success">
+          <div className="panel-alert-title">Route updated</div>
+          <div className="panel-alert-copy">{message}</div>
+        </div>
+      )}
+
+      <div className="dashboard-kpi-grid route-stat-grid">
+        <DashboardKpi
+          label="Total Routes"
+          value={routes.length}
+          detail="Registered route definitions"
+          icon="fleet"
+        />
+
+        <DashboardKpi
+          label="Active Routes"
+          value={activeCount}
+          detail="Available for operations"
+          icon="active"
+        />
+
+        <DashboardKpi
+          label="Inactive Routes"
+          value={inactiveCount}
+          detail="Temporarily unavailable"
+          icon="out-of-service"
+        />
+
+        <DashboardKpi
+          label="Route Points"
+          value={totalPoints}
+          detail="Mapped geometry points"
+          icon="assigned"
+        />
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <div>
-            <h2>Route Registry</h2>
-            <p>{filteredRoutes.length} route{filteredRoutes.length === 1 ? "" : "s"} shown</p>
+            <span className="eyebrow">ROUTE REGISTRY</span>
+            <h3>Route Definitions</h3>
           </div>
 
-          <button type="button" className="button button-secondary" onClick={() => loadRoutes(true)} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <span className="panel-count">
+            {filteredRoutes.length} of {routes.length}
+          </span>
         </div>
 
-        <div className="toolbar-controls">
-          <label className="search-control">
-            <span>Search</span>
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Route code, name, or description" />
-          </label>
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
 
-          <label className="select-control">
-            <span>Status</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="ALL">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          </label>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Route code, name, or description"
+              />
+            </label>
+
+            <label className="select-control">
+              <span>Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      ACTIVE: "Active",
+                      INACTIVE: "Inactive",
+                      ARCHIVED: "Archived",
+                    }[statusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {statusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["ACTIVE", "Active"],
+                      ["INACTIVE", "Inactive"],
+                      ["ARCHIVED", "Archived"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${statusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setStatusFilter(value);
+                          setStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
         </div>
 
         {filteredRoutes.length === 0 ? (
-          <Empty title="No routes found" description="Try changing the search or status filter." />
+          <div className="table-empty">
+            No routes match the current filters.
+          </div>
         ) : (
           <div className="table-wrap">
             <table className="data-table">
@@ -4449,7 +5751,7 @@ function Routes({ canEdit }) {
                   <th>Status</th>
                   <th>Points</th>
                   <th>Usage</th>
-                  <th>Actions</th>
+                  <th />
                 </tr>
               </thead>
 
@@ -4468,6 +5770,7 @@ function Routes({ canEdit }) {
                         <div className="table-primary">
                           {route.route_code || "—"}
                         </div>
+
                         <div className="table-secondary">
                           {route.name}
                         </div>
@@ -4491,32 +5794,55 @@ function Routes({ canEdit }) {
                         <div className="table-primary">
                           {usage.activeAssignments + usage.activeRouteAssignments} active
                         </div>
+
                         <div className="table-secondary">
                           {usage.assignments + usage.routeAssignments} total
                         </div>
                       </td>
 
-                      <td>
+                      <td className="table-action-cell">
                         <div className="table-actions">
-                          <button type="button" className="button button-small button-secondary" onClick={() => setPreviewRoute(route)}>
+                          <button
+                            type="button"
+                            className="button button-small button-secondary"
+                            onClick={() => setPreviewRoute(route)}
+                          >
                             Preview
                           </button>
 
                           {canEdit && (
                             <>
-                              <button type="button" className="button button-small button-secondary" onClick={() => setEditingRoute(route)}>
+                              <button
+                                type="button"
+                                className="button button-small button-secondary"
+                                onClick={() => setEditingRoute(route)}
+                              >
                                 Edit Route
                               </button>
 
-                              <button type="button" className="button button-small button-secondary" onClick={() => openDetailsEditor(route)}>
+                              <button
+                                type="button"
+                                className="button button-small button-secondary"
+                                onClick={() => openDetailsEditor(route)}
+                              >
                                 Edit Details
                               </button>
 
-                              <button type="button" className="button button-small button-secondary" onClick={() => duplicateRoute(route)} disabled={saving}>
+                              <button
+                                type="button"
+                                className="button button-small button-secondary"
+                                onClick={() => duplicateRoute(route)}
+                                disabled={saving}
+                              >
                                 Duplicate
                               </button>
 
-                              <button type="button" className="button button-small button-danger" onClick={() => requestDeleteRoute(route)} disabled={saving}>
+                              <button
+                                type="button"
+                                className="button button-small button-danger"
+                                onClick={() => requestDeleteRoute(route)}
+                                disabled={saving}
+                              >
                                 Delete
                               </button>
                             </>
@@ -4541,11 +5867,18 @@ function Routes({ canEdit }) {
           <div className="modal modal-medium">
             <div className="modal-header">
               <div>
-                <span className="eyebrow">Route Registry</span>
+                <span className="eyebrow">ROUTE REGISTRY</span>
                 <h2>New Route</h2>
+                <p>Create the route definition before adding geometry.</p>
               </div>
 
-              <button type="button" className="modal-close" aria-label="Close" onClick={() => setShowForm(false)} disabled={saving}>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                onClick={() => setShowForm(false)}
+                disabled={saving}
+              >
                 ×
               </button>
             </div>
@@ -4555,26 +5888,49 @@ function Routes({ canEdit }) {
                 <div className="form-grid">
                   <label className="form-field">
                     <span>Route Code</span>
-                    <input value={routeCode} onChange={(event) => setRouteCode(event.target.value)} placeholder="e.g. 101A" autoFocus />
+                    <input
+                      value={routeCode}
+                      onChange={(event) => setRouteCode(event.target.value)}
+                      placeholder="e.g. 101A"
+                      autoFocus
+                    />
                   </label>
 
                   <label className="form-field">
                     <span>Route Name</span>
-                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. North Elementary" />
+                    <input
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="e.g. North Elementary"
+                    />
+                  </label>
+
+                  <label className="form-field form-field-wide">
+                    <span>Description</span>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      placeholder="Describe the route and its service area."
+                    />
                   </label>
                 </div>
-
-                <label className="form-field">
-                  <span>Description</span>
-                  <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} placeholder="Describe the route and its service area." />
-                </label>
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="button button-secondary" onClick={() => setShowForm(false)} disabled={saving}>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setShowForm(false)}
+                  disabled={saving}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="button button-primary" disabled={saving}>
+
+                <button
+                  type="submit"
+                  className="button button-primary"
+                  disabled={saving}
+                >
                   {saving ? "Creating..." : "Create Route"}
                 </button>
               </div>
@@ -4593,14 +5949,21 @@ function Routes({ canEdit }) {
           <div className="modal modal-medium">
             <div className="modal-header">
               <div>
-                <span className="eyebrow">Route Registry</span>
+                <span className="eyebrow">ROUTE REGISTRY</span>
                 <h2>Edit Route Details</h2>
+                <p>Update the route identity and description.</p>
               </div>
 
-              <button type="button" className="modal-close" aria-label="Close" onClick={() => {
-                setEditingDetails(null);
-                resetForm();
-              }} disabled={saving}>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                onClick={() => {
+                  setEditingDetails(null);
+                  resetForm();
+                }}
+                disabled={saving}
+              >
                 ×
               </button>
             </div>
@@ -4610,29 +5973,49 @@ function Routes({ canEdit }) {
                 <div className="form-grid">
                   <label className="form-field">
                     <span>Route Code</span>
-                    <input value={editRouteCode} onChange={(event) => setEditRouteCode(event.target.value)} autoFocus />
+                    <input
+                      value={editRouteCode}
+                      onChange={(event) => setEditRouteCode(event.target.value)}
+                      autoFocus
+                    />
                   </label>
 
                   <label className="form-field">
                     <span>Route Name</span>
-                    <input value={name} onChange={(event) => setName(event.target.value)} />
+                    <input
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                    />
+                  </label>
+
+                  <label className="form-field form-field-wide">
+                    <span>Description</span>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                    />
                   </label>
                 </div>
-
-                <label className="form-field">
-                  <span>Description</span>
-                  <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} />
-                </label>
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="button button-secondary" onClick={() => {
-                  setEditingDetails(null);
-                  resetForm();
-                }} disabled={saving}>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setEditingDetails(null);
+                    resetForm();
+                  }}
+                  disabled={saving}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="button button-primary" disabled={saving}>
+
+                <button
+                  type="submit"
+                  className="button button-primary"
+                  disabled={saving}
+                >
                   {saving ? "Saving..." : "Save Details"}
                 </button>
               </div>
@@ -4650,11 +6033,17 @@ function Routes({ canEdit }) {
           <div className="modal modal-small">
             <div className="modal-header">
               <div>
-                <span className="eyebrow">Destructive Action</span>
+                <span className="eyebrow">DESTRUCTIVE ACTION</span>
                 <h2>Delete Route</h2>
               </div>
 
-              <button type="button" className="modal-close" aria-label="Close" onClick={() => setDeleteTarget(null)} disabled={saving}>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                onClick={() => setDeleteTarget(null)}
+                disabled={saving}
+              >
                 ×
               </button>
             </div>
@@ -4667,10 +6056,21 @@ function Routes({ canEdit }) {
             </div>
 
             <div className="modal-footer">
-              <button type="button" className="button button-secondary" onClick={() => setDeleteTarget(null)} disabled={saving}>
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setDeleteTarget(null)}
+                disabled={saving}
+              >
                 Cancel
               </button>
-              <button type="button" className="button button-danger" onClick={deleteRoute} disabled={saving}>
+
+              <button
+                type="button"
+                className="button button-danger"
+                onClick={deleteRoute}
+                disabled={saving}
+              >
                 {saving ? "Deleting..." : "Delete Route"}
               </button>
             </div>
@@ -4684,7 +6084,7 @@ function Routes({ canEdit }) {
           onClose={() => setEditingRoute(null)}
           onSaved={() => {
             setEditingRoute(null);
-            loadRoutes(true);
+            loadRoutes(false);
             setMessage("Route geometry saved.");
           }}
         />
@@ -4713,6 +6113,7 @@ function RouteEditor({ route, onClose, onSaved }) {
   const markerLayerRef = useRef(null);
   const lineLayerRef = useRef(null);
   const historyRef = useRef([]);
+
   const [points, setPoints] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -4722,31 +6123,39 @@ function RouteEditor({ route, onClose, onSaved }) {
   const [clipboard, setClipboard] = useState(null);
   const [targetRouteId, setTargetRouteId] = useState("");
   const [routes, setRoutes] = useState([]);
+  const [pointTypeDropdownOpen, setPointTypeDropdownOpen] = useState(false);
 
   const IMAGE_SIZE = 1055;
-  const ROBLOX_HALF_SIZE = 3072;
   const ROBLOX_SIZE = 6144;
   const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
 
-  const mapToRoblox = (lat, lng) => {
+  const POINT_COLORS = {
+    STRAIGHT: "#22c55e",
+    TURN_RIGHT: "#3b82f6",
+    TURN_LEFT: "#eab308",
+    STOP_RIGHT: "#ef4444",
+    STOP_LEFT: "#ef4444",
+  };
+
+  function mapToRoblox(lat, lng) {
     const x = (IMAGE_SIZE / 2 - lng) / PIXELS_PER_STUD;
-    const z = (IMAGE_SIZE / 2 - lat) / PIXELS_PER_STUD;
+    const z = (lat - IMAGE_SIZE / 2) / PIXELS_PER_STUD;
 
     return {
       x: Number(x.toFixed(3)),
       y: 0,
       z: Number(z.toFixed(3)),
     };
-  };
+  }
 
-  const robloxToMap = (x, z) => {
+  function robloxToMap(x, z) {
     const imageX = IMAGE_SIZE / 2 - x * PIXELS_PER_STUD;
-    const imageY = IMAGE_SIZE / 2 - z * PIXELS_PER_STUD;
+    const imageY = IMAGE_SIZE / 2 + z * PIXELS_PER_STUD;
 
     return [imageY, imageX];
-  };
+  }
 
-  const normalizePoints = (items) => {
+  function normalizePoints(items) {
     return items.map((point, index) => ({
       id: point.id || `local-${Date.now()}-${index}`,
       sequence: index + 1,
@@ -4755,11 +6164,13 @@ function RouteEditor({ route, onClose, onSaved }) {
       z: Number(point.z) || 0,
       point_type: point.point_type || "STRAIGHT",
     }));
-  };
+  }
 
-  const loadPoints = async () => {
+  async function loadPoints() {
     setLoading(true);
     setError("");
+    setSelectedIndex(null);
+    setPointTypeDropdownOpen(false);
 
     try {
       const { data, error: pointError } = await supabase.from("route_points").select("id,route_id,sequence,x,y,z,point_type").eq("route_id", route.id).order("sequence", { ascending: true });
@@ -4769,52 +6180,45 @@ function RouteEditor({ route, onClose, onSaved }) {
       }
 
       const normalized = normalizePoints(data || []);
+
       setPoints(normalized);
       historyRef.current = [];
-
-      if (normalized.length) {
-        setSelectedIndex(0);
-      } else {
-        setSelectedIndex(null);
-      }
     } catch (err) {
       setError(err.message || "Unable to load route points.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadRoutes = async () => {
+  async function loadRoutes() {
     const { data, error: routeError } = await supabase.from("routes").select("id,route_code,name").neq("id", route.id).order("name", { ascending: true });
 
     if (!routeError) {
       setRoutes(data || []);
     }
-  };
+  }
 
   useEffect(() => {
     loadPoints();
     loadRoutes();
   }, [route.id]);
 
-  const pushHistory = (currentPoints) => {
+  function pushHistory(currentPoints) {
     historyRef.current = [...historyRef.current, structuredClone(currentPoints)].slice(-50);
-  };
+  }
 
-  const updatePoints = (mutator, selectIndex = null) => {
+  function updatePoints(mutator, selectIndex = null) {
     setPoints((current) => {
       pushHistory(current);
-      const next = normalizePoints(mutator(structuredClone(current)));
-
-      return next;
+      return normalizePoints(mutator(structuredClone(current)));
     });
 
     if (selectIndex !== null) {
       setSelectedIndex(selectIndex);
     }
-  };
+  }
 
-  const undoPoint = () => {
+  function undoPoint() {
     const previous = historyRef.current.pop();
 
     if (!previous) {
@@ -4825,44 +6229,51 @@ function RouteEditor({ route, onClose, onSaved }) {
 
     if (!previous.length) {
       setSelectedIndex(null);
-    } else {
-      setSelectedIndex((current) => Math.min(current ?? 0, previous.length - 1));
+      setPointTypeDropdownOpen(false);
+      return;
     }
-  };
 
-  const addPoint = (latlng) => {
+    setSelectedIndex((current) => Math.min(current ?? 0, previous.length - 1));
+    setPointTypeDropdownOpen(false);
+  }
+
+  function addPoint(latlng) {
     const coords = mapToRoblox(latlng.lat, latlng.lng);
 
     setPoints((current) => {
       pushHistory(current);
 
+      const insertIndex = selectedIndex === null ? current.length : selectedIndex + 1;
+
       const newPoint = {
-        id: `local-${Date.now()}`,
-        sequence: current.length + 1,
+        id: `local-${Date.now()}-${Math.random()}`,
+        sequence: insertIndex + 1,
         x: coords.x,
         y: coords.y,
         z: coords.z,
         point_type: "STRAIGHT",
       };
 
-      if (selectedIndex === null || selectedIndex === current.length - 1) {
-        return normalizePoints([...current, newPoint]);
-      }
-
       const next = [...current];
-      next.splice(selectedIndex + 1, 0, newPoint);
+
+      next.splice(insertIndex, 0, newPoint);
+
+      setSelectedIndex(insertIndex);
+      setPointTypeDropdownOpen(false);
 
       return normalizePoints(next);
     });
+  }
 
-    setSelectedIndex((current) => current === null ? 0 : current + 1);
-  };
-
-  const updatePoint = (index, field, value) => {
+  function updatePoint(index, field, value) {
     setPoints((current) => {
       pushHistory(current);
 
       const next = structuredClone(current);
+
+      if (!next[index]) {
+        return current;
+      }
 
       if (field === "x" || field === "y" || field === "z") {
         next[index][field] = Number(value) || 0;
@@ -4872,15 +6283,12 @@ function RouteEditor({ route, onClose, onSaved }) {
 
       return normalizePoints(next);
     });
-  };
+  }
 
-  const deletePoint = (index) => {
+  function deletePoint(index) {
     setPoints((current) => {
       pushHistory(current);
-
-      const next = current.filter((_, pointIndex) => pointIndex !== index);
-
-      return normalizePoints(next);
+      return normalizePoints(current.filter((_, pointIndex) => pointIndex !== index));
     });
 
     setSelectedIndex((current) => {
@@ -4898,9 +6306,11 @@ function RouteEditor({ route, onClose, onSaved }) {
 
       return current;
     });
-  };
 
-  const movePoint = (index, direction) => {
+    setPointTypeDropdownOpen(false);
+  }
+
+  function movePoint(index, direction) {
     if (direction === "up" && index === 0) {
       return;
     }
@@ -4923,9 +6333,10 @@ function RouteEditor({ route, onClose, onSaved }) {
     });
 
     setSelectedIndex(direction === "up" ? index - 1 : index + 1);
-  };
+    setPointTypeDropdownOpen(false);
+  }
 
-  const copyPoint = () => {
+  function copyPoint() {
     if (selectedIndex === null || !points[selectedIndex]) {
       return;
     }
@@ -4936,9 +6347,9 @@ function RouteEditor({ route, onClose, onSaved }) {
     });
 
     setMessage("Point copied.");
-  };
+  }
 
-  const copyAll = () => {
+  function copyAll() {
     if (!points.length) {
       return;
     }
@@ -4949,9 +6360,9 @@ function RouteEditor({ route, onClose, onSaved }) {
     });
 
     setMessage(`${points.length} points copied.`);
-  };
+  }
 
-  const pastePoints = () => {
+  function pastePoints() {
     if (!clipboard?.points?.length) {
       return;
     }
@@ -4975,9 +6386,9 @@ function RouteEditor({ route, onClose, onSaved }) {
     });
 
     setMessage(`${clipboard.points.length} point${clipboard.points.length === 1 ? "" : "s"} pasted.`);
-  };
+  }
 
-  const clearPoints = () => {
+  function clearPoints() {
     if (!points.length) {
       return;
     }
@@ -4985,9 +6396,10 @@ function RouteEditor({ route, onClose, onSaved }) {
     pushHistory(points);
     setPoints([]);
     setSelectedIndex(null);
-  };
+    setPointTypeDropdownOpen(false);
+  }
 
-  const sendPointsToRoute = async () => {
+  async function sendPointsToRoute() {
     if (!targetRouteId || !clipboard?.points?.length) {
       return;
     }
@@ -5002,9 +6414,9 @@ function RouteEditor({ route, onClose, onSaved }) {
         throw loadError;
       }
 
-      const copiedPoints = clipboard.points.map((point) => ({
+      const copiedPoints = clipboard.points.map((point, index) => ({
         route_id: targetRouteId,
-        sequence: (existingPoints?.length || 0) + 1,
+        sequence: (existingPoints?.length || 0) + index + 1,
         x: point.x,
         y: point.y,
         z: point.z,
@@ -5024,9 +6436,9 @@ function RouteEditor({ route, onClose, onSaved }) {
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const savePoints = async () => {
+  async function savePoints() {
     if (saving) {
       return;
     }
@@ -5060,6 +6472,7 @@ function RouteEditor({ route, onClose, onSaved }) {
       }
 
       historyRef.current = [];
+      setPointTypeDropdownOpen(false);
       setMessage("Route geometry saved.");
 
       if (onSaved) {
@@ -5070,10 +6483,10 @@ function RouteEditor({ route, onClose, onSaved }) {
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) {
+    if (loading || !mapRef.current || mapInstanceRef.current) {
       return;
     }
 
@@ -5087,28 +6500,46 @@ function RouteEditor({ route, onClose, onSaved }) {
       attributionControl: false,
     });
 
-    L.imageOverlay("/map.png", bounds).addTo(map);
-    map.fitBounds(bounds);
+    const imageOverlay = L.imageOverlay(`${import.meta.env.BASE_URL}map.png`, bounds);
+
+    imageOverlay.addTo(map);
 
     const markerLayer = L.layerGroup().addTo(map);
 
+    map.fitBounds(bounds);
+
     map.on("click", (event) => {
+      if (event.originalEvent?.target?.closest?.(".route-point-inspector")) {
+        return;
+      }
+
       addPoint(event.latlng);
     });
 
     mapInstanceRef.current = map;
     markerLayerRef.current = markerLayer;
 
-    window.setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
+    window.requestAnimationFrame(() => {
+      map.invalidateSize(true);
+      map.fitBounds(bounds);
+    });
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize(true);
+    });
+
+    resizeObserver.observe(mapRef.current);
 
     return () => {
+      resizeObserver.disconnect();
+      map.off();
       map.remove();
+
       mapInstanceRef.current = null;
       markerLayerRef.current = null;
+      lineLayerRef.current = null;
     };
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -5131,19 +6562,30 @@ function RouteEditor({ route, onClose, onSaved }) {
       lineLayerRef.current = L.polyline(latLngs, {
         weight: 4,
         opacity: 0.9,
+        className: "route-editor-line",
       }).addTo(map);
     }
 
     points.forEach((point, index) => {
       const position = robloxToMap(point.x, point.z);
       const selected = selectedIndex === index;
+      const isStop = point.point_type === "STOP_LEFT" || point.point_type === "STOP_RIGHT";
+      const pointColor = POINT_COLORS[point.point_type] || "var(--accent)";
 
       const marker = L.marker(position, {
         draggable: true,
-        zIndexOffset: selected ? 1000 : 0,
+        zIndexOffset: selected ? 1000 : index,
         icon: L.divIcon({
           className: "route-editor-marker-wrapper",
-          html: `<div class="route-editor-marker${selected ? " is-selected" : ""}">${index + 1}</div>`,
+          html: `
+      <div class="route-editor-marker${selected ? " is-selected" : ""}${isStop ? " is-stop" : ""}" data-point-type="${point.point_type}">
+        ${isStop ? `
+          <span class="route-editor-marker-half route-editor-marker-half-left"></span>
+          <span class="route-editor-marker-half route-editor-marker-half-right"></span>
+        ` : ""}
+        <span class="route-editor-marker-number">${index + 1}</span>
+      </div>
+    `,
           iconSize: [32, 32],
           iconAnchor: [16, 16],
         }),
@@ -5152,10 +6594,13 @@ function RouteEditor({ route, onClose, onSaved }) {
       marker.on("click", (event) => {
         L.DomEvent.stopPropagation(event);
         setSelectedIndex(index);
+        setPointTypeDropdownOpen(false);
       });
 
       marker.on("dragstart", () => {
         pushHistory(points);
+        setSelectedIndex(index);
+        setPointTypeDropdownOpen(false);
       });
 
       marker.on("dragend", (event) => {
@@ -5164,6 +6609,10 @@ function RouteEditor({ route, onClose, onSaved }) {
 
         setPoints((current) => {
           const next = structuredClone(current);
+
+          if (!next[index]) {
+            return current;
+          }
 
           next[index].x = coords.x;
           next[index].y = coords.y;
@@ -5180,12 +6629,16 @@ function RouteEditor({ route, onClose, onSaved }) {
         deletePoint(index);
       });
 
-      marker.bindTooltip(`Point ${index + 1}`, {
+      marker.bindTooltip(`Point ${index + 1} · ${point.point_type.replaceAll("_", " ")}`, {
         direction: "top",
-        offset: [0, -12],
+        offset: [0, -15],
       });
 
       marker.addTo(markerLayer);
+    });
+
+    window.requestAnimationFrame(() => {
+      map.invalidateSize(true);
     });
   }, [points, selectedIndex]);
 
@@ -5201,20 +6654,32 @@ function RouteEditor({ route, onClose, onSaved }) {
     return () => window.clearTimeout(timer);
   }, [message]);
 
+  useEffect(() => {
+    function handleDocumentClick(event) {
+      if (!event.target.closest(".route-point-inspector")) {
+        setPointTypeDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+    };
+  }, []);
+
   const selectedPoint = selectedIndex !== null ? points[selectedIndex] : null;
 
   if (loading) {
     return (
-      <div className="modal-backdrop">
-        <div className="modal modal-large">
+      <div className="modal-backdrop route-editor-backdrop">
+        <div className="modal modal-route-editor">
           <div className="modal-header">
             <div>
-              <span className="eyebrow">Route Editor</span>
-              <h2>{route.name}</h2>
+              <span className="eyebrow">ROUTE EDITOR</span>
+              <h2>{route.route_code ? `${route.route_code} — ${route.name}` : route.name}</h2>
+              <p>Loading route geometry...</p>
             </div>
-          </div>
-          <div className="modal-body">
-            <p>Loading route geometry...</p>
           </div>
         </div>
       </div>
@@ -5224,175 +6689,242 @@ function RouteEditor({ route, onClose, onSaved }) {
   return (
     <div className="modal-backdrop route-editor-backdrop">
       <div className="modal modal-route-editor">
-        <div className="modal-header">
-          <div>
-            <span className="eyebrow">Route Editor</span>
+        <div className="route-editor-header">
+          <div className="route-editor-header-copy">
+            <span className="eyebrow">ROUTE EDITOR / GEOMETRY</span>
             <h2>{route.route_code ? `${route.route_code} — ${route.name}` : route.name}</h2>
-            <p>{points.length} route point{points.length === 1 ? "" : "s"}</p>
+            <p>
+              {points.length} route point{points.length === 1 ? "" : "s"}
+            </p>
           </div>
 
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose} disabled={saving}>
-            ×
-          </button>
+          <div className="route-editor-header-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={copyAll}
+              disabled={!points.length}
+            >
+              Copy All
+            </button>
+
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={pastePoints}
+              disabled={!clipboard?.points?.length}
+            >
+              Paste
+            </button>
+
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={undoPoint}
+              disabled={!historyRef.current.length}
+            >
+              Undo
+            </button>
+
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={clearPoints}
+              disabled={!points.length}
+            >
+              Clear
+            </button>
+
+            <button
+              type="button"
+              className="modal-close"
+              aria-label="Close"
+              onClick={onClose}
+              disabled={saving}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
-        {error && <div className="alert alert-error route-editor-alert">{error}</div>}
-        {message && <div className="alert alert-success route-editor-alert">{message}</div>}
+        {error && (
+          <div className="alert alert-error route-editor-alert">
+            {error}
+          </div>
+        )}
 
-        <div className="route-editor-layout">
-          <div className="route-editor-map" ref={mapRef} />
+        {message && (
+          <div className="alert alert-success route-editor-alert">
+            {message}
+          </div>
+        )}
 
-          <aside className="route-editor-sidebar">
-            <div className="route-editor-toolbar">
-              <button type="button" className="button button-secondary" onClick={undoPoint} disabled={!historyRef.current.length}>
-                Undo
-              </button>
-
-              <button type="button" className="button button-secondary" onClick={clearPoints} disabled={!points.length}>
-                Clear
-              </button>
-
-              <button type="button" className="button button-secondary" onClick={copyAll} disabled={!points.length}>
-                Copy All
-              </button>
-
-              <button type="button" className="button button-secondary" onClick={pastePoints} disabled={!clipboard?.points?.length}>
-                Paste
-              </button>
-            </div>
-
-            <div className="route-editor-help">
-              <span>Map controls</span>
-              <p>Click the map to add a point. Drag a marker to reposition it. Right-click a marker to delete it.</p>
-            </div>
-
-            <div className="route-editor-section">
-              <div className="route-editor-section-header">
-                <div>
-                  <span className="eyebrow">Point List</span>
-                  <h3>Route Geometry</h3>
-                </div>
+        <div className="route-editor-workspace">
+          <div className="route-editor-map-panel">
+            <div className="route-editor-map-toolbar">
+              <div>
+                <span className="eyebrow">MAP WORKSPACE</span>
+                <strong>Route Geometry</strong>
               </div>
+            </div>
 
-              <div className="route-point-list">
-                {points.length === 0 ? (
-                  <div className="route-point-empty">
-                    <strong>No route points</strong>
-                    <span>Click anywhere on the map to create the first point.</span>
-                  </div>
-                ) : (
-                  points.map((point, index) => (
-                    <button type="button" key={point.id} className={`route-point-row${selectedIndex === index ? " is-selected" : ""}`} onClick={() => setSelectedIndex(index)}>
-                      <span className="route-point-number">{index + 1}</span>
-                      <span className="route-point-summary">
-                        <strong>{point.point_type.replaceAll("_", " ")}</strong>
-                        <small>
-                          X {point.x.toFixed(1)} · Y {point.y.toFixed(1)} · Z {point.z.toFixed(1)}
-                        </small>
-                      </span>
+            <div className="route-editor-map" ref={mapRef}>
+              {selectedPoint && (
+                <div className="route-point-inspector">
+                  <div className="route-point-inspector-header">
+                    <div>
+                      <span className="eyebrow">POINT {selectedIndex + 1}</span>
+                      <h3>Point Properties</h3>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="modal-close route-point-inspector-close"
+                      aria-label="Close point inspector"
+                      onClick={() => {
+                        setSelectedIndex(null);
+                        setPointTypeDropdownOpen(false);
+                      }}
+                    >
+                      ×
                     </button>
-                  ))
-                )}
-              </div>
+                  </div>
+
+                  <div className="route-point-inspector-type">
+                    <span
+                      className="route-point-type-indicator"
+                      style={{
+                        "--point-color": POINT_COLORS[selectedPoint.point_type] || "var(--accent)",
+                      }}
+                    />
+
+                    <div className="custom-select">
+                      <button
+                        type="button"
+                        className="custom-select-trigger"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPointTypeDropdownOpen((current) => !current);
+                        }}
+                      >
+                        <span>
+                          {selectedPoint.point_type === "STRAIGHT"
+                            ? "Straight"
+                            : selectedPoint.point_type === "TURN_RIGHT"
+                              ? "Right Turn"
+                              : selectedPoint.point_type === "TURN_LEFT"
+                                ? "Left Turn"
+                                : selectedPoint.point_type === "STOP_RIGHT"
+                                  ? "Stop"
+                                  : "Cross Stop"}
+                        </span>
+
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </button>
+
+                      {pointTypeDropdownOpen && (
+                        <div className="custom-select-menu">
+                          {[
+                            ["STRAIGHT", "Straight"],
+                            ["TURN_RIGHT", "Right Turn"],
+                            ["TURN_LEFT", "Left Turn"],
+                            ["STOP_RIGHT", "Stop"],
+                            ["STOP_LEFT", "Cross Stop"],
+                          ].map(([value, label]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              className={`custom-select-option${selectedPoint.point_type === value ? " selected" : ""}`}
+                              onClick={() => {
+                                updatePoint(selectedIndex, "point_type", value);
+                                setPointTypeDropdownOpen(false);
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="route-point-inspector-actions">
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => movePoint(selectedIndex, "up")}
+                      disabled={selectedIndex === 0}
+                    >
+                      Move Up
+                    </button>
+
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => movePoint(selectedIndex, "down")}
+                      disabled={selectedIndex === points.length - 1}
+                    >
+                      Move Down
+                    </button>
+
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={copyPoint}
+                    >
+                      Copy
+                    </button>
+
+                    <button
+                      type="button"
+                      className="button button-danger"
+                      onClick={() => deletePoint(selectedIndex)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {selectedPoint && (
-              <div className="route-editor-section">
-                <div className="route-editor-section-header">
-                  <div>
-                    <span className="eyebrow">Selected Point</span>
-                    <h3>Point {selectedIndex + 1}</h3>
-                  </div>
-                </div>
-
-                <div className="form-grid form-grid-three">
-                  <label className="form-field">
-                    <span>X</span>
-                    <input type="number" step="0.1" value={selectedPoint.x} onChange={(event) => updatePoint(selectedIndex, "x", event.target.value)} />
-                  </label>
-
-                  <label className="form-field">
-                    <span>Y</span>
-                    <input type="number" step="0.1" value={selectedPoint.y} onChange={(event) => updatePoint(selectedIndex, "y", event.target.value)} />
-                  </label>
-
-                  <label className="form-field">
-                    <span>Z</span>
-                    <input type="number" step="0.1" value={selectedPoint.z} onChange={(event) => updatePoint(selectedIndex, "z", event.target.value)} />
-                  </label>
-                </div>
-
-                <label className="form-field">
-                  <span>Point Type</span>
-                  <select value={selectedPoint.point_type} onChange={(event) => updatePoint(selectedIndex, "point_type", event.target.value)}>
-                    <option value="STRAIGHT">Straight</option>
-                    <option value="TURN_LEFT">Turn Left</option>
-                    <option value="TURN_RIGHT">Turn Right</option>
-                    <option value="STOP_LEFT">Stop Left</option>
-                    <option value="STOP_RIGHT">Stop Right</option>
-                  </select>
-                </label>
-
-                <div className="route-editor-point-actions">
-                  <button type="button" className="button button-secondary" onClick={() => movePoint(selectedIndex, "up")} disabled={selectedIndex === 0}>
-                    Move Up
-                  </button>
-
-                  <button type="button" className="button button-secondary" onClick={() => movePoint(selectedIndex, "down")} disabled={selectedIndex === points.length - 1}>
-                    Move Down
-                  </button>
-
-                  <button type="button" className="button button-secondary" onClick={copyPoint}>
-                    Copy
-                  </button>
-
-                  <button type="button" className="button button-danger" onClick={() => deletePoint(selectedIndex)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {clipboard?.points?.length > 0 && (
-              <div className="route-editor-section">
-                <div className="route-editor-section-header">
-                  <div>
-                    <span className="eyebrow">Clipboard</span>
-                    <h3>{clipboard.points.length} point{clipboard.points.length === 1 ? "" : "s"}</h3>
-                  </div>
-                </div>
-
-                <label className="form-field">
-                  <span>Send To Route</span>
-                  <select value={targetRouteId} onChange={(event) => setTargetRouteId(event.target.value)}>
-                    <option value="">Select route...</option>
-                    {routes.map((targetRoute) => (
-                      <option key={targetRoute.id} value={targetRoute.id}>
-                        {targetRoute.route_code ? `${targetRoute.route_code} — ` : ""}{targetRoute.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <button type="button" className="button button-secondary button-full" onClick={sendPointsToRoute} disabled={!targetRouteId || saving}>
-                  Send Points
-                </button>
-              </div>
-            )}
-          </aside>
+          </div>
         </div>
 
-        <div className="modal-footer">
-          <div className="modal-footer-info">
-            {points.length > 0 ? `${points.length} point${points.length === 1 ? "" : "s"} ready to save.` : "Route currently has no points."}
+        <div className="route-editor-footer">
+          <div className="route-editor-footer-hints">
+            <div className="route-editor-footer-hint">
+              <strong>Left Click</strong>
+              <span>Add Point</span>
+            </div>
+
+            <div className="route-editor-footer-hint">
+              <strong>Drag</strong>
+              <span>Move Point</span>
+            </div>
+
+            <div className="route-editor-footer-hint">
+              <strong>Right Click</strong>
+              <span>Remove Point</span>
+            </div>
           </div>
 
-          <div className="modal-footer-actions">
-            <button type="button" className="button button-secondary" onClick={onClose} disabled={saving}>
+          <div className="route-editor-footer-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={onClose}
+              disabled={saving}
+            >
               Cancel
             </button>
 
-            <button type="button" className="button button-primary" onClick={savePoints} disabled={saving}>
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={savePoints}
+              disabled={saving}
+            >
               {saving ? "Saving..." : "Save Route"}
             </button>
           </div>
@@ -5406,6 +6938,8 @@ function RoutePreview({ route, onClose }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layerRef = useRef(null);
+  const resizeObserverRef = useRef(null);
+  const hasInitialFitRef = useRef(false);
   const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -5415,62 +6949,167 @@ function RoutePreview({ route, onClose }) {
   const ROBLOX_SIZE = 6144;
   const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
 
-  const robloxToMap = (x, z) => {
-    const imageX = IMAGE_SIZE / 2 - x * PIXELS_PER_STUD;
-    const imageY = IMAGE_SIZE / 2 - z * PIXELS_PER_STUD;
-
-    return [imageY, imageX];
+  const POINT_COLORS = {
+    STRAIGHT: "#22c55e",
+    TURN_RIGHT: "#3b82f6",
+    TURN_LEFT: "#eab308",
+    STOP_RIGHT: "#ef4444",
+    STOP_LEFT: "#ef4444",
   };
 
+  function robloxToMap(x, z) {
+    const imageX = IMAGE_SIZE / 2 - x * PIXELS_PER_STUD;
+    const imageY = IMAGE_SIZE / 2 + z * PIXELS_PER_STUD;
+
+    return [imageY, imageX];
+  }
+
+  function getPointTypeLabel(pointType) {
+    if (pointType === "TURN_RIGHT") {
+      return "Right Turn";
+    }
+
+    if (pointType === "TURN_LEFT") {
+      return "Left Turn";
+    }
+
+    if (pointType === "STOP_RIGHT") {
+      return "Stop";
+    }
+
+    if (pointType === "STOP_LEFT") {
+      return "Cross Stop";
+    }
+
+    return "Straight";
+  }
+
   useEffect(() => {
-    const loadPoints = async () => {
+    let cancelled = false;
+
+    async function loadPoints() {
       setLoading(true);
       setError("");
+      setSelectedIndex(null);
+      hasInitialFitRef.current = false;
 
       const { data, error: pointError } = await supabase.from("route_points").select("id,sequence,x,y,z,point_type").eq("route_id", route.id).order("sequence", { ascending: true });
 
+      if (cancelled) {
+        return;
+      }
+
       if (pointError) {
         setError(pointError.message || "Unable to load route preview.");
+        setPoints([]);
       } else {
         setPoints(data || []);
       }
 
       setLoading(false);
-    };
+    }
 
     loadPoints();
+
+    return () => {
+      cancelled = true;
+    };
   }, [route.id]);
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) {
+    const container = mapRef.current;
+
+    if (!container || mapInstanceRef.current) {
       return;
     }
 
-    const bounds = [[0, 0], [IMAGE_SIZE, IMAGE_SIZE]];
+    let frameOne;
+    let frameTwo;
+    let cancelled = false;
 
-    const map = L.map(mapRef.current, {
-      crs: L.CRS.Simple,
-      minZoom: -2,
-      maxZoom: 4,
-      zoomControl: true,
-      attributionControl: false,
+    function initializeMap() {
+      if (cancelled || !mapRef.current || mapInstanceRef.current) {
+        return;
+      }
+
+      const currentContainer = mapRef.current;
+
+      if (currentContainer.clientWidth < 50 || currentContainer.clientHeight < 50) {
+        frameOne = window.requestAnimationFrame(initializeMap);
+        return;
+      }
+
+      const bounds = [[0, 0], [IMAGE_SIZE, IMAGE_SIZE]];
+
+      const map = L.map(currentContainer, {
+        crs: L.CRS.Simple,
+        minZoom: -2,
+        maxZoom: 4,
+        zoomControl: true,
+        attributionControl: false,
+        preferCanvas: true,
+      });
+
+      const imageOverlay = L.imageOverlay(`${import.meta.env.BASE_URL}map.png`, bounds);
+
+      imageOverlay.addTo(map);
+
+      const layer = L.layerGroup().addTo(map);
+
+      mapInstanceRef.current = map;
+      layerRef.current = layer;
+
+      const resizeObserver = new ResizeObserver(() => {
+        if (!mapInstanceRef.current || !mapRef.current) {
+          return;
+        }
+
+        if (mapRef.current.clientWidth < 50 || mapRef.current.clientHeight < 50) {
+          return;
+        }
+
+        map.invalidateSize({ animate: false, pan: false });
+      });
+
+      resizeObserver.observe(currentContainer);
+      resizeObserverRef.current = resizeObserver;
+
+      frameTwo = window.requestAnimationFrame(() => {
+        if (!mapInstanceRef.current || !mapRef.current) {
+          return;
+        }
+
+        map.invalidateSize({ animate: false, pan: false });
+        map.fitBounds(bounds, { animate: false });
+      });
+    }
+
+    frameOne = window.requestAnimationFrame(() => {
+      frameTwo = window.requestAnimationFrame(initializeMap);
     });
 
-    L.imageOverlay("/map.png", bounds).addTo(map);
-    map.fitBounds(bounds);
-
-    const layer = L.layerGroup().addTo(map);
-
-    mapInstanceRef.current = map;
-    layerRef.current = layer;
-
-    window.setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-
     return () => {
-      map.remove();
-      mapInstanceRef.current = null;
+      cancelled = true;
+
+      if (frameOne) {
+        window.cancelAnimationFrame(frameOne);
+      }
+
+      if (frameTwo) {
+        window.cancelAnimationFrame(frameTwo);
+      }
+
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.off();
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
       layerRef.current = null;
     };
   }, []);
@@ -5489,53 +7128,81 @@ function RoutePreview({ route, onClose }) {
 
     if (latLngs.length >= 2) {
       L.polyline(latLngs, {
-        weight: 5,
+        weight: 4,
         opacity: 0.9,
+        className: "route-preview-line",
       }).addTo(layer);
     }
 
     points.forEach((point, index) => {
       const position = robloxToMap(Number(point.x) || 0, Number(point.z) || 0);
       const selected = selectedIndex === index;
+      const isStop = point.point_type === "STOP_LEFT" || point.point_type === "STOP_RIGHT";
 
       const marker = L.marker(position, {
+        zIndexOffset: selected ? 1000 : index,
         icon: L.divIcon({
           className: "route-preview-marker-wrapper",
-          html: `<div class="route-preview-marker${selected ? " is-selected" : ""}">${index + 1}</div>`,
+          html: `
+            <div class="route-editor-marker${selected ? " is-selected" : ""}${isStop ? " is-stop" : ""}" data-point-type="${point.point_type || "STRAIGHT"}">
+              ${isStop ? `
+                <span class="route-editor-marker-half route-editor-marker-half-left"></span>
+                <span class="route-editor-marker-half route-editor-marker-half-right"></span>
+              ` : ""}
+              <span class="route-editor-marker-number">${index + 1}</span>
+            </div>
+          `,
           iconSize: [32, 32],
           iconAnchor: [16, 16],
         }),
       });
 
-      marker.on("click", () => {
+      marker.on("click", (event) => {
+        L.DomEvent.stopPropagation(event);
         setSelectedIndex(index);
-      });
-
-      marker.bindTooltip(`Point ${index + 1}`, {
-        direction: "top",
-        offset: [0, -12],
       });
 
       marker.addTo(layer);
     });
 
-    if (latLngs.length >= 2) {
-      map.fitBounds(L.latLngBounds(latLngs), {
-        padding: [40, 40],
+    if (!hasInitialFitRef.current && !loading) {
+      hasInitialFitRef.current = true;
+
+      window.requestAnimationFrame(() => {
+        if (!mapInstanceRef.current || !mapRef.current) {
+          return;
+        }
+
+        if (mapRef.current.clientWidth < 50 || mapRef.current.clientHeight < 50) {
+          return;
+        }
+
+        map.invalidateSize({ animate: false, pan: false });
+
+        if (latLngs.length >= 2) {
+          map.fitBounds(L.latLngBounds(latLngs), {
+            padding: [60, 60],
+            animate: false,
+          });
+        } else {
+          map.fitBounds([[0, 0], [IMAGE_SIZE, IMAGE_SIZE]], {
+            animate: false,
+          });
+        }
       });
     }
-  }, [points, selectedIndex]);
+  }, [points, selectedIndex, loading]);
 
   const selectedPoint = selectedIndex !== null ? points[selectedIndex] : null;
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal modal-large modal-route-preview">
-        <div className="modal-header">
-          <div>
-            <span className="eyebrow">Route Preview</span>
+    <div className="modal-backdrop route-preview-backdrop">
+      <div className="modal modal-route-preview">
+        <div className="route-editor-header">
+          <div className="route-editor-header-copy">
+            <span className="eyebrow">ROUTE PREVIEW / GEOMETRY</span>
             <h2>{route.route_code ? `${route.route_code} — ${route.name}` : route.name}</h2>
-            <p>{route.description || "No route description provided."}</p>
+            <p>{points.length} route point{points.length === 1 ? "" : "s"} · {route.description || "No route description provided."}</p>
           </div>
 
           <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
@@ -5543,82 +7210,75 @@ function RoutePreview({ route, onClose }) {
           </button>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
-
-        {loading ? (
-          <div className="modal-body">
-            <p>Loading route geometry...</p>
-          </div>
-        ) : (
-          <div className="route-preview-layout">
-            <div className="route-preview-map" ref={mapRef} />
-
-            <aside className="route-preview-sidebar">
-              <div className="route-preview-summary">
-                <div>
-                  <span>Points</span>
-                  <strong>{points.length}</strong>
-                </div>
-
-                <div>
-                  <span>Status</span>
-                  <StatusBadge status={route.status} />
-                </div>
+        <div className="route-editor-workspace">
+          <div className="route-editor-map-panel">
+            <div className="route-editor-map-toolbar">
+              <div>
+                <span className="eyebrow">MAP WORKSPACE</span>
+                <strong>Route Geometry</strong>
               </div>
 
-              {selectedPoint && (
-                <div className="route-preview-selected">
-                  <span className="eyebrow">Selected Point</span>
-                  <h3>Point {selectedIndex + 1}</h3>
+              <div className="route-preview-status">
+                <StatusBadge status={route.status} />
+              </div>
+            </div>
 
-                  <div className="detail-grid">
-                    <Detail label="Type" value={selectedPoint.point_type?.replaceAll("_", " ") || "STRAIGHT"} />
-                    <Detail label="X" value={Number(selectedPoint.x || 0).toFixed(1)} />
-                    <Detail label="Y" value={Number(selectedPoint.y || 0).toFixed(1)} />
-                    <Detail label="Z" value={Number(selectedPoint.z || 0).toFixed(1)} />
-                  </div>
+            <div className="route-editor-map" ref={mapRef}>
+              {loading && (
+                <div className="route-preview-loading">
+                  Loading route geometry...
                 </div>
               )}
 
-              <div className="route-preview-point-list">
-                <div className="route-editor-section-header">
-                  <div>
-                    <span className="eyebrow">Geometry</span>
-                    <h3>Route Points</h3>
+              {error && (
+                <div className="alert alert-error route-editor-alert">
+                  {error}
+                </div>
+              )}
+
+              {selectedPoint && (
+                <div className="route-point-inspector">
+                  <div className="route-point-inspector-header">
+                    <div>
+                      <span className="eyebrow">POINT {selectedIndex + 1}</span>
+                      <h3>Point Properties</h3>
+                    </div>
+
+                    <button type="button" className="route-point-inspector-close" aria-label="Close point inspector" onClick={() => setSelectedIndex(null)}>
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="route-point-inspector-type">
+                    <span className="route-point-type-indicator" style={{ "--point-color": POINT_COLORS[selectedPoint.point_type] || POINT_COLORS.STRAIGHT }} />
+
+                    <div className="custom-select">
+                      <div className="custom-select-trigger">
+                        <span>{getPointTypeLabel(selectedPoint.point_type)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="route-point-preview-details">
+                    <div className="route-point-preview-detail">
+                      <span>X</span>
+                      <strong>{Number(selectedPoint.x || 0).toFixed(1)}</strong>
+                    </div>
+
+                    <div className="route-point-preview-detail">
+                      <span>Y</span>
+                      <strong>{Number(selectedPoint.y || 0).toFixed(1)}</strong>
+                    </div>
+
+                    <div className="route-point-preview-detail">
+                      <span>Z</span>
+                      <strong>{Number(selectedPoint.z || 0).toFixed(1)}</strong>
+                    </div>
                   </div>
                 </div>
-
-                {points.length === 0 ? (
-                  <div className="route-point-empty">
-                    <strong>No route points</strong>
-                    <span>This route does not currently contain geometry.</span>
-                  </div>
-                ) : (
-                  points.map((point, index) => (
-                    <button type="button" key={point.id || index} className={`route-preview-point-row${selectedIndex === index ? " is-selected" : ""}`} onClick={() => setSelectedIndex(index)}>
-                      <span className="route-point-number">{index + 1}</span>
-                      <span className="route-point-summary">
-                        <strong>{point.point_type?.replaceAll("_", " ") || "STRAIGHT"}</strong>
-                        <small>
-                          X {Number(point.x || 0).toFixed(1)} · Y {Number(point.y || 0).toFixed(1)} · Z {Number(point.z || 0).toFixed(1)}
-                        </small>
-                      </span>
-                    </button>
-                  ))
-                )}
-              </div>
-            </aside>
+              )}
+            </div>
           </div>
-        )}
-
-        <div className="modal-footer">
-          <div className="modal-footer-info">
-            {points.length} route point{points.length === 1 ? "" : "s"}
-          </div>
-
-          <button type="button" className="button button-secondary" onClick={onClose}>
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -5629,9 +7289,14 @@ function AllRoutesPreview({ routes, onClose }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layerRef = useRef(null);
+  const resizeObserverRef = useRef(null);
+  const hasInitialFitRef = useRef(false);
+  const previousRouteCountRef = useRef(routes.length);
   const [routePoints, setRoutePoints] = useState({});
   const [visibleRoutes, setVisibleRoutes] = useState(() => new Set(routes.map((route) => route.id)));
   const [selectedRouteId, setSelectedRouteId] = useState(null);
+  const [hoveredRouteId, setHoveredRouteId] = useState(null);
+  const [routeFilter, setRouteFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -5640,41 +7305,65 @@ function AllRoutesPreview({ routes, onClose }) {
   const PIXELS_PER_STUD = IMAGE_SIZE / ROBLOX_SIZE;
 
   const routeStyles = [
-    {
-      color: "#f5a500",
-      dashArray: null,
-    },
-    {
-      color: "#5b8def",
-      dashArray: "10 8",
-    },
-    {
-      color: "#51b36a",
-      dashArray: "3 7",
-    },
-    {
-      color: "#d46b9b",
-      dashArray: "14 7 3 7",
-    },
-    {
-      color: "#8b72c7",
-      dashArray: "7 5",
-    },
-    {
-      color: "#e07b39",
-      dashArray: "18 6",
-    },
+    { color: "#f5a500", dashArray: null },
+    { color: "#3b82f6", dashArray: "10 8" },
+    { color: "#22c55e", dashArray: "3 7" },
+    { color: "#eab308", dashArray: "14 7 3 7" },
+    { color: "#a855f7", dashArray: "7 5" },
+    { color: "#ef4444", dashArray: "18 6" },
   ];
 
-  const robloxToMap = (x, z) => {
+  function robloxToMap(x, z) {
     const imageX = IMAGE_SIZE / 2 - x * PIXELS_PER_STUD;
-    const imageY = IMAGE_SIZE / 2 - z * PIXELS_PER_STUD;
+    const imageY = IMAGE_SIZE / 2 + z * PIXELS_PER_STUD;
 
     return [imageY, imageX];
-  };
+  }
+
+  function getRouteCategory(routeCode) {
+    const code = String(routeCode || "").trim().toUpperCase();
+
+    if (/^\d{2}-[A-Z]\d$/.test(code)) {
+      if (/-A1$/.test(code)) {
+        return "EARLY_AM";
+      }
+
+      if (/-A2$/.test(code)) {
+        return "LATE_AM";
+      }
+
+      if (/-P1$/.test(code)) {
+        return "EARLY_PM";
+      }
+
+      if (/-P2$/.test(code)) {
+        return "LATE_PM";
+      }
+
+      return "OTHER";
+    }
+
+    if (code) {
+      return "SHUTTLE";
+    }
+
+    return "OTHER";
+  }
+
+  function routeMatchesFilter(route) {
+    if (routeFilter === "ALL") {
+      return true;
+    }
+
+    return getRouteCategory(route.route_code) === routeFilter;
+  }
+
+  const filteredRoutes = routes.filter(routeMatchesFilter);
 
   useEffect(() => {
-    const loadPoints = async () => {
+    let cancelled = false;
+
+    async function loadPoints() {
       setLoading(true);
       setError("");
 
@@ -5688,8 +7377,13 @@ function AllRoutesPreview({ routes, onClose }) {
 
       const { data, error: pointError } = await supabase.from("route_points").select("id,route_id,sequence,x,y,z,point_type").in("route_id", routeIds).order("sequence", { ascending: true });
 
+      if (cancelled) {
+        return;
+      }
+
       if (pointError) {
         setError(pointError.message || "Unable to load route geometry.");
+        setRoutePoints({});
         setLoading(false);
         return;
       }
@@ -5706,88 +7400,277 @@ function AllRoutesPreview({ routes, onClose }) {
 
       setRoutePoints(grouped);
       setLoading(false);
-    };
+    }
 
     loadPoints();
+
+    return () => {
+      cancelled = true;
+    };
   }, [routes]);
 
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) {
+    if (previousRouteCountRef.current !== routes.length) {
+      previousRouteCountRef.current = routes.length;
+      hasInitialFitRef.current = false;
+    }
+  }, [routes.length]);
+
+  useEffect(() => {
+    const container = mapRef.current;
+
+    if (!container || mapInstanceRef.current) {
       return;
     }
 
-    const bounds = [[0, 0], [IMAGE_SIZE, IMAGE_SIZE]];
+    let frameOne;
+    let frameTwo;
+    let cancelled = false;
 
-    const map = L.map(mapRef.current, {
-      crs: L.CRS.Simple,
-      minZoom: -2,
-      maxZoom: 4,
-      zoomControl: true,
-      attributionControl: false,
+    function initializeMap() {
+      if (cancelled || !mapRef.current || mapInstanceRef.current) {
+        return;
+      }
+
+      const currentContainer = mapRef.current;
+
+      if (currentContainer.clientWidth < 50 || currentContainer.clientHeight < 50) {
+        frameOne = window.requestAnimationFrame(initializeMap);
+        return;
+      }
+
+      const bounds = [[0, 0], [IMAGE_SIZE, IMAGE_SIZE]];
+
+      const map = L.map(currentContainer, {
+        crs: L.CRS.Simple,
+        minZoom: -2,
+        maxZoom: 4,
+        zoomControl: true,
+        attributionControl: false,
+        preferCanvas: true,
+      });
+
+      const imageOverlay = L.imageOverlay(`${import.meta.env.BASE_URL}map.png`, bounds);
+
+      imageOverlay.addTo(map);
+
+      const layer = L.layerGroup().addTo(map);
+
+      mapInstanceRef.current = map;
+      layerRef.current = layer;
+
+      const resizeObserver = new ResizeObserver(() => {
+        if (!mapInstanceRef.current || !mapRef.current) {
+          return;
+        }
+
+        if (mapRef.current.clientWidth < 50 || mapRef.current.clientHeight < 50) {
+          return;
+        }
+
+        map.invalidateSize({ animate: false, pan: false });
+      });
+
+      resizeObserver.observe(currentContainer);
+      resizeObserverRef.current = resizeObserver;
+
+      const legend = currentContainer.querySelector(".all-routes-map-legend");
+
+      if (legend) {
+        L.DomEvent.disableClickPropagation(legend);
+        L.DomEvent.disableScrollPropagation(legend);
+      }
+
+      frameTwo = window.requestAnimationFrame(() => {
+        if (!mapInstanceRef.current || !mapRef.current) {
+          return;
+        }
+
+        map.invalidateSize({ animate: false, pan: false });
+        map.fitBounds(bounds, { animate: false });
+      });
+    }
+
+    frameOne = window.requestAnimationFrame(() => {
+      frameTwo = window.requestAnimationFrame(initializeMap);
     });
 
-    L.imageOverlay("/map.png", bounds).addTo(map);
-    map.fitBounds(bounds);
-
-    const layer = L.layerGroup().addTo(map);
-
-    mapInstanceRef.current = map;
-    layerRef.current = layer;
-
-    window.setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-
     return () => {
-      map.remove();
-      mapInstanceRef.current = null;
+      cancelled = true;
+
+      if (frameOne) {
+        window.cancelAnimationFrame(frameOne);
+      }
+
+      if (frameTwo) {
+        window.cancelAnimationFrame(frameTwo);
+      }
+
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.off();
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
       layerRef.current = null;
     };
   }, []);
 
   useEffect(() => {
+    const map = mapInstanceRef.current;
     const layer = layerRef.current;
 
-    if (!layer) {
+    if (!map || !layer) {
       return;
     }
 
     layer.clearLayers();
 
-    routes.forEach((route, routeIndex) => {
+    filteredRoutes.forEach((route) => {
       if (!visibleRoutes.has(route.id)) {
         return;
       }
 
       const points = routePoints[route.id] || [];
 
-      if (points.length < 2) {
+      if (!points.length) {
         return;
       }
 
-      const style = routeStyles[routeIndex % routeStyles.length];
+      const routeIndex = routes.findIndex((item) => item.id === route.id);
+      const style = routeStyles[(routeIndex >= 0 ? routeIndex : 0) % routeStyles.length];
       const selected = selectedRouteId === route.id;
+      const hovered = hoveredRouteId === route.id;
+      const anotherRouteHovered = hoveredRouteId !== null && hoveredRouteId !== route.id;
 
       const latLngs = points.map((point) => robloxToMap(Number(point.x) || 0, Number(point.z) || 0));
 
-      const line = L.polyline(latLngs, {
-        color: style.color,
-        weight: selected ? 7 : 4,
-        opacity: selected ? 1 : 0.78,
-        dashArray: style.dashArray,
+      if (latLngs.length >= 2) {
+        const line = L.polyline(latLngs, {
+          color: style.color,
+          weight: hovered ? 8 : selected ? 6 : 4,
+          opacity: anotherRouteHovered ? 0.25 : hovered || selected ? 1 : 0.8,
+          dashArray: style.dashArray,
+          className: "all-routes-line",
+          interactive: true,
+        });
+
+        line.on("mouseover", () => {
+          setHoveredRouteId(route.id);
+        });
+
+        line.on("mouseout", () => {
+          setHoveredRouteId((current) => current === route.id ? null : current);
+        });
+
+        line.on("click", (event) => {
+          L.DomEvent.stopPropagation(event);
+          setSelectedRouteId(route.id);
+        });
+
+        line.addTo(layer);
+      }
+
+      points.forEach((point) => {
+        const pointPosition = robloxToMap(Number(point.x) || 0, Number(point.z) || 0);
+
+        const marker = L.circleMarker(pointPosition, {
+          radius: hovered ? 5 : selected ? 4 : 3,
+          weight: hovered || selected ? 2 : 1,
+          opacity: anotherRouteHovered ? 0.2 : hovered || selected ? 1 : 0.5,
+          fillOpacity: anotherRouteHovered ? 0.2 : hovered || selected ? 1 : 0.5,
+          color: style.color,
+          fillColor: style.color,
+          interactive: true,
+        });
+
+        marker.on("mouseover", () => {
+          setHoveredRouteId(route.id);
+        });
+
+        marker.on("mouseout", () => {
+          setHoveredRouteId((current) => current === route.id ? null : current);
+        });
+
+        marker.on("click", (event) => {
+          L.DomEvent.stopPropagation(event);
+          setSelectedRouteId(route.id);
+        });
+
+        marker.addTo(layer);
       });
-
-      line.on("click", () => {
-        setSelectedRouteId(route.id);
-      });
-
-      line.bindTooltip(route.route_code ? `${route.route_code} — ${route.name}` : route.name);
-
-      line.addTo(layer);
     });
-  }, [routes, routePoints, visibleRoutes, selectedRouteId]);
 
-  const toggleRoute = (routeId) => {
+    window.requestAnimationFrame(() => {
+      if (!mapInstanceRef.current || !mapRef.current) {
+        return;
+      }
+
+      if (mapRef.current.clientWidth < 50 || mapRef.current.clientHeight < 50) {
+        return;
+      }
+
+      map.invalidateSize({ animate: false, pan: false });
+    });
+  }, [routes, routePoints, visibleRoutes, selectedRouteId, hoveredRouteId, routeFilter]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+
+    if (!map || loading || hasInitialFitRef.current) {
+      return;
+    }
+
+    const visibleLatLngs = [];
+
+    filteredRoutes.forEach((route) => {
+      if (!visibleRoutes.has(route.id)) {
+        return;
+      }
+
+      const points = routePoints[route.id] || [];
+
+      points.forEach((point) => {
+        visibleLatLngs.push(robloxToMap(Number(point.x) || 0, Number(point.z) || 0));
+      });
+    });
+
+    if (!visibleLatLngs.length) {
+      return;
+    }
+
+    hasInitialFitRef.current = true;
+
+    window.requestAnimationFrame(() => {
+      if (!mapInstanceRef.current || !mapRef.current) {
+        return;
+      }
+
+      if (mapRef.current.clientWidth < 50 || mapRef.current.clientHeight < 50) {
+        return;
+      }
+
+      map.invalidateSize({ animate: false, pan: false });
+
+      if (visibleLatLngs.length >= 2) {
+        map.fitBounds(L.latLngBounds(visibleLatLngs), {
+          padding: [60, 60],
+          animate: false,
+        });
+      } else {
+        map.fitBounds([[0, 0], [IMAGE_SIZE, IMAGE_SIZE]], {
+          animate: false,
+        });
+      }
+    });
+  }, [routePoints, loading]);
+
+  function toggleRoute(routeId) {
     setVisibleRoutes((current) => {
       const next = new Set(current);
 
@@ -5799,26 +7682,33 @@ function AllRoutesPreview({ routes, onClose }) {
 
       return next;
     });
-  };
+  }
 
-  const showAll = () => {
+  function showAll() {
     setVisibleRoutes(new Set(routes.map((route) => route.id)));
-  };
+  }
 
-  const hideAll = () => {
+  function hideAll() {
     setVisibleRoutes(new Set());
-  };
+  }
+
+  function setFilter(filter) {
+    setRouteFilter(filter);
+    setSelectedRouteId(null);
+    setHoveredRouteId(null);
+  }
 
   const selectedRoute = routes.find((route) => route.id === selectedRouteId);
+  const selectedRoutePoints = selectedRoute ? routePoints[selectedRoute.id] || [] : [];
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal modal-large modal-all-routes">
-        <div className="modal-header">
-          <div>
-            <span className="eyebrow">Route Network</span>
+    <div className="modal-backdrop all-routes-backdrop">
+      <div className="modal modal-all-routes">
+        <div className="route-editor-header">
+          <div className="route-editor-header-copy">
+            <span className="eyebrow">ROUTE NETWORK / GEOMETRY</span>
             <h2>All Routes</h2>
-            <p>View route geometry across the entire route network.</p>
+            <p>{visibleRoutes.size} of {routes.length} routes visible across the route network.</p>
           </div>
 
           <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
@@ -5826,18 +7716,56 @@ function AllRoutesPreview({ routes, onClose }) {
           </button>
         </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        <div className="route-editor-workspace">
+          <div className="route-editor-map-panel">
+            <div className="route-editor-map-toolbar">
+              <div>
+                <span className="eyebrow">MAP WORKSPACE</span>
+                <strong>Route Network</strong>
+              </div>
 
-        {loading ? (
-          <div className="modal-body">
-            <p>Loading route geometry...</p>
-          </div>
-        ) : (
-          <div className="all-routes-layout">
-            <div className="all-routes-map" ref={mapRef} />
+              <div className="route-preview-toolbar-actions">
+                <div className="custom-select all-routes-filter">
+                  <button type="button" className="custom-select-trigger" onClick={(event) => {
+                    const menu = event.currentTarget.nextElementSibling;
 
-            <aside className="all-routes-sidebar">
-              <div className="all-routes-controls">
+                    if (menu) {
+                      menu.hidden = !menu.hidden;
+                    }
+                  }}>
+                    <span>
+                      {routeFilter === "ALL" ? "All Routes" :
+                        routeFilter === "EARLY_AM" ? "Early AM" :
+                          routeFilter === "LATE_AM" ? "Late AM" :
+                            routeFilter === "EARLY_PM" ? "Early PM" :
+                              routeFilter === "LATE_PM" ? "Late PM" :
+                                "Transfers"}
+                    </span>
+
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+
+                  <div className="custom-select-menu" hidden>
+                    {[
+                      ["ALL", "All Routes"],
+                      ["EARLY_AM", "Early AM"],
+                      ["LATE_AM", "Late AM"],
+                      ["EARLY_PM", "Early PM"],
+                      ["LATE_PM", "Late PM"],
+                      ["SHUTTLE", "Transfers"],
+                    ].map(([value, label]) => (
+                      <button type="button" key={value} className={`custom-select-option${routeFilter === value ? " selected" : ""}`} onClick={(event) => {
+                        setFilter(value);
+                        event.currentTarget.parentElement.hidden = true;
+                      }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <button type="button" className="button button-secondary" onClick={showAll}>
                   Show All
                 </button>
@@ -5846,64 +7774,81 @@ function AllRoutesPreview({ routes, onClose }) {
                   Hide All
                 </button>
               </div>
+            </div>
+
+            <div className="route-editor-map" ref={mapRef}>
+              {loading && (
+                <div className="route-preview-loading">
+                  Loading route geometry...
+                </div>
+              )}
+
+              {error && (
+                <div className="alert alert-error route-editor-alert">
+                  {error}
+                </div>
+              )}
 
               {selectedRoute && (
-                <div className="all-routes-selected">
-                  <span className="eyebrow">Selected Route</span>
-                  <h3>{selectedRoute.route_code ? `${selectedRoute.route_code} — ${selectedRoute.name}` : selectedRoute.name}</h3>
-                  <p>{selectedRoute.description || "No description provided."}</p>
+                <div className="route-point-inspector all-routes-inspector">
+                  <div className="route-point-inspector-header">
+                    <div>
+                      <span className="eyebrow">SELECTED ROUTE</span>
+                      <h3>{selectedRoute.route_code ? `${selectedRoute.route_code} — ${selectedRoute.name}` : selectedRoute.name}</h3>
+                    </div>
 
-                  <div className="detail-grid">
-                    <Detail label="Status" value={selectedRoute.status} />
-                    <Detail label="Points" value={(routePoints[selectedRoute.id] || []).length} />
+                    <button type="button" className="route-point-inspector-close" aria-label="Close route inspector" onClick={() => setSelectedRouteId(null)}>
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="all-routes-selected-status">
+                    <StatusBadge status={selectedRoute.status} />
+                  </div>
+
+                  <p className="all-routes-selected-description">
+                    {selectedRoute.description || "No route description provided."}
+                  </p>
+
+                  <div className="route-point-preview-details">
+                    <div className="route-point-preview-detail">
+                      <span>POINTS</span>
+                      <strong>{selectedRoutePoints.length}</strong>
+                    </div>
+
+                    <div className="route-point-preview-detail">
+                      <span>VISIBLE</span>
+                      <strong>{visibleRoutes.has(selectedRoute.id) ? "YES" : "NO"}</strong>
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="all-routes-list">
-                <div className="route-editor-section-header">
-                  <div>
-                    <span className="eyebrow">Network</span>
-                    <h3>Routes</h3>
-                  </div>
+              <div className="all-routes-map-legend">
+                <span className="eyebrow">ROUTES</span>
 
-                  <span className="all-routes-count">
-                    {visibleRoutes.size}/{routes.length}
-                  </span>
+                <div className="all-routes-map-legend-list">
+                  {filteredRoutes.map((route, index) => {
+                    const routeIndex = routes.findIndex((item) => item.id === route.id);
+                    const style = routeStyles[(routeIndex >= 0 ? routeIndex : index) % routeStyles.length];
+                    const visible = visibleRoutes.has(route.id);
+                    const selected = selectedRouteId === route.id;
+                    const hovered = hoveredRouteId === route.id;
+
+                    return (
+                      <button type="button" key={route.id} className={`all-routes-map-legend-item${visible ? " is-visible" : ""}${selected ? " is-selected" : ""}${hovered ? " is-hovered" : ""}`} onMouseEnter={() => setHoveredRouteId(route.id)} onMouseLeave={() => setHoveredRouteId((current) => current === route.id ? null : current)} onClick={() => {
+                        setSelectedRouteId(route.id);
+                        toggleRoute(route.id);
+                      }}>
+                        <span className="all-routes-swatch" style={{ backgroundColor: style.color }} />
+                        <span>{route.route_code || route.name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-
-                {routes.map((route, index) => {
-                  const style = routeStyles[index % routeStyles.length];
-                  const visible = visibleRoutes.has(route.id);
-                  const points = routePoints[route.id] || [];
-
-                  return (
-                    <button type="button" key={route.id} className={`all-routes-row${visible ? " is-visible" : ""}${selectedRouteId === route.id ? " is-selected" : ""}`} onClick={() => {
-                      toggleRoute(route.id);
-                      setSelectedRouteId(route.id);
-                    }}>
-                      <span className="all-routes-swatch" style={{ backgroundColor: style.color }} />
-                      <span className="all-routes-route-copy">
-                        <strong>{route.route_code || route.name}</strong>
-                        <small>{route.route_code ? route.name : `${points.length} points`}</small>
-                      </span>
-                      <span className="all-routes-route-count">{points.length}</span>
-                    </button>
-                  );
-                })}
               </div>
-            </aside>
+            </div>
           </div>
-        )}
-
-        <div className="modal-footer">
-          <div className="modal-footer-info">
-            {visibleRoutes.size} of {routes.length} routes visible
-          </div>
-
-          <button type="button" className="button button-secondary" onClick={onClose}>
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -5919,10 +7864,21 @@ function Maintenance({ canEdit }) {
   const [saving, setSaving] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showServiceForm, setShowServiceForm] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [garageFilter, setGarageFilter] = useState("ALL");
+  const [maintenanceSearch, setMaintenanceSearch] = useState("");
+  const [defectSearch, setDefectSearch] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [maintenanceStatusFilter, setMaintenanceStatusFilter] = useState("ALL");
+  const [maintenanceGarageFilter, setMaintenanceGarageFilter] = useState("ALL");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState("ALL");
+  const [historyGarageFilter, setHistoryGarageFilter] = useState("ALL");
+  const [defectSeverityFilter, setDefectSeverityFilter] = useState("ALL");
+  const [defectStatusFilter, setDefectStatusFilter] = useState("ALL");
+  const [maintenanceStatusDropdownOpen, setMaintenanceStatusDropdownOpen] = useState(false);
+  const [maintenanceGarageDropdownOpen, setMaintenanceGarageDropdownOpen] = useState(false);
+  const [defectSeverityDropdownOpen, setDefectSeverityDropdownOpen] = useState(false);
+  const [defectStatusDropdownOpen, setDefectStatusDropdownOpen] = useState(false);
+  const [historyStatusDropdownOpen, setHistoryStatusDropdownOpen] = useState(false);
+  const [historyGarageDropdownOpen, setHistoryGarageDropdownOpen] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({
@@ -6043,13 +7999,17 @@ function Maintenance({ canEdit }) {
   const scheduledCount = records.filter((record) => getRecordStatus(record) === "SCHEDULED").length;
   const inProgressCount = records.filter((record) => getRecordStatus(record) === "IN_PROGRESS").length;
   const openDefectCount = defects.length;
+  const criticalDefectCount = defects.filter((defect) => String(defect.severity || "").toUpperCase() === "CRITICAL").length;
+  const majorDefectCount = defects.filter((defect) => String(defect.severity || "").toUpperCase() === "MAJOR").length;
+  const completedCount = historyRecords.filter((record) => getRecordStatus(record) === "COMPLETED").length;
+  const cancelledCount = historyRecords.filter((record) => getRecordStatus(record) === "CANCELLED").length;
 
   const garages = [...new Set(vehicles.map((vehicle) => vehicle.garage).filter(Boolean))].sort();
 
   const filteredQueue = activeQueue.filter((record) => {
     const vehicle = getVehicle(record.vehicle_id);
     const status = getRecordStatus(record);
-    const query = search.trim().toLowerCase();
+    const query = maintenanceSearch.trim().toLowerCase();
 
     const searchValues = [
       record.maintenance_type,
@@ -6058,18 +8018,20 @@ function Maintenance({ canEdit }) {
       vehicle?.fleet_number,
       vehicle?.make,
       vehicle?.model,
+      vehicle?.year,
     ].filter(Boolean);
 
     const matchesSearch = !query || searchValues.some((value) => String(value).toLowerCase().includes(query));
-    const matchesStatus = statusFilter === "ALL" || status === statusFilter;
-    const matchesGarage = garageFilter === "ALL" || vehicle?.garage === garageFilter;
+    const matchesStatus = maintenanceStatusFilter === "ALL" || status === maintenanceStatusFilter;
+    const matchesGarage = maintenanceGarageFilter === "ALL" || vehicle?.garage === maintenanceGarageFilter;
 
     return matchesSearch && matchesStatus && matchesGarage;
   });
 
   const filteredHistory = historyRecords.filter((record) => {
     const vehicle = getVehicle(record.vehicle_id);
-    const query = search.trim().toLowerCase();
+    const status = getRecordStatus(record);
+    const query = historySearch.trim().toLowerCase();
 
     const searchValues = [
       record.maintenance_type,
@@ -6078,13 +8040,36 @@ function Maintenance({ canEdit }) {
       vehicle?.fleet_number,
       vehicle?.make,
       vehicle?.model,
+      vehicle?.year,
     ].filter(Boolean);
 
     const matchesSearch = !query || searchValues.some((value) => String(value).toLowerCase().includes(query));
-    const matchesStatus = statusFilter === "ALL" || getRecordStatus(record) === statusFilter;
-    const matchesGarage = garageFilter === "ALL" || vehicle?.garage === garageFilter;
+    const matchesStatus = historyStatusFilter === "ALL" || status === historyStatusFilter;
+    const matchesGarage = historyGarageFilter === "ALL" || vehicle?.garage === historyGarageFilter;
 
     return matchesSearch && matchesStatus && matchesGarage;
+  });
+
+  const filteredDefects = defects.filter((defect) => {
+    const vehicle = getVehicle(defect.vehicle_id);
+    const query = defectSearch.trim().toLowerCase();
+
+    const searchValues = [
+      defect.item,
+      defect.description,
+      defect.category,
+      defect.severity,
+      defect.status,
+      vehicle?.fleet_number,
+      vehicle?.make,
+      vehicle?.model,
+    ].filter(Boolean);
+
+    const matchesSearch = !query || searchValues.some((value) => String(value).toLowerCase().includes(query));
+    const matchesSeverity = defectSeverityFilter === "ALL" || String(defect.severity || "MINOR").toUpperCase() === defectSeverityFilter;
+    const matchesStatus = defectStatusFilter === "ALL" || String(defect.status || "REPORTED").toUpperCase() === defectStatusFilter;
+
+    return matchesSearch && matchesSeverity && matchesStatus;
   });
 
   const formatDate = (value) => {
@@ -6165,7 +8150,7 @@ function Maintenance({ canEdit }) {
       description: record.description || "",
       mileage: record.mileage ?? "",
       performedBy: record.performed_by || "",
-      status: getRecordStatus(record),
+      status: getRecordStatus(record) === "OVERDUE" ? "SCHEDULED" : getRecordStatus(record),
       performedAt: record.performed_at ? record.performed_at.slice(0, 16) : "",
       dueAt: record.due_at ? record.due_at.slice(0, 16) : "",
       dueMileage: record.due_mileage ?? "",
@@ -6290,70 +8275,168 @@ function Maintenance({ canEdit }) {
         </div>
 
         <div className="page-intro-actions">
-          <button type="button" className="button button-secondary" onClick={() => loadMaintenance(false)} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-
           {canEdit && (
             <button type="button" className="button button-primary" onClick={openNewServiceOrder}>
               New Service Order
             </button>
           )}
+
+          <button type="button" className="button button-secondary refresh-button" onClick={() => loadMaintenance(false)} disabled={refreshing}>
+            <span className={`refresh-icon${refreshing ? " spinning" : ""}`} aria-hidden="true">↻</span>
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
-      {message && <div className="alert alert-success">{message}</div>}
+      <section className="dashboard-kpi-grid">
+        <DashboardKpi
+          label="Open Service Orders"
+          value={activeQueue.length}
+          detail={`${scheduledCount} scheduled · ${inProgressCount} in progress`}
+          icon="clipboard"
+          alert={overdueCount > 0}
+        />
 
-      <div className="stats-grid maintenance-stats">
-        <Stat label="Open Service Orders" value={activeQueue.length} />
-        <Stat label="Overdue" value={overdueCount} />
-        <Stat label="In Progress" value={inProgressCount} />
-        <Stat label="Open Defects" value={openDefectCount} />
-      </div>
+        <DashboardKpi
+          label="Overdue"
+          value={overdueCount}
+          detail={activeQueue.length > 0 ? `${Math.round((overdueCount / activeQueue.length) * 100)}% of open orders` : "No open orders"}
+          icon="alert"
+          alert={overdueCount > 0}
+        />
+
+        <DashboardKpi
+          label="In Progress"
+          value={inProgressCount}
+          detail={activeQueue.length > 0 ? `${Math.round((inProgressCount / activeQueue.length) * 100)}% of open orders` : "No open orders"}
+          icon="wrench"
+        />
+
+        <DashboardKpi
+          label="Open Defects"
+          value={openDefectCount}
+          detail={`${criticalDefectCount} critical · ${majorDefectCount} major`}
+          icon="defect"
+          alert={criticalDefectCount > 0}
+        />
+      </section>
 
       <div className="panel">
         <div className="panel-header">
           <div>
             <span className="eyebrow">Service Queue</span>
-            <h2>Maintenance Queue</h2>
-            <p>{filteredQueue.length} active service order{filteredQueue.length === 1 ? "" : "s"}</p>
+            <h3>Maintenance Queue</h3>
           </div>
-
-          <button type="button" className="button button-secondary" onClick={() => setShowHistory((current) => !current)}>
-            {showHistory ? "Hide Service History" : "Service History"}
-          </button>
         </div>
 
-        <div className="toolbar-controls">
-          <label className="search-control">
-            <span>Search</span>
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Fleet number, service, description..." />
-          </label>
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
 
-          <label className="select-control">
-            <span>Status</span>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="ALL">All statuses</option>
-              <option value="OVERDUE">Overdue</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </label>
+              <input
+                type="search"
+                value={maintenanceSearch}
+                onChange={(event) => setMaintenanceSearch(event.target.value)}
+                placeholder="Fleet number, service type, description, or technician"
+              />
+            </label>
 
-          <label className="select-control">
-            <span>Garage</span>
-            <select value={garageFilter} onChange={(event) => setGarageFilter(event.target.value)}>
-              <option value="ALL">All garages</option>
-              {garages.map((garage) => (
-                <option key={garage} value={garage}>
-                  {garage}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="select-control">
+              <span>Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setMaintenanceStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      SCHEDULED: "Scheduled",
+                      OVERDUE: "Overdue",
+                      IN_PROGRESS: "In progress",
+                    }[maintenanceStatusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {maintenanceStatusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["SCHEDULED", "Scheduled"],
+                      ["OVERDUE", "Overdue"],
+                      ["IN_PROGRESS", "In progress"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${maintenanceStatusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setMaintenanceStatusFilter(value);
+                          setMaintenanceStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="select-control">
+              <span>Garage</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setMaintenanceGarageDropdownOpen((open) => !open)}
+                >
+                  <span>{maintenanceGarageFilter === "ALL" ? "All garages" : maintenanceGarageFilter}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {maintenanceGarageDropdownOpen && (
+                  <div className="custom-select-menu">
+                    <button
+                      type="button"
+                      className={`custom-select-option ${maintenanceGarageFilter === "ALL" ? "selected" : ""}`}
+                      onClick={() => {
+                        setMaintenanceGarageFilter("ALL");
+                        setMaintenanceGarageDropdownOpen(false);
+                      }}
+                    >
+                      All garages
+                    </button>
+
+                    {garages.map((garage) => (
+                      <button
+                        key={garage}
+                        type="button"
+                        className={`custom-select-option ${maintenanceGarageFilter === garage ? "selected" : ""}`}
+                        onClick={() => {
+                          setMaintenanceGarageFilter(garage);
+                          setMaintenanceGarageDropdownOpen(false);
+                        }}
+                      >
+                        {garage}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
         </div>
 
         {filteredQueue.length === 0 ? (
@@ -6402,6 +8485,7 @@ function Maintenance({ canEdit }) {
                         <div className="table-primary">
                           {record.due_at ? formatDate(record.due_at) : "No date"}
                         </div>
+
                         {record.due_mileage !== null && record.due_mileage !== undefined && (
                           <div className="table-secondary">{formatMileage(record.due_mileage)}</div>
                         )}
@@ -6437,80 +8521,129 @@ function Maintenance({ canEdit }) {
         )}
       </div>
 
-      {showHistory && (
-        <div className="panel service-history-panel">
-          <div className="panel-header">
-            <div>
-              <span className="eyebrow">Maintenance Records</span>
-              <h2>Service History</h2>
-              <p>{filteredHistory.length} completed or cancelled record{filteredHistory.length === 1 ? "" : "s"}</p>
-            </div>
-          </div>
-
-          {filteredHistory.length === 0 ? (
-            <div className="empty-state">
-              <strong>No service history found</strong>
-              <span>Completed and cancelled service records will appear here.</span>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table maintenance-table">
-                <thead>
-                  <tr>
-                    <th>Vehicle</th>
-                    <th>Service</th>
-                    <th>Completed</th>
-                    <th>Performed By</th>
-                    <th>Mileage</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredHistory.map((record) => {
-                    const vehicle = getVehicle(record.vehicle_id);
-
-                    return (
-                      <tr key={record.id}>
-                        <td>
-                          <div className="table-primary">{vehicle?.fleet_number || "Unknown"}</div>
-                          <div className="table-secondary">
-                            {vehicle ? `${vehicle.make || ""} ${vehicle.model || ""}`.trim() : "Vehicle unavailable"}
-                          </div>
-                        </td>
-
-                        <td>
-                          <div className="table-primary">{record.maintenance_type || "Service"}</div>
-                          <div className="table-secondary">{record.description || "No description"}</div>
-                        </td>
-
-                        <td>{formatDateTime(record.performed_at || record.created_at)}</td>
-                        <td>{record.performed_by || "—"}</td>
-                        <td>{formatMileage(record.mileage)}</td>
-                        <td><StatusBadge status={getRecordStatus(record)} /></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="panel">
         <div className="panel-header">
           <div>
             <span className="eyebrow">Defect Management</span>
-            <h2>Open Vehicle Defects</h2>
-            <p>Reported issues that have not yet been closed.</p>
+            <h3>Open Vehicle Defects</h3>
           </div>
         </div>
 
-        {defects.length === 0 ? (
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
+
+              <input
+                type="search"
+                value={defectSearch}
+                onChange={(event) => setDefectSearch(event.target.value)}
+                placeholder="Fleet number, defect, category, or description"
+              />
+            </label>
+
+            <label className="select-control">
+              <span>Severity</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setDefectSeverityDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All severities",
+                      CRITICAL: "Critical",
+                      MAJOR: "Major",
+                      MINOR: "Minor",
+                    }[defectSeverityFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {defectSeverityDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All severities"],
+                      ["CRITICAL", "Critical"],
+                      ["MAJOR", "Major"],
+                      ["MINOR", "Minor"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${defectSeverityFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setDefectSeverityFilter(value);
+                          setDefectSeverityDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="select-control">
+              <span>Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setDefectStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      REPORTED: "Reported",
+                      OPEN: "Open",
+                      IN_PROGRESS: "In progress",
+                    }[defectStatusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {defectStatusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["REPORTED", "Reported"],
+                      ["OPEN", "Open"],
+                      ["IN_PROGRESS", "In progress"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${defectStatusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setDefectStatusFilter(value);
+                          setDefectStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {filteredDefects.length === 0 ? (
           <div className="empty-state">
             <strong>No open defects</strong>
-            <span>There are currently no unresolved vehicle defects.</span>
+            <span>There are currently no unresolved vehicle defects matching the current filters.</span>
           </div>
         ) : (
           <div className="table-wrap">
@@ -6527,10 +8660,11 @@ function Maintenance({ canEdit }) {
               </thead>
 
               <tbody>
-                {defects.map((defect) => (
+                {filteredDefects.map((defect) => (
                   <tr key={defect.id}>
                     <td>
-                      <strong>{getVehicle(defect.vehicle_id)?.fleet_number || "Unknown"}</strong>
+                      <div className="table-primary">{getVehicle(defect.vehicle_id)?.fleet_number || "Unknown"}</div>
+                      <div className="table-secondary">{getVehicleLabel(defect.vehicle_id)}</div>
                     </td>
 
                     <td>
@@ -6544,6 +8678,176 @@ function Maintenance({ canEdit }) {
                     <td>{formatDate(defect.reported_at)}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="eyebrow">Maintenance Records</span>
+            <h3>Service History</h3>
+          </div>
+
+          <div className="table-secondary">
+            {completedCount} completed · {cancelledCount} cancelled
+          </div>
+        </div>
+
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
+
+              <input
+                type="search"
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+                placeholder="Fleet number, service type, description, or technician"
+              />
+            </label>
+
+            <label className="select-control">
+              <span>Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setHistoryStatusDropdownOpen((open) => !open)}
+                >
+                  <span>
+                    {{
+                      ALL: "All statuses",
+                      COMPLETED: "Completed",
+                      CANCELLED: "Cancelled",
+                    }[historyStatusFilter]}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {historyStatusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {[
+                      ["ALL", "All statuses"],
+                      ["COMPLETED", "Completed"],
+                      ["CANCELLED", "Cancelled"],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`custom-select-option ${historyStatusFilter === value ? "selected" : ""}`}
+                        onClick={() => {
+                          setHistoryStatusFilter(value);
+                          setHistoryStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="select-control">
+              <span>Garage</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setHistoryGarageDropdownOpen((open) => !open)}
+                >
+                  <span>{historyGarageFilter === "ALL" ? "All garages" : historyGarageFilter}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {historyGarageDropdownOpen && (
+                  <div className="custom-select-menu">
+                    <button
+                      type="button"
+                      className={`custom-select-option ${historyGarageFilter === "ALL" ? "selected" : ""}`}
+                      onClick={() => {
+                        setHistoryGarageFilter("ALL");
+                        setHistoryGarageDropdownOpen(false);
+                      }}
+                    >
+                      All garages
+                    </button>
+
+                    {garages.map((garage) => (
+                      <button
+                        key={garage}
+                        type="button"
+                        className={`custom-select-option ${historyGarageFilter === garage ? "selected" : ""}`}
+                        onClick={() => {
+                          setHistoryGarageFilter(garage);
+                          setHistoryGarageDropdownOpen(false);
+                        }}
+                      >
+                        {garage}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {filteredHistory.length === 0 ? (
+          <div className="empty-state">
+            <strong>No service history found</strong>
+            <span>Completed and cancelled service records will appear here.</span>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table maintenance-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Service</th>
+                  <th>Completed</th>
+                  <th>Performed By</th>
+                  <th>Mileage</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredHistory.map((record) => {
+                  const vehicle = getVehicle(record.vehicle_id);
+
+                  return (
+                    <tr key={record.id}>
+                      <td>
+                        <div className="table-primary">{vehicle?.fleet_number || "Unknown"}</div>
+                        <div className="table-secondary">
+                          {vehicle ? `${vehicle.make || ""} ${vehicle.model || ""}`.trim() : "Vehicle unavailable"}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="table-primary">{record.maintenance_type || "Service"}</div>
+                        <div className="table-secondary">{record.description || "No description"}</div>
+                      </td>
+
+                      <td>{formatDateTime(record.performed_at || record.created_at)}</td>
+                      <td>{record.performed_by || "—"}</td>
+                      <td>{formatMileage(record.mileage)}</td>
+                      <td><StatusBadge status={getRecordStatus(record)} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -6676,6 +8980,1368 @@ function Maintenance({ canEdit }) {
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+function Inspections({ canEdit }) {
+  const inspectionTypes = [
+    { value: "PRE_TRIP", label: "Pre-Trip" },
+    { value: "POST_TRIP", label: "Post-Trip" },
+    { value: "ANNUAL", label: "Annual" },
+    { value: "PERIODIC", label: "Periodic" },
+    { value: "SPECIAL", label: "Special" },
+  ];
+
+  const checklistSections = [
+    {
+      title: "Exterior Lighting",
+      type: "lighting",
+      items: [
+        { key: "lowBeam", label: "Low Beam Headlights", lamp: true },
+        { key: "highBeam", label: "High Beam Headlights", lamp: true },
+        { key: "runningLights", label: "Running Lights", lamp: true },
+        { key: "markerLights", label: "Marker Lights", lamp: true },
+        { key: "clearanceLights", label: "Clearance Lights", lamp: true },
+        { key: "brakeLights", label: "Brake Lights", lamp: true },
+        { key: "turnSignals", label: "Turn Signals", lamp: true },
+        { key: "fourWayFlashers", label: "Four-Way Flashers", lamp: true },
+        { key: "reverseLights", label: "Backup / Reverse Lights", lamp: true },
+        { key: "licensePlateLights", label: "License-Plate Lights", lamp: true },
+        { key: "amberWarningLights", label: "Amber Warning Lights", lamp: true },
+        { key: "redWarningLights", label: "Red Warning Lights", lamp: true },
+        { key: "stopArmLights", label: "Stop-Arm Lights", lamp: true },
+      ],
+    },
+    {
+      title: "Exterior",
+      type: "standard",
+      items: [
+        { key: "outsideMirrors", label: "Outside Mirrors" },
+        { key: "crossoverMirror", label: "Crossover Mirror" },
+        { key: "windshield", label: "Windshield / Glass" },
+        { key: "wipers", label: "Windshield Wipers" },
+        { key: "washerFluid", label: "Windshield Washer System" },
+        { key: "bodyPanels", label: "Body Panels" },
+        { key: "serviceDoor", label: "Service / Passenger Door" },
+        { key: "emergencyDoor", label: "Emergency Door" },
+        { key: "emergencyWindows", label: "Emergency Windows" },
+        { key: "roofHatches", label: "Emergency Roof Hatches" },
+        { key: "stopArm", label: "Stop Arm" },
+        { key: "crossingGate", label: "Crossing Gate" },
+      ],
+    },
+    {
+      title: "Interior",
+      type: "standard",
+      items: [
+        { key: "seats", label: "Passenger Seats" },
+        { key: "aisle", label: "Aisle" },
+        { key: "floor", label: "Floor Condition" },
+        { key: "interiorLighting", label: "Interior / Dome Lighting" },
+        { key: "handrails", label: "Handrails" },
+        { key: "gauges", label: "Gauges / Instruments" },
+        { key: "horn", label: "Horn" },
+        { key: "interiorMirrors", label: "Interior Mirrors" },
+        { key: "warningIndicators", label: "Warning Indicators" },
+        { key: "heater", label: "Heater" },
+        { key: "defrosterFan", label: "Defroster / Blower Fan" },
+        { key: "defroster", label: "Defroster" },
+        { key: "fans", label: "Passenger Fans" },
+      ],
+    },
+    {
+      title: "Mechanical",
+      type: "mechanical",
+      items: [
+        { key: "transmissionFluid", label: "Transmission / Drive Fluid" },
+        { key: "beltsHoses", label: "Belts / Hoses" },
+        { key: "exhaustSystem", label: "Exhaust System" },
+        { key: "dpf", label: "Diesel Particulate Filter (DPF)", dieselOnly: true },
+        { key: "def", label: "Diesel Exhaust Fluid (DEF) System", dieselOnly: true },
+      ],
+      evItems: [
+        { key: "highVoltagePlacards", label: "High-Voltage Placards" },
+        { key: "highVoltageWiring", label: "High-Voltage Wiring" },
+        { key: "batteryCooling", label: "Battery Cooling System" },
+        { key: "batteryCarriage", label: "Battery Carriage / Mounting" },
+        { key: "electricDriveMotor", label: "Electric Drive Motor" },
+      ],
+    },
+    {
+      title: "Brakes & Steering",
+      type: "standard",
+      items: [
+        { key: "serviceBrakes", label: "Service Brakes" },
+        { key: "parkingBrake", label: "Parking Brake" },
+        { key: "steering", label: "Steering System" },
+        { key: "absWarning", label: "ABS Warning System" },
+        { key: "electronicStabilityControl", label: "Electronic Stability Control" },
+      ],
+    },
+    {
+      title: "Chassis",
+      type: "standard",
+      items: [
+        { key: "frontTires", label: "Front Tires" },
+        { key: "rearTires", label: "Rear Tires" },
+        { key: "tireTread", label: "Tire Condition / Tread" },
+        { key: "wheelLugNuts", label: "Wheel Lug Nuts" },
+        { key: "wheels", label: "Wheels / Rims" },
+        { key: "axles", label: "Axles" },
+        { key: "suspension", label: "Suspension" },
+        { key: "frame", label: "Frame / Structural Supports" },
+      ],
+    },
+    {
+      title: "Safety",
+      type: "standard",
+      items: [
+        { key: "emergencyExitAlarms", label: "Emergency-Exit Alarms" },
+        { key: "fireExtinguisher", label: "Fire Extinguisher" },
+        { key: "firstAidKit", label: "First-Aid Kit" },
+        { key: "emergencyReflectors", label: "Emergency Reflectors" },
+      ],
+    },
+  ];
+
+  const lampSystems = [
+    { key: "lowBeam", label: "Low Beam Headlights", maximum: 4 },
+    { key: "highBeam", label: "High Beam Headlights", maximum: 4 },
+    { key: "runningLights", label: "Running Lights", maximum: 2 },
+    { key: "markerLights", label: "Marker Lights", maximum: 6 },
+    { key: "clearanceLights", label: "Clearance Lights", maximum: 6 },
+    { key: "brakeLights", label: "Brake Lights", maximum: 2 },
+    { key: "turnSignals", label: "Turn Signals", maximum: 8 },
+    { key: "fourWayFlashers", label: "Four-Way Flashers", maximum: 4 },
+    { key: "reverseLights", label: "Backup / Reverse Lights", maximum: 2 },
+    { key: "licensePlateLights", label: "License-Plate Lights", maximum: 2 },
+    { key: "amberWarningLights", label: "Amber Warning Lights", maximum: 4 },
+    { key: "redWarningLights", label: "Red Warning Lights", maximum: 4 },
+    { key: "stopArmLights", label: "Stop-Arm Lights", maximum: 8 },
+  ];
+
+  const lightingKeys = new Set(lampSystems.map((lamp) => lamp.key));
+  const severityMap = {
+    lowBeam: "MAJOR",
+    highBeam: "MAJOR",
+    runningLights: "MINOR",
+    markerLights: "MINOR",
+    clearanceLights: "MINOR",
+    brakeLights: "MAJOR",
+    turnSignals: "MAJOR",
+    fourWayFlashers: "MAJOR",
+    reverseLights: "MINOR",
+    licensePlateLights: "MINOR",
+    amberWarningLights: "MAJOR",
+    redWarningLights: "CRITICAL",
+    stopArmLights: "MAJOR",
+
+    stopArm: "CRITICAL",
+    crossingGate: "MAJOR",
+
+    outsideMirrors: "MAJOR",
+    crossoverMirror: "MAJOR",
+    windshield: "MAJOR",
+    wipers: "MAJOR",
+    washerFluid: "MINOR",
+    bodyPanels: "MINOR",
+    serviceDoor: "MAJOR",
+    emergencyDoor: "CRITICAL",
+    emergencyWindows: "CRITICAL",
+    roofHatches: "CRITICAL",
+
+    frontTires: "CRITICAL",
+    rearTires: "MAJOR",
+    tireTread: "CRITICAL",
+    wheelLugNuts: "CRITICAL",
+    wheels: "CRITICAL",
+    axles: "CRITICAL",
+    suspension: "MAJOR",
+    frame: "CRITICAL",
+
+    serviceBrakes: "CRITICAL",
+    parkingBrake: "CRITICAL",
+    steering: "CRITICAL",
+    absWarning: "MAJOR",
+    electronicStabilityControl: "MAJOR",
+
+    transmissionFluid: "MAJOR",
+    beltsHoses: "MAJOR",
+    exhaustSystem: "MAJOR",
+    dpf: "MINOR",
+    def: "MINOR",
+
+    seats: "MAJOR",
+    aisle: "CRITICAL",
+    floor: "MAJOR",
+    interiorLighting: "MINOR",
+    handrails: "MAJOR",
+    gauges: "MAJOR",
+    horn: "MINOR",
+    interiorMirrors: "MINOR",
+    warningIndicators: "MAJOR",
+    heater: "MAJOR",
+    defrosterFan: "CRITICAL",
+    defroster: "CRITICAL",
+    fans: "MINOR",
+
+    emergencyExitAlarms: "MAJOR",
+    fireExtinguisher: "MAJOR",
+    firstAidKit: "MINOR",
+    emergencyReflectors: "MINOR",
+
+    highVoltagePlacards: "MINOR",
+    highVoltageWiring: "CRITICAL",
+    batteryCooling: "CRITICAL",
+    batteryCarriage: "CRITICAL",
+    electricDriveMotor: "CRITICAL",
+  };
+
+  const [audits, setAudits] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+
+  const [inspectionView, setInspectionView] = useState("list");
+  const [selectedInspection, setSelectedInspection] = useState(null);
+
+  const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [selectedDriverId, setSelectedDriverId] = useState("");
+  const [inspectionType, setInspectionType] = useState("PRE_TRIP");
+  const [checklist, setChecklist] = useState({});
+  const [lampDefects, setLampDefects] = useState({});
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const selectedVehicle = vehicles.find((vehicle) => String(vehicle.id) === String(selectedVehicleId)) || null;
+
+  function vehicleText(vehicle) {
+    return [
+      vehicle?.engine,
+      vehicle?.fuel_type,
+      vehicle?.fuel,
+      vehicle?.powertrain,
+      vehicle?.model,
+      vehicle?.make,
+    ].filter(Boolean).join(" ");
+  }
+
+  function isDieselVehicle(vehicle) {
+    return /diesel/i.test(vehicleText(vehicle));
+  }
+
+  function isElectricVehicle(vehicle) {
+    return /electric|battery electric|bev|\bev\b/i.test(vehicleText(vehicle));
+  }
+
+  const selectedVehicleIsDiesel = isDieselVehicle(selectedVehicle);
+  const selectedVehicleIsElectric = isElectricVehicle(selectedVehicle);
+
+  const totalInspections = audits.length;
+  const passedInspections = audits.filter((inspection) => inspection.result === "PASS").length;
+  const failedInspections = audits.filter((inspection) => inspection.result === "FAIL").length;
+
+  const filteredAudits = audits.filter((inspection) => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) {
+      return true;
+    }
+
+    return [
+      inspection.vehicles?.fleet_number,
+      inspection.drivers?.name,
+      inspection.audit_type,
+      inspection.result,
+      inspection.notes,
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
+  function createDefaultLampDefects() {
+    const values = {};
+
+    lampSystems.forEach((lamp) => {
+      values[lamp.key] = 0;
+    });
+
+    return values;
+  }
+
+  function createDefaultChecklist(vehicle = null) {
+    const isDiesel = isDieselVehicle(vehicle);
+    const isElectric = isElectricVehicle(vehicle);
+    const values = {};
+
+    checklistSections.forEach((section) => {
+      section.items.forEach((item) => {
+        if (item.dieselOnly && !isDiesel) {
+          values[item.key] = "N/A";
+        } else {
+          values[item.key] = "PENDING";
+        }
+      });
+
+      (section.evItems || []).forEach((item) => {
+        values[item.key] = isElectric ? "PENDING" : "N/A";
+      });
+    });
+
+    return values;
+  }
+
+  function formatDate(value) {
+    if (!value) {
+      return "—";
+    }
+
+    return new Date(value).toLocaleString();
+  }
+
+  function getInspectionTypeLabel(value) {
+    return inspectionTypes.find((type) => type.value === value)?.label || value || "—";
+  }
+
+  function getResultClass(result) {
+    if (result === "PASS") {
+      return "status-badge status-pass";
+    }
+
+    if (result === "FAIL") {
+      return "status-badge status-fail";
+    }
+
+    return "status-badge status-neutral";
+  }
+
+  function getConditionClass(value) {
+    if (value === "PASS") {
+      return "status-badge status-pass";
+    }
+
+    if (value === "FAIL") {
+      return "status-badge status-fail";
+    }
+
+    return "status-badge status-neutral";
+  }
+
+  function resetInspectionForm() {
+    setSelectedVehicleId("");
+    setSelectedDriverId("");
+    setInspectionType("PRE_TRIP");
+    setChecklist(createDefaultChecklist());
+    setLampDefects(createDefaultLampDefects());
+    setNotes("");
+    setFormError("");
+  }
+
+  function openNewInspection() {
+    resetInspectionForm();
+    setInspectionView("new");
+    setMessage("");
+  }
+
+  function openInspectionDetails(inspection) {
+    setSelectedInspection(inspection);
+    setInspectionView("details");
+  }
+
+  function returnToInspectionList() {
+    if (saving) {
+      return;
+    }
+
+    setSelectedInspection(null);
+    setInspectionView("list");
+    setFormError("");
+  }
+
+  function selectVehicle(vehicleId) {
+    const vehicle = vehicles.find((item) => String(item.id) === String(vehicleId)) || null;
+
+    setSelectedVehicleId(vehicleId);
+    setChecklist(createDefaultChecklist(vehicle));
+    setLampDefects(createDefaultLampDefects());
+    setFormError("");
+  }
+
+  function updateChecklist(key, value) {
+    setChecklist((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function incrementLampDefect(key, maximum) {
+    setLampDefects((current) => ({
+      ...current,
+      [key]: Math.min(maximum, (Number(current[key]) || 0) + 1),
+    }));
+  }
+
+  function decrementLampDefect(key) {
+    setLampDefects((current) => ({
+      ...current,
+      [key]: Math.max(0, (Number(current[key]) || 0) - 1),
+    }));
+  }
+
+  function getEffectiveChecklist() {
+    const effectiveChecklist = {
+      ...checklist,
+      lampDefects: {
+        ...lampDefects,
+      },
+    };
+
+    if (!selectedVehicleIsDiesel) {
+      effectiveChecklist.dpf = "N/A";
+      effectiveChecklist.def = "N/A";
+    }
+
+    if (!selectedVehicleIsElectric) {
+      effectiveChecklist.highVoltagePlacards = "N/A";
+      effectiveChecklist.highVoltageWiring = "N/A";
+      effectiveChecklist.batteryCooling = "N/A";
+      effectiveChecklist.batteryCarriage = "N/A";
+      effectiveChecklist.electricDriveMotor = "N/A";
+    }
+
+    return effectiveChecklist;
+  }
+
+  function buildDefects() {
+    const defects = [];
+    const effectiveChecklist = getEffectiveChecklist();
+
+    Object.entries(effectiveChecklist).forEach(([item, value]) => {
+      if (item === "lampDefects") {
+        Object.entries(value).forEach(([lampKey, quantity]) => {
+          if (Number(quantity) <= 0) {
+            return;
+          }
+
+          const lamp = lampSystems.find((entry) => entry.key === lampKey);
+
+          defects.push({
+            category: "Exterior Lighting",
+            item: lamp?.label || lampKey,
+            description: `${quantity} defective ${String(lamp?.label || lampKey).toLowerCase()}.`,
+            severity: severityMap[lampKey] || "MINOR",
+            quantity: Number(quantity),
+          });
+        });
+
+        return;
+      }
+
+      /*
+        A lamp with a defective count is already recorded above.
+        This avoids counting it a second time as a failed condition.
+      */
+      if (
+        lightingKeys.has(item) &&
+        Number(effectiveChecklist.lampDefects?.[item]) > 0
+      ) {
+        return;
+      }
+
+      if (value !== "FAIL") {
+        return;
+      }
+
+      let category = "Inspection";
+      let label = item;
+
+      checklistSections.forEach((section) => {
+        const matchingItem = section.items.find((entry) => entry.key === item);
+        const matchingEvItem = (section.evItems || []).find(
+          (entry) => entry.key === item,
+        );
+
+        if (matchingItem) {
+          category = section.title;
+          label = matchingItem.label;
+        }
+
+        if (matchingEvItem) {
+          category = "Mechanical";
+          label = matchingEvItem.label;
+        }
+      });
+
+      defects.push({
+        category,
+        item: label,
+        description: `${label} failed inspection.`,
+        severity: severityMap[item] || "MINOR",
+        quantity: 1,
+      });
+    });
+
+    return defects;
+  }
+
+  function calculateResult(defects) {
+    let critical = 0;
+    let major = 0;
+    let minor = 0;
+
+    defects.forEach((defect) => {
+      if (defect.severity === "CRITICAL") {
+        critical += defect.quantity;
+      } else if (defect.severity === "MAJOR") {
+        major += defect.quantity;
+      } else if (defect.severity === "MINOR") {
+        minor += defect.quantity;
+      }
+    });
+
+    if (critical >= 1 || major >= 3 || minor >= 7) {
+      return {
+        result: "FAIL",
+        critical,
+        major,
+        minor,
+      };
+    }
+
+    return {
+      result: "PASS",
+      critical,
+      major,
+      minor,
+    };
+  }
+
+  async function loadInspections(showSpinner = false) {
+    if (showSpinner) {
+      setRefreshing(true);
+    }
+
+    setError("");
+
+    try {
+      const [
+        { data: auditData, error: auditError },
+        { data: vehicleData, error: vehicleError },
+        { data: driverData, error: driverError },
+      ] = await Promise.all([
+        supabase.from("audits").select(`
+          *,
+          vehicles(fleet_number),
+          drivers(name)
+        `).order("created_at", { ascending: false }),
+
+        supabase.from("vehicles").select("*").order("garage", { ascending: true }).order("year", { ascending: true }).order("fleet_number", { ascending: true }),
+
+        supabase.from("drivers").select("*").order("name", { ascending: true }),
+      ]);
+
+      if (auditError) {
+        throw auditError;
+      }
+
+      if (vehicleError) {
+        throw vehicleError;
+      }
+
+      if (driverError) {
+        throw driverError;
+      }
+
+      setAudits(auditData || []);
+      setVehicles(vehicleData || []);
+      setDrivers(driverData || []);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load inspections.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    loadInspections();
+  }, []);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setMessage("");
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [message]);
+
+  async function saveInspection() {
+    setFormError("");
+
+    if (!selectedVehicleId) {
+      setFormError("Select a vehicle before completing the inspection.");
+      return;
+    }
+
+    const effectiveChecklist = getEffectiveChecklist();
+
+    const hasPendingItems = Object.entries(effectiveChecklist).some(([key, value]) => {
+      if (key === "lampDefects") {
+        return false;
+      }
+
+      return value === "PENDING";
+    });
+
+    if (hasPendingItems) {
+      setFormError("Complete every applicable inspection item before completing the inspection.");
+      return;
+    }
+
+    const defects = buildDefects();
+    const calculated = calculateResult(defects);
+
+    setSaving(true);
+
+    try {
+      const { data, error: inspectionError } = await supabase.rpc("submit_vehicle_inspection", {
+        p_vehicle_id: selectedVehicleId,
+        p_checklist: effectiveChecklist,
+        p_defects: defects,
+        p_driver_id: selectedDriverId || null,
+        p_audit_type: inspectionType,
+        p_notes: notes.trim() || null,
+      });
+
+      if (inspectionError) {
+        throw inspectionError;
+      }
+
+      const savedResult = data?.result || calculated.result;
+      const savedCritical = Number(data?.critical ?? calculated.critical);
+      const savedMajor = Number(data?.major ?? calculated.major);
+      const savedMinor = Number(data?.minor ?? calculated.minor);
+
+      resetInspectionForm();
+      await loadInspections();
+
+      setInspectionView("list");
+
+      if (savedResult === "FAIL") {
+        setMessage(`Inspection failed. ${savedCritical} critical, ${savedMajor} major, ${savedMinor} minor defect(s).`);
+      } else {
+        setMessage("Inspection passed. No qualifying defect threshold was exceeded.");
+      }
+    } catch (saveError) {
+      setFormError(saveError.message || "Unable to save inspection.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function getStoredChecklistValue(inspection, key) {
+    return inspection?.checklist?.[key] || "N/A";
+  }
+
+  function getInspectionVehicle(inspection) {
+    return vehicles.find((vehicle) => String(vehicle.id) === String(inspection?.vehicle_id)) || null;
+  }
+
+  function renderConditionButtons(item, value) {
+    return (
+      <div className="inspection-condition-buttons">
+        <button
+          type="button"
+          className={`button button-small inspection-condition-button inspection-condition-button-pass ${value === "PASS" ? "active" : ""
+            }`}
+          onClick={() => updateChecklist(item.key, "PASS")}
+          disabled={saving}
+        >
+          Pass
+        </button>
+
+        <button
+          type="button"
+          className={`button button-small inspection-condition-button inspection-condition-button-fail ${value === "FAIL" ? "active" : ""
+            }`}
+          onClick={() => updateChecklist(item.key, "FAIL")}
+          disabled={saving}
+        >
+          Fail
+        </button>
+
+        <button
+          type="button"
+          className={`button button-small inspection-condition-button inspection-condition-button-na ${value === "N/A" ? "active" : ""
+            }`}
+          onClick={() => updateChecklist(item.key, "N/A")}
+          disabled={saving}
+        >
+          N/A
+        </button>
+      </div>
+    );
+  }
+
+  function renderLampDefectCounter(lamp) {
+    const defectiveCount = Number(lampDefects[lamp.key]) || 0;
+
+    return (
+      <div className="inspection-defect-counter">
+        <button
+          type="button"
+          className="button button-secondary button-small inspection-defect-button inspection-defect-button-minus"
+          onClick={() => decrementLampDefect(lamp.key)}
+          disabled={saving || defectiveCount <= 0}
+          aria-label={`Decrease defective ${lamp.label}`}
+        >
+          −
+        </button>
+
+        <span
+          className={`inspection-defect-count ${defectiveCount > 0 ? "active" : ""
+            }`}
+        >
+          {defectiveCount}
+        </span>
+
+        <button
+          type="button"
+          className="button button-secondary button-small inspection-defect-button inspection-defect-button-plus"
+          onClick={() => incrementLampDefect(lamp.key, lamp.maximum)}
+          disabled={saving || defectiveCount >= lamp.maximum}
+          aria-label={`Increase defective ${lamp.label}`}
+        >
+          +
+        </button>
+      </div>
+    );
+  }
+
+  function renderInspectionTable(
+    sectionItems,
+    section,
+    stored = false,
+    inspection = null,
+  ) {
+    const isLighting = section.type === "lighting";
+    const storedChecklist = inspection?.checklist || {};
+    const storedLampDefects = storedChecklist.lampDefects || {};
+
+    return (
+      <div className="table-container">
+        <table
+          className={`data-table inspection-checklist-table ${isLighting ? "inspection-lighting-table" : ""
+            }`}
+        >
+          <thead>
+            <tr>
+              <th>Item</th>
+
+              {isLighting && (
+                <th className="inspection-defective-heading">Defective</th>
+              )}
+
+              <th className="inspection-condition-heading">Condition</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {sectionItems.map((item) => {
+              const value = stored
+                ? getStoredChecklistValue(inspection, item.key)
+                : checklist[item.key] || "PENDING";
+
+              const lamp = isLighting
+                ? lampSystems.find((entry) => entry.key === item.key)
+                : null;
+
+              const defectiveCount = lamp
+                ? Number(storedLampDefects[lamp.key]) || 0
+                : 0;
+
+              return (
+                <tr key={item.key}>
+                  <td>
+                    <span className="table-main-text inspection-item-label">
+                      {item.label}
+                    </span>
+                  </td>
+
+                  {isLighting && (
+                    <td className="inspection-defective-cell">
+                      {stored ? (
+                        <span
+                          className={
+                            defectiveCount > 0
+                              ? "inspection-lamp-defect"
+                              : "table-main-text"
+                          }
+                        >
+                          {defectiveCount}
+                        </span>
+                      ) : (
+                        renderLampDefectCounter(lamp)
+                      )}
+                    </td>
+                  )}
+
+                  <td className="inspection-condition-cell">
+                    {stored ? (
+                      <span className={getConditionClass(value)}>
+                        {value === "NA" ? "N/A" : value}
+                      </span>
+                    ) : (
+                      renderConditionButtons(item, value)
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  function renderInspectionReportForm() {
+    if (!selectedVehicle) {
+      return (
+        <div className="empty-state">
+          <strong>Select a vehicle to begin</strong>
+          <span>The inspection report will appear after a vehicle is selected.</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="inspection-report-content">
+        {checklistSections.map((section) => {
+          const sectionItems = section.items.filter((item) => {
+            if (item.dieselOnly && !selectedVehicleIsDiesel) {
+              return false;
+            }
+
+            return true;
+          });
+
+          const showEvSystems = section.title === "Mechanical" && selectedVehicleIsElectric;
+
+          if (sectionItems.length === 0 && !showEvSystems) {
+            return null;
+          }
+
+          return (
+            <div className="inspection-report-section" key={section.title}>
+              <div className="inspection-report-section-header">
+                <div>
+                  <span className="eyebrow">Checklist</span>
+                  <h4>{section.title}</h4>
+                </div>
+              </div>
+
+              {sectionItems.length > 0 && renderInspectionTable(sectionItems, section)}
+
+              {showEvSystems && (
+                <div className="inspection-report-subsection">
+                  <div className="inspection-subsection-header">
+                    <div>
+                      <span className="eyebrow">Electric Vehicle</span>
+                      <h4>EV Systems</h4>
+                    </div>
+                  </div>
+
+                  {renderInspectionTable(section.evItems, section)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderInspectionReportDetails(inspection) {
+    const inspectionVehicle = getInspectionVehicle(inspection);
+    const inspectionIsDiesel = isDieselVehicle(inspectionVehicle);
+    const inspectionIsElectric = isElectricVehicle(inspectionVehicle);
+
+    return (
+      <div className="inspection-report-content">
+        {checklistSections.map((section) => {
+          const sectionItems = section.items.filter((item) => {
+            if (item.dieselOnly) {
+              return inspectionIsDiesel;
+            }
+
+            return true;
+          });
+
+          const showEvSystems = section.title === "Mechanical" && inspectionIsElectric;
+
+          if (sectionItems.length === 0 && !showEvSystems) {
+            return null;
+          }
+
+          return (
+            <div className="inspection-report-section" key={section.title}>
+              <div className="inspection-report-section-header">
+                <div>
+                  <span className="eyebrow">Checklist</span>
+                  <h4>{section.title}</h4>
+                </div>
+              </div>
+
+              {sectionItems.length > 0 && renderInspectionTable(sectionItems, section, true, inspection)}
+
+              {showEvSystems && (
+                <div className="inspection-report-subsection">
+                  <div className="inspection-subsection-header">
+                    <div>
+                      <span className="eyebrow">Electric Vehicle</span>
+                      <h4>EV Systems</h4>
+                    </div>
+                  </div>
+
+                  {renderInspectionTable(section.evItems, section, true, inspection)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (inspectionView === "new") {
+    return (
+      <section className="page-section inspection-page inspection-form-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToInspectionList}
+              disabled={saving}
+            >
+              ← Back to Inspections
+            </button>
+
+            <span className="eyebrow">Fleet Compliance / New Inspection</span>
+            <h1>New Inspection</h1>
+            <p>Record the inspection results for a vehicle.</p>
+          </div>
+
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={returnToInspectionList}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={saveInspection}
+              disabled={saving || !selectedVehicle}
+            >
+              {saving ? "Completing..." : "Complete Inspection"}
+            </button>
+          </div>
+        </div>
+
+        {formError && (
+          <div className="alert alert-error">
+            {formError}
+          </div>
+        )}
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Inspection Setup</span>
+              <h3>Inspection Information</h3>
+            </div>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <div className="form-field inspection-type-field">
+              <span>Inspection Type</span>
+
+              <div className="inspection-type-options">
+                {inspectionTypes.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    className={`inspection-type-option ${inspectionType === type.value ? "active" : ""}`}
+                    onClick={() => setInspectionType(type.value)}
+                    disabled={saving}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="form-field">
+              <span>Inspector</span>
+
+              <select
+                value={selectedDriverId}
+                onChange={(event) => setSelectedDriverId(event.target.value)}
+                disabled={saving}
+              >
+                <option value="">No inspector assigned</option>
+
+                {drivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field">
+              <span>Inspection Type</span>
+
+              <select
+                value={inspectionType}
+                onChange={(event) => setInspectionType(event.target.value)}
+                disabled={saving}
+              >
+                {inspectionTypes.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div className="panel inspection-report-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Inspection Report</span>
+              <h3>
+                {selectedVehicle
+                  ? `Inspection Report — Fleet ${selectedVehicle.fleet_number}`
+                  : "Select a vehicle to begin"}
+              </h3>
+            </div>
+          </div>
+
+          {renderInspectionReportForm()}
+        </div>
+
+        {selectedVehicle && (
+          <div className="inspection-notes-section">
+            <div className="inspection-notes-header">
+              <div>
+                <span className="eyebrow">Inspection Notes</span>
+                <h3>Notes</h3>
+              </div>
+            </div>
+
+            <div className="inspection-notes-content inspection-notes-editor">
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Enter inspection notes..."
+                rows="6"
+                disabled={saving}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToInspectionList}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={saveInspection}
+            disabled={saving || !selectedVehicle}
+          >
+            {saving ? "Completing..." : "Complete Inspection"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (inspectionView === "details" && selectedInspection) {
+    const inspectionVehicle = getInspectionVehicle(selectedInspection);
+
+    return (
+      <section className="page-section inspection-page inspection-detail-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button type="button" className="button button-secondary button-small inspection-back-button" onClick={returnToInspectionList}>
+              ← Back to Inspections
+            </button>
+
+            <span className="eyebrow">Fleet Compliance / Inspection Record</span>
+            <h1>Fleet {selectedInspection.vehicles?.fleet_number || "Unknown"}</h1>
+            <p>{getInspectionTypeLabel(selectedInspection.audit_type)} inspection record.</p>
+          </div>
+        </div>
+
+        <div className="panel inspection-information-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Inspection Information</span>
+              <h3>Inspection Record</h3>
+            </div>
+          </div>
+
+          <div className="inspection-fact-grid">
+            <div className="inspection-fact">
+              <span>Vehicle</span>
+              <strong>Fleet {selectedInspection.vehicles?.fleet_number || "Unknown"}</strong>
+            </div>
+
+            <div className="inspection-fact">
+              <span>Inspector</span>
+              <strong>{selectedInspection.drivers?.name || "Unassigned"}</strong>
+            </div>
+
+            <div className="inspection-fact">
+              <span>Inspection Type</span>
+              <strong>{getInspectionTypeLabel(selectedInspection.audit_type)}</strong>
+            </div>
+
+            <div className="inspection-fact">
+              <span>Completed</span>
+              <strong>{formatDate(selectedInspection.completed_at || selectedInspection.created_at)}</strong>
+            </div>
+
+            {inspectionVehicle && (
+              <div className="inspection-fact">
+                <span>Vehicle Details</span>
+                <strong>
+                  {[inspectionVehicle.year, inspectionVehicle.make, inspectionVehicle.model].filter(Boolean).join(" ") || "—"}
+                </strong>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="panel inspection-report-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Inspection Results</span>
+              <h3>Inspection Results</h3>
+            </div>
+
+            <span className={getResultClass(selectedInspection.result)}>
+              {selectedInspection.result || "—"}
+            </span>
+          </div>
+
+          {renderInspectionReportDetails(selectedInspection)}
+        </div>
+
+        <div className="inspection-notes-section inspection-notes-readonly">
+          <div className="inspection-notes-header">
+            <div>
+              <span className="eyebrow">Inspection Notes</span>
+              <h3>Notes</h3>
+            </div>
+          </div>
+
+          <div className="inspection-notes-content">
+            {selectedInspection.notes || "No notes were recorded for this inspection."}
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button type="button" className="button button-secondary" onClick={returnToInspectionList}>
+            Back to Inspections
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="page-section inspection-page">
+      <div className="page-intro">
+        <div className="page-intro-copy">
+          <span className="eyebrow">Fleet Compliance</span>
+          <h1>Inspections</h1>
+          <p>Pre-trip, post-trip, annual, periodic, and special vehicle inspections.</p>
+        </div>
+
+        <div className="page-intro-actions">
+          {canEdit && (
+            <button type="button" className="button button-primary" onClick={openNewInspection}>
+              New Inspection
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="button button-secondary refresh-button"
+            onClick={() => loadInspections(true)}
+            disabled={refreshing}
+          >
+            <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
+            <span>{refreshing ? "Refreshing" : "Refresh Inspections"}</span>
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <div className="inspection-success-popup">
+          <div>
+            <strong>Inspection Completed</strong>
+            <span>{message}</span>
+          </div>
+
+          <button type="button" onClick={() => setMessage("")} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
+      )}
+
+      <div className="inspection-kpi-grid">
+        <DashboardKpi label="Total Inspections" value={totalInspections} detail="Recorded inspections" />
+        <DashboardKpi label="Passed" value={passedInspections} detail="Completed with no qualifying defects" />
+        <DashboardKpi label="Failed" value={failedInspections} detail="Inspections requiring attention" />
+      </div>
+
+      <div className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="eyebrow">Inspection History</span>
+            <h3>Previous Inspections</h3>
+          </div>
+
+          <span className="panel-count">
+            {filteredAudits.length} of {totalInspections}
+          </span>
+        </div>
+
+        <div className="toolbar">
+          <div className="toolbar-controls">
+            <label className="search-control">
+              <span>Search</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Fleet, inspector, type, result..."
+              />
+            </label>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="empty-state">
+            <strong>Loading inspections</strong>
+            <span>Retrieving inspection records.</span>
+          </div>
+        ) : filteredAudits.length === 0 ? (
+          <div className="empty-state">
+            <strong>No inspections found</strong>
+            <span>Adjust the search or create a new inspection.</span>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Inspector</th>
+                  <th>Type</th>
+                  <th>Result</th>
+                  <th>Completed</th>
+                  <th>Notes</th>
+                  <th></th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredAudits.map((inspection) => (
+                  <tr key={inspection.id}>
+                    <td>
+                      <span className="table-primary-link">
+                        {inspection.vehicles?.fleet_number || "Unknown"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="table-main-text">
+                        {inspection.drivers?.name || "Unassigned"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="table-main-text">
+                        {getInspectionTypeLabel(inspection.audit_type)}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className={getResultClass(inspection.result)}>
+                        {inspection.result || "—"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="table-main-text">
+                        {formatDate(inspection.completed_at || inspection.created_at)}
+                      </span>
+                    </td>
+
+                    <td className="inspection-history-notes">
+                      <span title={inspection.notes || ""}>
+                        {inspection.notes || "—"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <button
+                        type="button"
+                        className="button button-secondary button-small"
+                        onClick={() => openInspectionDetails(inspection)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -7494,15 +11160,6 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
           {activeSection === "System" && renderSystem()}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ title, value }) {
-  return (
-    <div className="stat-card">
-      <span>{title}</span>
-      <strong>{value}</strong>
     </div>
   );
 }
