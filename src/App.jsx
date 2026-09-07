@@ -28,8 +28,6 @@ function App() {
     }
   });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
-  const [selectedDriverId, setSelectedDriverId] = useState(null);
   const [preferences, setPreferences] = useState(() => {
     const defaults = {
       density: "comfortable",
@@ -163,34 +161,6 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function openVehicleDetails(vehicleId) {
-    setSelectedVehicleId(vehicleId);
-    setPage("Vehicle Details");
-    setMobileNavOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function openDriverDetails(driverId) {
-    setSelectedDriverId(driverId);
-    setPage("Driver Details");
-    setMobileNavOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function returnToVehicles() {
-    setSelectedVehicleId(null);
-    setPage("Vehicles");
-    setMobileNavOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function returnToDrivers() {
-    setSelectedDriverId(null);
-    setPage("Drivers");
-    setMobileNavOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   async function signOut() {
     await supabase.auth.signOut();
     setSession(null);
@@ -205,6 +175,7 @@ function App() {
       <div className="loading-screen">
         <div className="loading-brand">
           <div className="brand-mark">72</div>
+
           <div className="brand-wordmark">
             <strong>CLINO</strong>
             <span>TRANSPORTATION</span>
@@ -230,6 +201,7 @@ function App() {
           <div className="system-message-eyebrow">ACCOUNT ACCESS</div>
           <h1>Unable to load permissions</h1>
           <p>We could not determine the permissions associated with this account.</p>
+
           <button type="button" className="button button-secondary" onClick={signOut}>
             Sign out
           </button>
@@ -243,7 +215,6 @@ function App() {
       <Sidebar
         page={page}
         setPage={navigate}
-        role={role}
         mobileNavOpen={mobileNavOpen}
         setMobileNavOpen={setMobileNavOpen}
       />
@@ -313,32 +284,11 @@ function App() {
           {page === "Vehicles" && (
             <Vehicles
               canEdit={canEdit}
-              openVehicleDetails={openVehicleDetails}
+              navigateTo={navigate}
             />
           )}
 
-          {page === "Vehicle Details" && (
-            <VehicleDetails
-              canEdit={canEdit}
-              vehicleId={selectedVehicleId}
-              returnToVehicles={returnToVehicles}
-            />
-          )}
-
-          {page === "Drivers" && (
-            <Drivers
-              canEdit={canEdit}
-              openDriverDetails={openDriverDetails}
-            />
-          )}
-
-          {page === "Driver Details" && (
-            <DriverDetails
-              canEdit={canEdit}
-              driverId={selectedDriverId}
-              returnToDrivers={returnToDrivers}
-            />
-          )}
+          {page === "Drivers" && <Drivers canEdit={canEdit} />}
 
           {page === "Assignments" && <Assignments canEdit={canEdit} />}
 
@@ -370,7 +320,7 @@ function App() {
   );
 }
 
-function Sidebar({ page, setPage, role, mobileNavOpen, setMobileNavOpen }) {
+function Sidebar({ page, setPage, mobileNavOpen, setMobileNavOpen }) {
   const sections = [
     {
       label: "Operations",
@@ -388,6 +338,7 @@ function Sidebar({ page, setPage, role, mobileNavOpen, setMobileNavOpen }) {
 
   function handleNavigation(item) {
     setPage(item);
+    setMobileNavOpen(false);
   }
 
   return (
@@ -397,8 +348,8 @@ function Sidebar({ page, setPage, role, mobileNavOpen, setMobileNavOpen }) {
           <div className="brand-mark">72</div>
 
           <div className="brand-wordmark">
-            <strong>CLINO</strong>
-            <span>TRANSPORTATION</span>
+            <strong>CLINO TRANSPORTATION</strong>
+            <span>Fleet Management</span>
           </div>
         </button>
 
@@ -418,7 +369,7 @@ function Sidebar({ page, setPage, role, mobileNavOpen, setMobileNavOpen }) {
 
         <div>
           <strong>Fleet Operations</strong>
-          <span>Private system</span>
+          <span>Management console</span>
         </div>
       </div>
 
@@ -462,19 +413,6 @@ function Sidebar({ page, setPage, role, mobileNavOpen, setMobileNavOpen }) {
           </div>
         </section>
       </nav>
-
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="account-avatar account-avatar-small">
-            {(role || "U").charAt(0).toUpperCase()}
-          </div>
-
-          <div className="sidebar-user-copy">
-            <strong>{role === "admin" ? "Administrator" : "Fleet Viewer"}</strong>
-            <span>{role}</span>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }
@@ -513,6 +451,7 @@ function Dashboard({ preferences, setPage }) {
   const [drivers, setDrivers] = useState([]);
   const [fleetLive, setFleetLive] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
+  const [inspections, setInspections] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -524,15 +463,16 @@ function Dashboard({ preferences, setPage }) {
       setRefreshing(true);
     }
 
-    const [vehiclesResult, driversResult, fleetResult, maintenanceResult, eventsResult] = await Promise.all([
+    const [vehiclesResult, driversResult, fleetResult, maintenanceResult, eventsResult, inspectionsResult] = await Promise.all([
       supabase.from("vehicles").select("*"),
       supabase.from("drivers").select("*"),
       supabase.from("fleet_live").select("*"),
       supabase.from("maintenance_records").select("*, vehicles(fleet_number)").order("created_at", { ascending: false }).limit(preferences?.maintenanceCount || 8),
       supabase.from("vehicle_events").select("*, vehicles(fleet_number)").order("created_at", { ascending: false }).limit(preferences?.activityCount || 8),
+      supabase.from("audits").select("id,vehicle_id,result,created_at,vehicles(fleet_number)").eq("result", "FAIL").order("created_at", { ascending: false }).limit(10),
     ]);
 
-    const results = [vehiclesResult, driversResult, fleetResult, maintenanceResult, eventsResult];
+    const results = [vehiclesResult, driversResult, fleetResult, maintenanceResult, inspectionsResult, eventsResult];
     const failed = results.find((result) => result.error);
 
     if (failed) {
@@ -546,6 +486,7 @@ function Dashboard({ preferences, setPage }) {
     setDrivers(driversResult.data || []);
     setFleetLive(fleetResult.data || []);
     setMaintenance(maintenanceResult.data || []);
+    setInspections(inspectionsResult.data || []);
     setEvents(eventsResult.data || []);
     setError("");
     setLastUpdated(new Date());
@@ -561,7 +502,7 @@ function Dashboard({ preferences, setPage }) {
     }, (preferences?.telemetryInterval || 15) * 1000);
 
     return () => clearInterval(interval);
-  }, [preferences?.telemetryInterval, preferences?.activityCount, preferences?.maintenanceCount]);
+  }, [preferences?.telemetryInterval, preferences?.activityCount, preferences?.maintenanceCount, preferences?.inspectionWarnings]);
 
   const totalVehicles = vehicles.length;
 
@@ -649,6 +590,15 @@ function Dashboard({ preferences, setPage }) {
       title: "Fleet telemetry offline",
       description: `${offlineVehicles} vehicle${offlineVehicles === 1 ? "" : "s"} currently report offline.`,
       action: "Live Fleet",
+    });
+  }
+
+  if (preferences?.inspectionWarnings && inspections.length > 0) {
+    attentionItems.push({
+      type: "danger",
+      title: "Failed inspections",
+      description: `${inspections.length} vehicle inspection${inspections.length === 1 ? "" : "s"} currently require review.`,
+      action: "Inspections",
     });
   }
 
@@ -1143,7 +1093,7 @@ function formatRelativeTime(value) {
   return date.toLocaleDateString();
 }
 
-function LiveFleet({ canEdit }) {
+function LiveFleet({ canEdit, preferences }) {
   const [fleet, setFleet] = useState([]);
   const [selectedFleetNumber, setSelectedFleetNumber] = useState("");
   const [search, setSearch] = useState("");
@@ -1224,12 +1174,22 @@ function LiveFleet({ canEdit }) {
 
     const interval = setInterval(() => {
       loadFleet(false);
-    }, 15000);
+    }, (preferences?.mapRefresh || 15) * 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [preferences?.mapRefresh]);
 
   const filteredFleet = fleet.filter((bus) => {
+    const status = String(bus.effective_status || bus.status || "UNKNOWN").toUpperCase();
+
+    if (!preferences?.showOffline && status === "OFFLINE") {
+      return false;
+    }
+
+    if (!preferences?.showStale && status !== "OFFLINE" && Boolean(bus.is_stale)) {
+      return false;
+    }
+
     const fleetNumber = String(bus.fleet_number || "");
     const driver = String(bus.driver_name || bus.driver || "");
     const route = String(
@@ -1242,7 +1202,6 @@ function LiveFleet({ canEdit }) {
 
     const haystack = `${fleetNumber} ${driver} ${route}`.toLowerCase();
     const normalizedSearch = search.trim().toLowerCase();
-    const status = String(bus.effective_status || bus.status || "UNKNOWN").toUpperCase();
 
     const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
 
@@ -1602,6 +1561,7 @@ function LiveFleet({ canEdit }) {
             fleet={fleet}
             selectedFleetNumber={selectedFleetNumber}
             onSelect={setSelectedFleetNumber}
+            preferences={preferences}
           />
         </div>
 
@@ -1769,7 +1729,7 @@ function LiveFleet({ canEdit }) {
   );
 }
 
-function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
+function FleetMap({ fleet, selectedFleetNumber, onSelect, preferences }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerMapRef = useRef(new Map());
@@ -1940,7 +1900,7 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
           html: `
             <div class="fleet-map-marker-body">
               <div class="fleet-map-marker-arrow"></div>
-              <span>${fleetNumber}</span>
+              <span class="fleet-map-marker-label">${preferences?.vehicleLabels ? fleetNumber : ""}</span>
             </div>
           `,
           iconSize: [42, 42],
@@ -1969,7 +1929,7 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
 
       const markerBody = element.querySelector(".fleet-map-marker-body");
       const arrow = element.querySelector(".fleet-map-marker-arrow");
-      const label = element.querySelector("span");
+      const label = element.querySelector(".fleet-map-marker-label");
       const heading = Number(bus.heading || 0);
 
       if (markerBody) {
@@ -1996,12 +1956,12 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
         markerMap.delete(fleetNumber);
       }
     });
-  }, [fleet, selectedFleetNumber, onSelect]);
+  }, [fleet, selectedFleetNumber, onSelect, preferences?.vehicleLabels]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
 
-    if (!map || !selectedFleetNumber) {
+    if (!map || !selectedFleetNumber || !preferences?.autoFollowVehicle) {
       return;
     }
 
@@ -2015,7 +1975,7 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
       animate: true,
       duration: 0.35,
     });
-  }, [selectedFleetNumber]);
+  }, [selectedFleetNumber, preferences?.autoFollowVehicle]);
 
   return (
     <div className="fleet-map">
@@ -2024,18 +1984,240 @@ function FleetMap({ fleet, selectedFleetNumber, onSelect }) {
   );
 }
 
-function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
+function Vehicles({ canEdit, navigateTo }) {
+  const [vehicleView, setVehicleView] = useState("list");
+  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+
   const [vehicles, setVehicles] = useState([]);
   const [liveVehicles, setLiveVehicles] = useState([]);
   const [drivers, setDrivers] = useState(new Map());
+
   const [search, setSearch] = useState("");
   const [garageFilter, setGarageFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
   const [garageDropdownOpen, setGarageDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const [vehicle, setVehicle] = useState(null);
+  const [liveData, setLiveData] = useState(null);
+  const [driver, setDriver] = useState(null);
+  const [route, setRoute] = useState(null);
+  const [server, setServer] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [routeAssignments, setRouteAssignments] = useState([]);
+  const [maintenance, setMaintenance] = useState([]);
+  const [defects, setDefects] = useState([]);
+  const [audits, setAudits] = useState([]);
+  const [events, setEvents] = useState([]);
+
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [detailEditForm, setDetailEditForm] = useState({
+    year: "",
+    make: "",
+    model: "",
+    engine: "",
+    mileage: "",
+    status: "",
+    garage: "",
+    notes: "",
+  });
+
+  const [newVehicleForm, setNewVehicleForm] = useState({
+    fleetNumber: "",
+    year: "",
+    make: "",
+    model: "",
+    engine: "",
+    mileage: "",
+    garage: "CLIO",
+    status: "AVAILABLE",
+    notes: "",
+  });
+
+  const [newGarageDropdownOpen, setNewGarageDropdownOpen] = useState(false);
+  const [newStatusDropdownOpen, setNewStatusDropdownOpen] = useState(false);
+  const [newFormError, setNewFormError] = useState("");
+
+  const garageOptions = ["CLIO", "MAPLECREST"];
+
+  const statusOptions = [
+    ["AVAILABLE", "Available"],
+    ["ASSIGNED", "Assigned"],
+    ["IN_SERVICE", "In Service"],
+    ["MAINTENANCE", "Maintenance"],
+    ["OUT_OF_SERVICE", "Out of Service"],
+  ];
+
+  function getStatusClass(status) {
+    const normalized = String(status || "").toUpperCase();
+
+    if (normalized === "AVAILABLE") {
+      return "status-badge status-available";
+    }
+
+    if (normalized === "ASSIGNED" || normalized === "IN_SERVICE") {
+      return "status-badge status-active";
+    }
+
+    if (normalized === "MAINTENANCE") {
+      return "status-badge status-warning";
+    }
+
+    if (normalized === "OUT_OF_SERVICE") {
+      return "status-badge status-danger";
+    }
+
+    return "status-badge";
+  }
+
+  function getStatusLabel(status) {
+    return String(status || "UNKNOWN").replaceAll("_", " ");
+  }
+
+  function getDefectClass(status) {
+    const normalized = String(status || "").toUpperCase();
+
+    if (normalized === "OPEN" || normalized === "ACTIVE") {
+      return "status-badge status-danger";
+    }
+
+    if (normalized === "REPAIRED" || normalized === "CLOSED") {
+      return "status-badge status-available";
+    }
+
+    return "status-badge";
+  }
+
+  function formatDate(value) {
+    if (!value) {
+      return "—";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleString();
+  }
+
+  function formatMileage(value) {
+    if (value === null || value === undefined || value === "") {
+      return "—";
+    }
+
+    return Number(value).toLocaleString();
+  }
+
+  function updateNewVehicleField(field, value) {
+    setNewVehicleForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function updateDetailEditField(field, value) {
+    setDetailEditForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function resetNewVehicleForm() {
+    setNewVehicleForm({
+      fleetNumber: "",
+      year: "",
+      make: "",
+      model: "",
+      engine: "",
+      mileage: "",
+      garage: "CLIO",
+      status: "AVAILABLE",
+      notes: "",
+    });
+
+    setNewGarageDropdownOpen(false);
+    setNewStatusDropdownOpen(false);
+    setNewFormError("");
+  }
+
+  function openNewVehicle() {
+    if (!canEdit) {
+      return;
+    }
+
+    resetNewVehicleForm();
+    setVehicleView("new");
+    setSelectedVehicleId(null);
+    setError("");
+    setMessage("");
+  }
+
+  function openVehicleDetails(vehicleId) {
+    setSelectedVehicleId(vehicleId);
+    setVehicleView("details");
+    setError("");
+    setMessage("");
+    setEditing(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function returnToVehicleList() {
+    if (saving) {
+      return;
+    }
+
+    setSelectedVehicleId(null);
+    setVehicle(null);
+    setLiveData(null);
+    setDriver(null);
+    setRoute(null);
+    setServer(null);
+    setAssignments([]);
+    setRouteAssignments([]);
+    setMaintenance([]);
+    setDefects([]);
+    setAudits([]);
+    setEvents([]);
+    setEditing(false);
+    setError("");
+    setMessage("");
+    setVehicleView("list");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function getInspectionTagClass(tag) {
+    if (tag === "RED") {
+      return "status-badge status-fail";
+    }
+
+    if (tag === "YELLOW") {
+      return "status-badge inspection-result-yellow";
+    }
+
+    return "status-badge status-pass";
+  }
+
+  function getInspectionTagLabel(tag) {
+    if (tag === "RED") {
+      return "RED TAG";
+    }
+
+    if (tag === "YELLOW") {
+      return "YELLOW TAG";
+    }
+
+    return "PASS";
+  }
 
   async function loadVehicles(showLoading = false) {
     if (showLoading) {
@@ -2048,7 +2230,7 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
 
     const [
       { data: vehicleData, error: vehicleError },
-      { data: liveData, error: liveError },
+      { data: liveDataResult, error: liveError },
       { data: driverData, error: driverError },
     ] = await Promise.all([
       supabase.from("vehicles").select("*"),
@@ -2078,7 +2260,7 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
     }
 
     const driverById = new Map(
-      (driverData || []).map((driver) => [String(driver.id), driver])
+      (driverData || []).map((currentDriver) => [String(currentDriver.id), currentDriver])
     );
 
     const sortedVehicles = [...(vehicleData || [])].sort((a, b) => {
@@ -2105,34 +2287,157 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
     });
 
     setVehicles(sortedVehicles);
-    setLiveVehicles(liveData || []);
+    setLiveVehicles(liveDataResult || []);
     setDrivers(driverById);
     setLoading(false);
     setRefreshing(false);
   }
 
+  async function loadVehicleDetails(showLoading = false) {
+    if (showLoading) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    setError("");
+
+    if (!selectedVehicleId) {
+      setError("No vehicle was selected.");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const { data: vehicleData, error: vehicleError } = await supabase
+      .from("vehicles")
+      .select("*")
+      .eq("id", selectedVehicleId)
+      .maybeSingle();
+
+    if (vehicleError) {
+      setError(vehicleError.message);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    if (!vehicleData) {
+      setVehicle(null);
+      setError("Vehicle not found.");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    setVehicle(vehicleData);
+
+    setDetailEditForm({
+      year: vehicleData.year ?? "",
+      make: vehicleData.make ?? "",
+      model: vehicleData.model ?? "",
+      engine: vehicleData.engine ?? "",
+      mileage: vehicleData.mileage ?? "",
+      status: vehicleData.status ?? "",
+      garage: vehicleData.garage ?? "",
+      notes: vehicleData.notes ?? "",
+    });
+
+    const [
+      { data: liveResult },
+      { data: driverResult },
+      { data: routeResult },
+      { data: serverResult },
+      { data: assignmentResult },
+      { data: routeAssignmentResult },
+      { data: maintenanceResult },
+      { data: defectResult },
+      { data: auditResult },
+      { data: eventResult },
+    ] = await Promise.all([
+      supabase.from("fleet_live").select("*").eq("fleet_number", vehicleData.fleet_number).maybeSingle(),
+
+      vehicleData.current_driver_id
+        ? supabase.from("drivers").select("*").eq("id", vehicleData.current_driver_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+
+      vehicleData.current_route_id
+        ? supabase.from("routes").select("*").eq("id", vehicleData.current_route_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+
+      vehicleData.current_server_id
+        ? supabase.from("servers").select("*").eq("id", vehicleData.current_server_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+
+      supabase.from("assignments").select("*").eq("vehicle_id", selectedVehicleId).order("started_at", { ascending: false }),
+
+      supabase.from("route_assignments").select("*").eq("vehicle_id", selectedVehicleId).order("started_at", { ascending: false }),
+
+      supabase.from("maintenance_records").select("*").eq("vehicle_id", selectedVehicleId).order("created_at", { ascending: false }).limit(20),
+
+      supabase.from("vehicle_defects").select("*").eq("vehicle_id", selectedVehicleId).order("created_at", { ascending: false }).limit(20),
+
+      supabase.from("audits").select("*").eq("vehicle_id", selectedVehicleId).order("created_at", { ascending: false }).limit(20),
+
+      supabase.from("vehicle_events").select("*").eq("vehicle_id", selectedVehicleId).order("created_at", { ascending: false }).limit(20),
+    ]);
+
+    setLiveData(liveResult || null);
+    setDriver(driverResult || null);
+    setRoute(routeResult || null);
+    setServer(serverResult || null);
+    setAssignments(assignmentResult || []);
+    setRouteAssignments(routeAssignmentResult || []);
+    setMaintenance(maintenanceResult || []);
+    setDefects(defectResult || []);
+    setAudits(auditResult || []);
+    setEvents(eventResult || []);
+
+    setLoading(false);
+    setRefreshing(false);
+  }
+
   useEffect(() => {
-    loadVehicles(true);
-  }, []);
+    if (vehicleView === "list") {
+      loadVehicles(true);
+      return;
+    }
+
+    if (vehicleView === "details") {
+      loadVehicleDetails(true);
+    }
+  }, [vehicleView, selectedVehicleId]);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setMessage("");
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [message]);
 
   const liveByFleet = new Map(
-    liveVehicles.map((vehicle) => [String(vehicle.fleet_number), vehicle])
+    liveVehicles.map((currentVehicle) => [String(currentVehicle.fleet_number), currentVehicle])
   );
 
-  const vehicleRows = vehicles.map((vehicle) => {
-    const live = liveByFleet.get(String(vehicle.fleet_number));
-    const assignedDriver = drivers.get(String(vehicle.current_driver_id));
+  const vehicleRows = vehicles.map((currentVehicle) => {
+    const live = liveByFleet.get(String(currentVehicle.fleet_number));
+    const assignedDriver = drivers.get(String(currentVehicle.current_driver_id));
     const liveDriver = live?.driver_id ? drivers.get(String(live.driver_id)) : null;
 
     return {
-      ...vehicle,
+      ...currentVehicle,
       live,
       driverName: live?.driver_name || liveDriver?.name || assignedDriver?.name || "Unassigned",
-      displayStatus: live?.effective_status || vehicle.status || "UNKNOWN",
+      displayStatus: live?.effective_status || currentVehicle.status || "UNKNOWN",
     };
   });
 
-  const garages = [...new Set(vehicleRows.map((vehicle) => vehicle.garage).filter(Boolean))].sort((a, b) => {
+  const garages = [...new Set(vehicleRows.map((currentVehicle) => currentVehicle.garage).filter(Boolean))].sort((a, b) => {
     const garageOrder = {
       CLIO: 0,
       MAPLECREST: 1,
@@ -2141,69 +2446,1106 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
     return (garageOrder[String(a).toUpperCase()] ?? 99) - (garageOrder[String(b).toUpperCase()] ?? 99);
   });
 
-  const statuses = [...new Set(vehicleRows.map((vehicle) => vehicle.displayStatus).filter(Boolean))].sort();
+  const statuses = [...new Set(vehicleRows.map((currentVehicle) => currentVehicle.displayStatus).filter(Boolean))].sort();
 
-  const filteredVehicles = vehicleRows.filter((vehicle) => {
+  const filteredVehicles = vehicleRows.filter((currentVehicle) => {
     const query = search.trim().toLowerCase();
 
     const matchesSearch = !query || [
-      vehicle.fleet_number,
-      vehicle.year,
-      vehicle.make,
-      vehicle.model,
-      vehicle.engine,
-      vehicle.garage,
-      vehicle.status,
-      vehicle.displayStatus,
-      vehicle.driverName,
-      vehicle.live?.route_name,
+      currentVehicle.fleet_number,
+      currentVehicle.year,
+      currentVehicle.make,
+      currentVehicle.model,
+      currentVehicle.engine,
+      currentVehicle.garage,
+      currentVehicle.status,
+      currentVehicle.displayStatus,
+      currentVehicle.driverName,
+      currentVehicle.live?.route_name,
     ].some((value) => String(value ?? "").toLowerCase().includes(query));
 
-    const matchesGarage = garageFilter === "ALL" || vehicle.garage === garageFilter;
-    const matchesStatus = statusFilter === "ALL" || vehicle.displayStatus === statusFilter;
+    const matchesGarage = garageFilter === "ALL" || currentVehicle.garage === garageFilter;
+    const matchesStatus = statusFilter === "ALL" || currentVehicle.displayStatus === statusFilter;
 
     return matchesSearch && matchesGarage && matchesStatus;
   });
 
   const totalCount = vehicleRows.length;
-  const availableCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "AVAILABLE").length;
-  const assignedCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "ASSIGNED").length;
-  const inServiceCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "IN_SERVICE").length;
-  const maintenanceCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "MAINTENANCE").length;
-  const outOfServiceCount = vehicleRows.filter((vehicle) => String(vehicle.displayStatus).toUpperCase() === "OUT_OF_SERVICE").length;
+  const availableCount = vehicleRows.filter((currentVehicle) => String(currentVehicle.displayStatus).toUpperCase() === "AVAILABLE").length;
+  const assignedCount = vehicleRows.filter((currentVehicle) => String(currentVehicle.displayStatus).toUpperCase() === "ASSIGNED").length;
+  const inServiceCount = vehicleRows.filter((currentVehicle) => String(currentVehicle.displayStatus).toUpperCase() === "IN_SERVICE").length;
+  const maintenanceCount = vehicleRows.filter((currentVehicle) => String(currentVehicle.displayStatus).toUpperCase() === "MAINTENANCE").length;
+  const outOfServiceCount = vehicleRows.filter((currentVehicle) => String(currentVehicle.displayStatus).toUpperCase() === "OUT_OF_SERVICE").length;
 
-  function getStatusClass(status) {
-    const normalized = String(status || "").toUpperCase();
-
-    if (normalized === "AVAILABLE") {
-      return "status-badge status-available";
+  async function saveNewVehicle() {
+    if (!canEdit || saving) {
+      return;
     }
 
-    if (normalized === "ASSIGNED" || normalized === "IN_SERVICE") {
-      return "status-badge status-active";
+    setNewFormError("");
+    setError("");
+
+    const fleetNumber = newVehicleForm.fleetNumber.trim();
+    const make = newVehicleForm.make.trim();
+    const model = newVehicleForm.model.trim();
+
+    if (!fleetNumber) {
+      setNewFormError("Fleet Number is required.");
+      return;
     }
 
-    if (normalized === "MAINTENANCE") {
-      return "status-badge status-warning";
+    if (!make) {
+      setNewFormError("Make is required.");
+      return;
     }
 
-    if (normalized === "OUT_OF_SERVICE") {
-      return "status-badge status-danger";
+    if (!model) {
+      setNewFormError("Model is required.");
+      return;
     }
 
-    return "status-badge";
+    if (newVehicleForm.year !== "") {
+      const year = Number(newVehicleForm.year);
+
+      if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear() + 1) {
+        setNewFormError("Enter a valid model year.");
+        return;
+      }
+    }
+
+    if (newVehicleForm.mileage !== "") {
+      const mileage = Number(newVehicleForm.mileage);
+
+      if (!Number.isFinite(mileage) || mileage < 0) {
+        setNewFormError("Mileage must be zero or greater.");
+        return;
+      }
+    }
+
+    setSaving(true);
+
+    const { error: insertError } = await supabase.from("vehicles").insert({
+      fleet_number: fleetNumber,
+      year: newVehicleForm.year === "" ? null : Number(newVehicleForm.year),
+      make,
+      model,
+      engine: newVehicleForm.engine.trim() || null,
+      mileage: newVehicleForm.mileage === "" ? 0 : Number(newVehicleForm.mileage),
+      garage: newVehicleForm.garage || null,
+      status: newVehicleForm.status,
+      notes: newVehicleForm.notes.trim() || null,
+    });
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        setNewFormError("A vehicle with that fleet number already exists.");
+      } else {
+        setNewFormError(insertError.message);
+      }
+
+      setSaving(false);
+      return;
+    }
+
+    resetNewVehicleForm();
+    setSaving(false);
+    setMessage("Vehicle added to the fleet.");
+    setVehicleView("list");
+    await loadVehicles(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function getStatusLabel(status) {
-    return String(status || "UNKNOWN").replaceAll("_", " ");
+  async function saveVehicleEdits() {
+    if (!canEdit || !vehicle || saving) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    if (!detailEditForm.make.trim()) {
+      setError("Make is required.");
+      return;
+    }
+
+    if (!detailEditForm.model.trim()) {
+      setError("Model is required.");
+      return;
+    }
+
+    if (detailEditForm.year !== "") {
+      const year = Number(detailEditForm.year);
+
+      if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear() + 1) {
+        setError("Enter a valid model year.");
+        return;
+      }
+    }
+
+    if (detailEditForm.mileage !== "") {
+      const mileage = Number(detailEditForm.mileage);
+
+      if (!Number.isFinite(mileage) || mileage < 0) {
+        setError("Mileage must be zero or greater.");
+        return;
+      }
+    }
+
+    setSaving(true);
+
+    const { data, error: rpcError } = await supabase.rpc("update_vehicle", {
+      p_vehicle_id: vehicle.id,
+      p_year: detailEditForm.year === "" ? null : Number(detailEditForm.year),
+      p_make: detailEditForm.make.trim(),
+      p_model: detailEditForm.model.trim(),
+      p_engine: detailEditForm.engine.trim(),
+      p_mileage: detailEditForm.mileage === "" ? null : Number(detailEditForm.mileage),
+      p_status: detailEditForm.status,
+      p_garage: detailEditForm.garage.trim(),
+      p_notes: detailEditForm.notes.trim(),
+    });
+
+    if (rpcError) {
+      setError(rpcError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (data) {
+      setVehicle(Array.isArray(data) ? data[0] : data);
+    }
+
+    setEditing(false);
+    setMessage("Vehicle record updated.");
+    await loadVehicleDetails(false);
+    setSaving(false);
   }
 
-  function openVehicle(vehicle) {
-    openVehicleDetails(vehicle.id);
+  if (vehicleView === "new") {
+    return (
+      <section className="page-section inspection-page inspection-form-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToVehicleList}
+              disabled={saving}
+            >
+              ← Back to Vehicles
+            </button>
+
+            <span className="eyebrow">Fleet Directory / New Vehicle</span>
+            <h1>New Vehicle</h1>
+            <p>Register a vehicle in the fleet inventory.</p>
+          </div>
+
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={returnToVehicleList}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={saveNewVehicle}
+              disabled={saving || !canEdit}
+            >
+              {saving ? "Adding..." : "Add Vehicle"}
+            </button>
+          </div>
+        </div>
+
+        {newFormError && (
+          <div className="alert alert-error">
+            {newFormError}
+          </div>
+        )}
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Vehicle Setup</span>
+              <h3>Vehicle Information</h3>
+            </div>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <label className="form-field">
+              <span>Fleet Number</span>
+
+              <input
+                type="text"
+                value={newVehicleForm.fleetNumber}
+                onChange={(event) => updateNewVehicleField("fleetNumber", event.target.value)}
+                placeholder="e.g. 101"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Year</span>
+
+              <input
+                type="number"
+                value={newVehicleForm.year}
+                onChange={(event) => updateNewVehicleField("year", event.target.value)}
+                placeholder="e.g. 2021"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Make</span>
+
+              <input
+                type="text"
+                value={newVehicleForm.make}
+                onChange={(event) => updateNewVehicleField("make", event.target.value)}
+                placeholder="e.g. Blue Bird"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Model</span>
+
+              <input
+                type="text"
+                value={newVehicleForm.model}
+                onChange={(event) => updateNewVehicleField("model", event.target.value)}
+                placeholder="e.g. Vision"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Engine</span>
+
+              <input
+                type="text"
+                value={newVehicleForm.engine}
+                onChange={(event) => updateNewVehicleField("engine", event.target.value)}
+                placeholder="e.g. Cummins B6.7"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Current Mileage</span>
+
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={newVehicleForm.mileage}
+                onChange={(event) => updateNewVehicleField("mileage", event.target.value)}
+                placeholder="0"
+                disabled={saving}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Fleet Operations</span>
+              <h3>Operational Configuration</h3>
+            </div>
+
+            <span className={getStatusClass(newVehicleForm.status)}>
+              {getStatusLabel(newVehicleForm.status)}
+            </span>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <label className="select-control">
+              <span>Garage</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setNewGarageDropdownOpen((open) => !open);
+                    setNewStatusDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>{newVehicleForm.garage || "Select garage"}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {newGarageDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {garageOptions.map((garage) => (
+                      <button
+                        type="button"
+                        key={garage}
+                        className={`custom-select-option ${newVehicleForm.garage === garage ? "selected" : ""}`}
+                        onClick={() => {
+                          updateNewVehicleField("garage", garage);
+                          setNewGarageDropdownOpen(false);
+                        }}
+                      >
+                        {garage}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="select-control">
+              <span>Initial Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setNewStatusDropdownOpen((open) => !open);
+                    setNewGarageDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>{getStatusLabel(newVehicleForm.status)}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {newStatusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {statusOptions.map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={`custom-select-option ${newVehicleForm.status === value ? "selected" : ""}`}
+                        onClick={() => {
+                          updateNewVehicleField("status", value);
+                          setNewStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="inspection-notes-section">
+          <div className="inspection-notes-header">
+            <div>
+              <span className="eyebrow">Vehicle Record</span>
+              <h3>Notes</h3>
+            </div>
+          </div>
+
+          <div className="inspection-notes-content inspection-notes-editor">
+            <textarea
+              value={newVehicleForm.notes}
+              onChange={(event) => updateNewVehicleField("notes", event.target.value)}
+              placeholder="Enter vehicle notes..."
+              rows="6"
+              disabled={saving}
+            />
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToVehicleList}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={saveNewVehicle}
+            disabled={saving || !canEdit}
+          >
+            {saving ? "Adding..." : "Add Vehicle"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (vehicleView === "details") {
+    if (loading) {
+      return (
+        <section className="page-section">
+          <div className="empty-state">
+            <strong>Loading vehicle</strong>
+            <span>Retrieving vehicle information and operational history.</span>
+          </div>
+        </section>
+      );
+    }
+
+    if (!vehicle) {
+      return (
+        <section className="page-section">
+          <div className="page-intro">
+            <div className="page-intro-copy">
+              <button
+                type="button"
+                className="button button-secondary button-small inspection-back-button"
+                onClick={returnToVehicleList}
+              >
+                ← Back to Vehicles
+              </button>
+
+              <span className="eyebrow">Fleet Directory / Vehicle Record</span>
+              <h1>Vehicle Details</h1>
+              <p>{error || "The requested vehicle could not be loaded."}</p>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    const effectiveStatus = liveData?.effective_status || vehicle.status;
+    const isOnline = Boolean(liveData);
+
+    return (
+      <section className="page-section inspection-page inspection-detail-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToVehicleList}
+            >
+              ← Back to Vehicles
+            </button>
+
+            <span className="eyebrow">Fleet Directory / Vehicle Record</span>
+            <h1>{vehicle.fleet_number}</h1>
+            <p>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")}</p>
+          </div>
+
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => loadVehicleDetails(false)}
+              disabled={refreshing}
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+
+            {canEdit && (
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setEditing((current) => !current)}
+              >
+                {editing ? "Cancel Edit" : "Edit Vehicle"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div className="alert alert-error">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="alert alert-success">
+            {message}
+          </div>
+        )}
+
+        {editing && (
+          <>
+            <div className="panel inspection-selection-panel">
+              <div className="panel-header">
+                <div>
+                  <span className="eyebrow">Vehicle Record / Edit</span>
+                  <h3>Edit Vehicle</h3>
+                </div>
+              </div>
+
+              <div className="inspection-setup-grid form-grid form-grid-three">
+                <label className="form-field">
+                  <span>Fleet Number</span>
+                  <input type="text" value={vehicle.fleet_number || ""} disabled />
+                </label>
+
+                <label className="form-field">
+                  <span>Year</span>
+                  <input
+                    type="number"
+                    value={detailEditForm.year}
+                    onChange={(event) => updateDetailEditField("year", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Make</span>
+                  <input
+                    type="text"
+                    value={detailEditForm.make}
+                    onChange={(event) => updateDetailEditField("make", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Model</span>
+                  <input
+                    type="text"
+                    value={detailEditForm.model}
+                    onChange={(event) => updateDetailEditField("model", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Engine</span>
+                  <input
+                    type="text"
+                    value={detailEditForm.engine}
+                    onChange={(event) => updateDetailEditField("engine", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Mileage</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={detailEditForm.mileage}
+                    onChange={(event) => updateDetailEditField("mileage", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="panel inspection-selection-panel">
+              <div className="panel-header">
+                <div>
+                  <span className="eyebrow">Fleet Operations</span>
+                  <h3>Operational Configuration</h3>
+                </div>
+
+                <span className={getStatusClass(detailEditForm.status)}>
+                  {getStatusLabel(detailEditForm.status)}
+                </span>
+              </div>
+
+              <div className="inspection-setup-grid form-grid form-grid-three">
+                <label className="form-field">
+                  <span>Garage</span>
+                  <input
+                    type="text"
+                    value={detailEditForm.garage}
+                    onChange={(event) => updateDetailEditField("garage", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Status</span>
+
+                  <select
+                    value={detailEditForm.status}
+                    onChange={(event) => updateDetailEditField("status", event.target.value)}
+                    disabled={saving}
+                  >
+                    {statusOptions.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="inspection-notes-section">
+              <div className="inspection-notes-header">
+                <div>
+                  <span className="eyebrow">Vehicle Record</span>
+                  <h3>Notes</h3>
+                </div>
+              </div>
+
+              <div className="inspection-notes-content inspection-notes-editor">
+                <textarea
+                  value={detailEditForm.notes}
+                  onChange={(event) => updateDetailEditField("notes", event.target.value)}
+                  rows="6"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+
+            <div className="inspection-page-footer">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={saveVehicleEdits}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Vehicle"}
+              </button>
+            </div>
+          </>
+        )}
+
+        <div className="panel inspection-information-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Vehicle Information</span>
+              <h3>Vehicle Record</h3>
+            </div>
+
+            <span className={getStatusClass(effectiveStatus)}>
+              {getStatusLabel(effectiveStatus)}
+            </span>
+          </div>
+
+          <div className="detail-list">
+            <div className="detail-list-row">
+              <span>Fleet Number</span>
+              <strong>{vehicle.fleet_number || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Year</span>
+              <strong>{vehicle.year || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Make</span>
+              <strong>{vehicle.make || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Model</span>
+              <strong>{vehicle.model || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Engine</span>
+              <strong>{vehicle.engine || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Mileage</span>
+              <strong>{formatMileage(vehicle.mileage)}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Garage</span>
+              <strong>{vehicle.garage || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Database Status</span>
+              <strong>{getStatusLabel(vehicle.status)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Fleet Operations</span>
+              <h3>Current Assignment</h3>
+            </div>
+
+            <span className={isOnline ? "status-badge status-active" : "status-badge"}>
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
+
+          <div className="detail-field-grid">
+            <div className="detail-field">
+              <span>Driver</span>
+              <strong>{driver?.name || liveData?.driver_name || "Unassigned"}</strong>
+            </div>
+
+            <div className="detail-field">
+              <span>Employee Number</span>
+              <strong>{driver?.employee_number || "—"}</strong>
+            </div>
+
+            <div className="detail-field">
+              <span>Route</span>
+              <strong>{route?.route_code || route?.name || liveData?.route_name || "No active route"}</strong>
+            </div>
+
+            <div className="detail-field">
+              <span>Server</span>
+              <strong>{server?.roblox_job_id || "Offline"}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Live Operations</span>
+              <h3>Telemetry</h3>
+            </div>
+
+            <span className={isOnline ? "status-badge status-active" : "status-badge"}>
+              {isOnline ? "REPORTING" : "NO TELEMETRY"}
+            </span>
+          </div>
+
+          {liveData ? (
+            <div className="telemetry-grid">
+              <div className="telemetry-card">
+                <span>Speed</span>
+                <strong>
+                  {liveData.speed !== null && liveData.speed !== undefined ? `${Number(liveData.speed).toFixed(1)} mph` : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>RPM</span>
+                <strong>
+                  {liveData.rpm !== null && liveData.rpm !== undefined ? Number(liveData.rpm).toLocaleString() : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Coolant</span>
+                <strong>
+                  {liveData.coolant_temp !== null && liveData.coolant_temp !== undefined ? `${Number(liveData.coolant_temp).toFixed(1)}°` : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Oil</span>
+                <strong>
+                  {liveData.oil_temp !== null && liveData.oil_temp !== undefined ? `${Number(liveData.oil_temp).toFixed(1)}°` : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Heading</span>
+                <strong>
+                  {liveData.heading !== null && liveData.heading !== undefined ? `${Number(liveData.heading).toFixed(1)}°` : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Position X</span>
+                <strong>
+                  {liveData.x !== null && liveData.x !== undefined ? Number(liveData.x).toFixed(2) : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Position Y</span>
+                <strong>
+                  {liveData.y !== null && liveData.y !== undefined ? Number(liveData.y).toFixed(2) : "—"}
+                </strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Position Z</span>
+                <strong>
+                  {liveData.z !== null && liveData.z !== undefined ? Number(liveData.z).toFixed(2) : "—"}
+                </strong>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-state compact">
+              <strong>No live telemetry</strong>
+              <span>This vehicle is not currently reporting to the fleet system.</span>
+            </div>
+          )}
+
+          {liveData?.last_ping && (
+            <div className="panel-footer">
+              Last telemetry received {formatDate(liveData.last_ping)}
+            </div>
+          )}
+        </div>
+
+        <div className="detail-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Assignments</span>
+                <h3>Assignment History</h3>
+              </div>
+            </div>
+
+            {assignments.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No assignments</strong>
+                <span>No vehicle assignment records exist.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {assignments.slice(0, 8).map((assignment) => (
+                  <div className="record-list-item" key={assignment.id}>
+                    <div>
+                      <strong>{assignment.route_number || "Assignment"}</strong>
+                      <span>{assignment.notes || "No assignment notes."}</span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <strong>{getStatusLabel(assignment.status)}</strong>
+                      <span>{formatDate(assignment.started_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Routes</span>
+                <h3>Route Assignments</h3>
+              </div>
+            </div>
+
+            {routeAssignments.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No route assignments</strong>
+                <span>No route assignment records exist.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {routeAssignments.slice(0, 8).map((assignment) => (
+                  <div className="record-list-item" key={assignment.id}>
+                    <div>
+                      <strong>{assignment.route_code || "Route Assignment"}</strong>
+                      <span>{getStatusLabel(assignment.status)}</span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <span>{formatDate(assignment.started_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="detail-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Maintenance</span>
+                <h3>Service History</h3>
+              </div>
+
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                onClick={() => navigateTo("Maintenance")}
+              >
+                Open Maintenance
+              </button>
+            </div>
+
+            {maintenance.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No service records</strong>
+                <span>No maintenance history is recorded for this vehicle.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {maintenance.slice(0, 8).map((record) => (
+                  <div className="record-list-item" key={record.id}>
+                    <div>
+                      <strong>{record.maintenance_type || "Service"}</strong>
+                      <span>{record.description || "No description provided."}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Defects</span>
+                <h3>Vehicle Defects</h3>
+              </div>
+
+              <span className="panel-count">{defects.length}</span>
+            </div>
+
+            {defects.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No defects recorded</strong>
+                <span>This vehicle has no recorded defects.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {defects.slice(0, 8).map((defect) => (
+                  <div className="record-list-item" key={defect.id}>
+                    <div>
+                      <strong>{defect.item || defect.category || "Vehicle defect"}</strong>
+                      <span>{defect.description || "No description provided."}</span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <span className={getDefectClass(defect.status)}>
+                        {getStatusLabel(defect.status)}
+                      </span>
+
+                      <span>{formatDate(defect.reported_at || defect.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="detail-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Compliance</span>
+                <h3>Inspection History</h3>
+              </div>
+
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                onClick={() => navigateTo("Inspections")}
+              >
+                Open Inspections
+              </button>
+            </div>
+
+            {audits.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No inspections</strong>
+                <span>No inspection records are associated with this vehicle.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {audits.slice(0, 8).map((audit) => (
+                  <div className="record-list-item" key={audit.id}>
+                    <div>
+                      <strong>{audit.audit_type || "Inspection"}</strong>
+                      <span>{audit.notes || "No inspection notes."}</span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <span className={getInspectionTagClass(audit.result === "FAIL" ? "RED" : "PASS")}>
+                        {getInspectionTagLabel(audit.result === "FAIL" ? "RED" : "PASS")}
+                      </span>
+
+                      <span>{formatDate(audit.completed_at || audit.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">History</span>
+                <h3>Vehicle Events</h3>
+              </div>
+
+              <span className="panel-count">{events.length}</span>
+            </div>
+
+            {events.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No vehicle events</strong>
+                <span>No historical events are currently recorded.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {events.slice(0, 8).map((event) => (
+                  <div className="record-list-item" key={event.id}>
+                    <div>
+                      <strong>{event.event_type || "Vehicle Event"}</strong>
+                      <span>{event.description || "No event description."}</span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <span>{formatDate(event.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="inspection-notes-section inspection-notes-readonly">
+          <div className="inspection-notes-header">
+            <div>
+              <span className="eyebrow">Vehicle Record</span>
+              <h3>Notes</h3>
+            </div>
+          </div>
+
+          <div className="inspection-notes-content">
+            {vehicle.notes || "No vehicle notes have been recorded."}
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToVehicleList}
+          >
+            Back to Vehicles
+          </button>
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="page-section">
+    <section className="page-section inspection-page">
       <div className="page-intro">
         <div className="page-intro-copy">
           <span className="eyebrow">Fleet Directory</span>
@@ -2213,7 +3555,11 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
 
         <div className="page-intro-actions">
           {canEdit && (
-            <button type="button" className="button button-primary" onClick={openNewVehicle}>
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={openNewVehicle}
+            >
               New Vehicle
             </button>
           )}
@@ -2229,6 +3575,12 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
           </button>
         </div>
       </div>
+
+      {message && (
+        <div className="alert alert-success">
+          {message}
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-error">
@@ -2296,6 +3648,7 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
           <div className="toolbar-controls">
             <label className="search-control">
               <span>Search</span>
+
               <input
                 type="search"
                 value={search}
@@ -2422,44 +3775,50 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
               </thead>
 
               <tbody>
-                {filteredVehicles.map((vehicle) => (
-                  <tr key={vehicle.id}>
+                {filteredVehicles.map((currentVehicle) => (
+                  <tr key={currentVehicle.id}>
                     <td>
-                      <button type="button" className="table-primary-link" onClick={() => openVehicle(vehicle)}>
-                        {vehicle.fleet_number || "—"}
+                      <button
+                        type="button"
+                        className="table-primary-link"
+                        onClick={() => openVehicleDetails(currentVehicle.id)}
+                      >
+                        {currentVehicle.fleet_number || "—"}
                       </button>
                     </td>
 
                     <td>
                       <div className="table-main-text">
-                        {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "Unknown vehicle"}
+                        {[currentVehicle.year, currentVehicle.make, currentVehicle.model].filter(Boolean).join(" ") || "Unknown vehicle"}
                       </div>
                     </td>
 
-                    <td>{vehicle.engine || "—"}</td>
+                    <td>{currentVehicle.engine || "—"}</td>
 
                     <td>
-                      {vehicle.mileage !== null && vehicle.mileage !== undefined && vehicle.mileage !== ""
-                        ? Number(vehicle.mileage).toLocaleString()
+                      {currentVehicle.mileage !== null && currentVehicle.mileage !== undefined && currentVehicle.mileage !== ""
+                        ? Number(currentVehicle.mileage).toLocaleString()
                         : "—"}
                     </td>
 
-                    <td>{vehicle.garage || "—"}</td>
+                    <td>{currentVehicle.garage || "—"}</td>
 
-                    <td>{vehicle.driverName}</td>
+                    <td>{currentVehicle.driverName}</td>
 
-                    <td>
-                      {vehicle.live?.route_name || "No active route"}
-                    </td>
+                    <td>{currentVehicle.live?.route_name || "No active route"}</td>
 
                     <td>
-                      <span className={getStatusClass(vehicle.displayStatus)}>
-                        {getStatusLabel(vehicle.displayStatus)}
+                      <span className={getStatusClass(currentVehicle.displayStatus)}>
+                        {getStatusLabel(currentVehicle.displayStatus)}
                       </span>
                     </td>
 
                     <td className="table-actions">
-                      <button type="button" className="button button-secondary button-small" onClick={() => openVehicle(vehicle)}>
+                      <button
+                        type="button"
+                        className="button button-secondary button-small"
+                        onClick={() => openVehicleDetails(currentVehicle.id)}
+                      >
                         View
                       </button>
                     </td>
@@ -2474,801 +3833,227 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
   );
 }
 
-function VehicleDetails({ canEdit, vehicleId, returnToVehicles }) {
-  const [vehicle, setVehicle] = useState(null);
-  const [liveData, setLiveData] = useState(null);
-  const [driver, setDriver] = useState(null);
-  const [route, setRoute] = useState(null);
-  const [server, setServer] = useState(null);
-  const [assignments, setAssignments] = useState([]);
-  const [routeAssignments, setRouteAssignments] = useState([]);
-  const [maintenance, setMaintenance] = useState([]);
-  const [defects, setDefects] = useState([]);
-  const [audits, setAudits] = useState([]);
-  const [events, setEvents] = useState([]);
+function Drivers({ canEdit }) {
+  const [driverView, setDriverView] = useState("list");
+  const [selectedDriverId, setSelectedDriverId] = useState(null);
+
+  const [drivers, setDrivers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const [driver, setDriver] = useState(null);
+  const [vehicle, setVehicle] = useState(null);
+  const [route, setRoute] = useState(null);
+  const [live, setLive] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [routeAssignments, setRouteAssignments] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [audits, setAudits] = useState([]);
+
+  const [editing, setEditing] = useState(false);
+
   const [editForm, setEditForm] = useState({
-    year: "",
-    make: "",
-    model: "",
-    engine: "",
-    mileage: "",
+    name: "",
+    employeeNumber: "",
+    robloxUserId: "",
     status: "",
-    garage: "",
-    notes: "",
   });
 
-  async function loadVehicle(showLoading = false) {
-    if (showLoading) {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
-    }
+  const [newDriverForm, setNewDriverForm] = useState({
+    name: "",
+    employeeNumber: "",
+    robloxUserId: "",
+    status: "ACTIVE",
+  });
 
-    setError("");
+  const [newStatusDropdownOpen, setNewStatusDropdownOpen] = useState(false);
+  const [editStatusDropdownOpen, setEditStatusDropdownOpen] = useState(false);
+  const [newFormError, setNewFormError] = useState("");
 
-    if (!vehicleId) {
-      setError("No vehicle was selected.");
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
+  const driverStatusOptions = [
+    ["ACTIVE", "Active"],
+    ["INACTIVE", "Inactive"],
+  ];
 
-    const { data: vehicleData, error: vehicleError } = await supabase
-      .from("vehicles")
-      .select("*")
-      .eq("id", vehicleId)
-      .maybeSingle();
-
-    if (vehicleError) {
-      setError(vehicleError.message);
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
-    if (!vehicleData) {
-      setError("Vehicle not found.");
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
-
-    setVehicle(vehicleData);
-
-    setEditForm({
-      year: vehicleData.year ?? "",
-      make: vehicleData.make ?? "",
-      model: vehicleData.model ?? "",
-      engine: vehicleData.engine ?? "",
-      mileage: vehicleData.mileage ?? "",
-      status: vehicleData.status ?? "",
-      garage: vehicleData.garage ?? "",
-      notes: vehicleData.notes ?? "",
-    });
-
-    const [
-      { data: liveResult },
-      { data: driverResult },
-      { data: routeResult },
-      { data: serverResult },
-      { data: assignmentResult },
-      { data: routeAssignmentResult },
-      { data: maintenanceResult },
-      { data: defectResult },
-      { data: auditResult },
-      { data: eventResult },
-    ] = await Promise.all([
-      supabase.from("fleet_live").select("*").eq("fleet_number", vehicleData.fleet_number).maybeSingle(),
-
-      vehicleData.current_driver_id
-        ? supabase.from("drivers").select("*").eq("id", vehicleData.current_driver_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-
-      vehicleData.current_route_id
-        ? supabase.from("routes").select("*").eq("id", vehicleData.current_route_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-
-      vehicleData.current_server_id
-        ? supabase.from("servers").select("*").eq("id", vehicleData.current_server_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-
-      supabase.from("assignments").select("*").eq("vehicle_id", vehicleId).order("started_at", { ascending: false }),
-
-      supabase.from("route_assignments").select("*").eq("vehicle_id", vehicleId).order("started_at", { ascending: false }),
-
-      supabase.from("maintenance_records").select("*").eq("vehicle_id", vehicleId).order("created_at", { ascending: false }).limit(20),
-
-      supabase.from("vehicle_defects").select("*").eq("vehicle_id", vehicleId).order("created_at", { ascending: false }).limit(20),
-
-      supabase.from("audits").select("*").eq("vehicle_id", vehicleId).order("created_at", { ascending: false }).limit(20),
-
-      supabase.from("vehicle_events").select("*").eq("vehicle_id", vehicleId).order("created_at", { ascending: false }).limit(20),
-    ]);
-
-    setLiveData(liveResult || null);
-    setDriver(driverResult || null);
-    setRoute(routeResult || null);
-    setServer(serverResult || null);
-    setAssignments(assignmentResult || []);
-    setRouteAssignments(routeAssignmentResult || []);
-    setMaintenance(maintenanceResult || []);
-    setDefects(defectResult || []);
-    setAudits(auditResult || []);
-    setEvents(eventResult || []);
-
-    setLoading(false);
-    setRefreshing(false);
-  }
-
-  useEffect(() => {
-    loadVehicle(true);
-  }, [vehicleId]);
-
-  async function saveVehicle() {
-    if (!canEdit || !vehicle || saving) {
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-    setMessage("");
-
-    const { data, error: rpcError } = await supabase.rpc("update_vehicle", {
-      p_vehicle_id: vehicle.id,
-      p_year: editForm.year === "" ? null : Number(editForm.year),
-      p_make: editForm.make.trim(),
-      p_model: editForm.model.trim(),
-      p_engine: editForm.engine.trim(),
-      p_mileage: editForm.mileage === "" ? null : Number(editForm.mileage),
-      p_status: editForm.status,
-      p_garage: editForm.garage.trim(),
-      p_notes: editForm.notes.trim(),
-    });
-
-    if (rpcError) {
-      setError(rpcError.message);
-      setSaving(false);
-      return;
-    }
-
-    if (data) {
-      setVehicle(Array.isArray(data) ? data[0] : data);
-    }
-
-    setEditing(false);
-    setMessage("Vehicle record updated.");
-    await loadVehicle(false);
-    setSaving(false);
-  }
-
-  function updateField(field, value) {
+  function updateEditField(field, value) {
     setEditForm((current) => ({
       ...current,
       [field]: value,
     }));
   }
 
-  function formatDate(value) {
-    if (!value) {
+  function updateNewDriverField(field, value) {
+    setNewDriverForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function resetNewDriverForm() {
+    setNewDriverForm({
+      name: "",
+      employeeNumber: "",
+      robloxUserId: "",
+      status: "ACTIVE",
+    });
+
+    setNewStatusDropdownOpen(false);
+    setEditStatusDropdownOpen(false);
+    setNewFormError("");
+  }
+
+  function openNewDriver() {
+    if (!canEdit) {
+      return;
+    }
+
+    resetNewDriverForm();
+    setDriverView("new");
+    setSelectedDriverId(null);
+    setDriver(null);
+    setError("");
+    setMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openDriverDetails(driverId) {
+    setSelectedDriverId(driverId);
+    setDriverView("details");
+    setEditing(false);
+    setError("");
+    setMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function returnToDriverList() {
+    if (saving || deletingId) {
+      return;
+    }
+
+    setDriverView("list");
+    setSelectedDriverId(null);
+    setDriver(null);
+    setVehicle(null);
+    setRoute(null);
+    setLive(null);
+    setAssignments([]);
+    setRouteAssignments([]);
+    setSessions([]);
+    setAudits([]);
+    setEditing(false);
+    setError("");
+    setMessage("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function formatDate(timestamp, includeTime = true) {
+    if (!timestamp) {
       return "—";
     }
 
-    const date = new Date(value);
+    const date = new Date(timestamp);
 
     if (Number.isNaN(date.getTime())) {
-      return String(value);
+      return String(timestamp);
     }
 
-    return date.toLocaleString();
+    return includeTime ? date.toLocaleString() : date.toLocaleDateString();
   }
 
-  function formatMileage(value) {
-    if (value === null || value === undefined || value === "") {
-      return "—";
+  function formatRelative(timestamp) {
+    if (!timestamp) {
+      return "No telemetry";
     }
 
-    return Number(value).toLocaleString();
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+      return "No telemetry";
+    }
+
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+
+    if (seconds < 60) {
+      return `${seconds}s ago`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+
+    if (minutes < 60) {
+      return `${minutes}m ago`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+
+    if (hours < 24) {
+      return `${hours}h ago`;
+    }
+
+    return `${Math.floor(hours / 24)}d ago`;
   }
 
-  function formatStatus(value) {
-    return String(value || "UNKNOWN").replaceAll("_", " ");
-  }
-
-  function getStatusClass(status) {
+  function getDriverStatusClass(status) {
     const normalized = String(status || "").toUpperCase();
 
-    if (normalized === "AVAILABLE") {
-      return "status-badge status-available";
-    }
-
-    if (normalized === "ASSIGNED" || normalized === "IN_SERVICE") {
+    if (normalized === "ACTIVE") {
       return "status-badge status-active";
     }
 
-    if (normalized === "MAINTENANCE") {
-      return "status-badge status-warning";
+    if (normalized === "OFFLINE") {
+      return "status-badge status-neutral";
     }
 
-    if (normalized === "OUT_OF_SERVICE") {
+    if (normalized === "INACTIVE") {
       return "status-badge status-danger";
     }
 
     return "status-badge";
   }
 
-  function getDefectClass(status) {
-    const normalized = String(status || "").toUpperCase();
+  function getDriverStatusLabel(status) {
+    return String(status || "UNKNOWN").replaceAll("_", " ");
+  }
 
-    if (normalized === "OPEN" || normalized === "ACTIVE") {
-      return "status-badge status-danger";
+  function getAuditTagClass(result) {
+    if (result === "FAIL") {
+      return "status-badge status-fail";
     }
 
-    if (normalized === "REPAIRED" || normalized === "CLOSED") {
-      return "status-badge status-available";
+    if (result === "PASS") {
+      return "status-badge status-pass";
     }
 
-    return "status-badge";
+    return "status-badge status-neutral";
   }
 
-  if (loading) {
-    return (
-      <section className="page-section">
-        <div className="empty-state">
-          <strong>Loading vehicle</strong>
-          <span>Retrieving vehicle information and operational history.</span>
-        </div>
-      </section>
-    );
+  function getAuditTagLabel(result) {
+    if (result === "FAIL") {
+      return "RED TAG";
+    }
+
+    if (result === "PASS") {
+      return "PASS";
+    }
+
+    return String(result || "PENDING");
   }
 
-  if (!vehicle) {
-    return (
-      <section className="page-section">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <span className="eyebrow">Vehicle Record</span>
-            <h1>Vehicle Details</h1>
-            <p>{error || "The requested vehicle could not be loaded."}</p>
-          </div>
-
-          <div className="page-intro-actions">
-            <button type="button" className="button button-secondary" onClick={returnToVehicles}>
-              Back to Vehicles
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  const effectiveStatus = liveData?.effective_status || vehicle.status;
-  const isOnline = Boolean(liveData);
-
-  return (
-    <section className="page-section">
-      <div className="page-intro vehicle-detail-intro">
-        <div className="page-intro-copy">
-          <div className="breadcrumb-row">
-            <button type="button" className="breadcrumb-button" onClick={returnToVehicles}>
-              Vehicles
-            </button>
-            <span>/</span>
-            <span>{vehicle.fleet_number}</span>
-          </div>
-
-          <div className="detail-title-row">
-            <div>
-              <span className="eyebrow">Vehicle Record</span>
-              <h1>{vehicle.fleet_number}</h1>
-              <p>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")}</p>
-            </div>
-
-            <span className={getStatusClass(effectiveStatus)}>
-              {formatStatus(effectiveStatus)}
-            </span>
-          </div>
-        </div>
-
-        <div className="page-intro-actions">
-          <button type="button" className="button button-secondary" onClick={() => loadVehicle(false)} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-
-          {canEdit && (
-            <button type="button" className="button button-primary" onClick={() => setEditing((current) => !current)}>
-              {editing ? "Cancel Edit" : "Edit Vehicle"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {error && (
-        <div className="alert alert-error">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="alert alert-success">
-          {message}
-        </div>
-      )}
-
-      {editing && (
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Vehicle Record</span>
-              <h2>Edit Vehicle</h2>
-            </div>
-          </div>
-
-          <div className="form-grid">
-            <label className="form-field">
-              <span>Fleet Number</span>
-              <input type="text" value={vehicle.fleet_number || ""} disabled />
-            </label>
-
-            <label className="form-field">
-              <span>Year</span>
-              <input type="number" value={editForm.year} onChange={(event) => updateField("year", event.target.value)} />
-            </label>
-
-            <label className="form-field">
-              <span>Make</span>
-              <input type="text" value={editForm.make} onChange={(event) => updateField("make", event.target.value)} />
-            </label>
-
-            <label className="form-field">
-              <span>Model</span>
-              <input type="text" value={editForm.model} onChange={(event) => updateField("model", event.target.value)} />
-            </label>
-
-            <label className="form-field">
-              <span>Engine</span>
-              <input type="text" value={editForm.engine} onChange={(event) => updateField("engine", event.target.value)} />
-            </label>
-
-            <label className="form-field">
-              <span>Mileage</span>
-              <input type="number" min="0" value={editForm.mileage} onChange={(event) => updateField("mileage", event.target.value)} />
-            </label>
-
-            <label className="form-field">
-              <span>Garage</span>
-              <input type="text" value={editForm.garage} onChange={(event) => updateField("garage", event.target.value)} />
-            </label>
-
-            <label className="form-field">
-              <span>Status</span>
-              <select value={editForm.status} onChange={(event) => updateField("status", event.target.value)}>
-                <option value="AVAILABLE">Available</option>
-                <option value="ASSIGNED">Assigned</option>
-                <option value="IN_SERVICE">In Service</option>
-                <option value="MAINTENANCE">Maintenance</option>
-                <option value="OUT_OF_SERVICE">Out of Service</option>
-              </select>
-            </label>
-
-            <label className="form-field form-field-wide">
-              <span>Notes</span>
-              <textarea value={editForm.notes} onChange={(event) => updateField("notes", event.target.value)} rows={4} />
-            </label>
-          </div>
-
-          <div className="panel-actions">
-            <button type="button" className="button button-secondary" onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-
-            <button type="button" className="button button-primary" onClick={saveVehicle} disabled={saving}>
-              {saving ? "Saving..." : "Save Vehicle"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="detail-grid">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Vehicle Information</span>
-              <h2>Specifications</h2>
-            </div>
-          </div>
-
-          <div className="detail-field-grid">
-            <div className="detail-field">
-              <span>Fleet Number</span>
-              <strong>{vehicle.fleet_number || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Year</span>
-              <strong>{vehicle.year || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Make</span>
-              <strong>{vehicle.make || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Model</span>
-              <strong>{vehicle.model || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Engine</span>
-              <strong>{vehicle.engine || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Mileage</span>
-              <strong>{formatMileage(vehicle.mileage)}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Garage</span>
-              <strong>{vehicle.garage || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Database Status</span>
-              <strong>{formatStatus(vehicle.status)}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Operations</span>
-              <h2>Current Assignment</h2>
-            </div>
-
-            <span className={isOnline ? "status-badge status-active" : "status-badge"}>
-              {isOnline ? "ONLINE" : "OFFLINE"}
-            </span>
-          </div>
-
-          <div className="detail-field-grid">
-            <div className="detail-field">
-              <span>Driver</span>
-              <strong>{driver?.name || liveData?.driver_name || "Unassigned"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Employee Number</span>
-              <strong>{driver?.employee_number || "—"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Route</span>
-              <strong>{route?.route_code || route?.name || liveData?.route_name || "No active route"}</strong>
-            </div>
-
-            <div className="detail-field">
-              <span>Server</span>
-              <strong>{server?.roblox_job_id || "Offline"}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <span className="panel-kicker">Live Operations</span>
-            <h2>Telemetry</h2>
-          </div>
-
-          <span className={isOnline ? "status-badge status-active" : "status-badge"}>
-            {isOnline ? "REPORTING" : "NO TELEMETRY"}
-          </span>
-        </div>
-
-        {liveData ? (
-          <div className="telemetry-grid">
-            <div className="telemetry-card">
-              <span>Speed</span>
-              <strong>{liveData.speed !== null && liveData.speed !== undefined ? `${Number(liveData.speed).toFixed(1)} mph` : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>RPM</span>
-              <strong>{liveData.rpm !== null && liveData.rpm !== undefined ? Number(liveData.rpm).toLocaleString() : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>Coolant</span>
-              <strong>{liveData.coolant_temp !== null && liveData.coolant_temp !== undefined ? `${Number(liveData.coolant_temp).toFixed(1)}°` : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>Oil</span>
-              <strong>{liveData.oil_temp !== null && liveData.oil_temp !== undefined ? `${Number(liveData.oil_temp).toFixed(1)}°` : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>Heading</span>
-              <strong>{liveData.heading !== null && liveData.heading !== undefined ? `${Number(liveData.heading).toFixed(1)}°` : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>Position X</span>
-              <strong>{liveData.x !== null && liveData.x !== undefined ? Number(liveData.x).toFixed(2) : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>Position Y</span>
-              <strong>{liveData.y !== null && liveData.y !== undefined ? Number(liveData.y).toFixed(2) : "—"}</strong>
-            </div>
-
-            <div className="telemetry-card">
-              <span>Position Z</span>
-              <strong>{liveData.z !== null && liveData.z !== undefined ? Number(liveData.z).toFixed(2) : "—"}</strong>
-            </div>
-          </div>
-        ) : (
-          <div className="empty-state compact">
-            <strong>No live telemetry</strong>
-            <span>This vehicle is not currently reporting to the fleet system.</span>
-          </div>
-        )}
-
-        {liveData?.last_ping && (
-          <div className="panel-footer">
-            Last telemetry received {formatDate(liveData.last_ping)}
-          </div>
-        )}
-      </div>
-
-      <div className="detail-grid">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Assignments</span>
-              <h2>Assignment History</h2>
-            </div>
-          </div>
-
-          {assignments.length === 0 ? (
-            <div className="empty-state compact">
-              <strong>No assignments</strong>
-              <span>No vehicle assignment records exist.</span>
-            </div>
-          ) : (
-            <div className="record-list">
-              {assignments.slice(0, 8).map((assignment) => (
-                <div className="record-list-item" key={assignment.id}>
-                  <div>
-                    <strong>{assignment.route_number || "Assignment"}</strong>
-                    <span>{assignment.notes || "No assignment notes."}</span>
-                  </div>
-
-                  <div className="record-list-meta">
-                    <strong>{formatStatus(assignment.status)}</strong>
-                    <span>{formatDate(assignment.started_at)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Routes</span>
-              <h2>Route Assignments</h2>
-            </div>
-          </div>
-
-          {routeAssignments.length === 0 ? (
-            <div className="empty-state compact">
-              <strong>No route assignments</strong>
-              <span>No route assignment records exist.</span>
-            </div>
-          ) : (
-            <div className="record-list">
-              {routeAssignments.slice(0, 8).map((assignment) => (
-                <div className="record-list-item" key={assignment.id}>
-                  <div>
-                    <strong>{assignment.route_code || "Route Assignment"}</strong>
-                    <span>{formatStatus(assignment.status)}</span>
-                  </div>
-
-                  <div className="record-list-meta">
-                    <span>{formatDate(assignment.started_at)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="detail-grid">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Maintenance</span>
-              <h2>Service History</h2>
-            </div>
-
-            <button type="button" className="button button-secondary button-small" onClick={() => navigateTo("Maintenance")}>
-              Open Maintenance
-            </button>
-          </div>
-
-          {maintenance.length === 0 ? (
-            <div className="empty-state compact">
-              <strong>No service records</strong>
-              <span>No maintenance history is recorded for this vehicle.</span>
-            </div>
-          ) : (
-            <div className="record-list">
-              {maintenance.slice(0, 8).map((record) => (
-                <div className="record-list-item" key={record.id}>
-                  <div>
-                    <strong>{record.maintenance_type || "Service"}</strong>
-                    <span>{record.description || "No description provided."}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Defects</span>
-              <h2>Vehicle Defects</h2>
-            </div>
-
-            <span className="panel-count">{defects.length}</span>
-          </div>
-
-          {defects.length === 0 ? (
-            <div className="empty-state compact">
-              <strong>No defects recorded</strong>
-              <span>This vehicle has no recorded defects.</span>
-            </div>
-          ) : (
-            <div className="record-list">
-              {defects.slice(0, 8).map((defect) => (
-                <div className="record-list-item" key={defect.id}>
-                  <div>
-                    <strong>{defect.item || defect.category || "Vehicle defect"}</strong>
-                    <span>{defect.description || "No description provided."}</span>
-                  </div>
-
-                  <div className="record-list-meta">
-                    <span className={getDefectClass(defect.status)}>
-                      {formatStatus(defect.status)}
-                    </span>
-                    <span>{formatDate(defect.reported_at || defect.created_at)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="detail-grid">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">Compliance</span>
-              <h2>Inspection History</h2>
-            </div>
-
-            <button type="button" className="button button-secondary button-small" onClick={() => navigateTo("Audits")}>
-              Open Audits
-            </button>
-          </div>
-
-          {audits.length === 0 ? (
-            <div className="empty-state compact">
-              <strong>No inspections</strong>
-              <span>No audit records are associated with this vehicle.</span>
-            </div>
-          ) : (
-            <div className="record-list">
-              {audits.slice(0, 8).map((audit) => (
-                <div className="record-list-item" key={audit.id}>
-                  <div>
-                    <strong>{audit.audit_type || "Inspection"}</strong>
-                    <span>{audit.notes || "No inspection notes."}</span>
-                  </div>
-
-                  <div className="record-list-meta">
-                    <strong>{formatStatus(audit.result)}</strong>
-                    <span>{formatDate(audit.completed_at || audit.created_at)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">History</span>
-              <h2>Vehicle Events</h2>
-            </div>
-
-            <span className="panel-count">{events.length}</span>
-          </div>
-
-          {events.length === 0 ? (
-            <div className="empty-state compact">
-              <strong>No vehicle events</strong>
-              <span>No historical events are currently recorded.</span>
-            </div>
-          ) : (
-            <div className="record-list">
-              {events.slice(0, 8).map((event) => (
-                <div className="record-list-item" key={event.id}>
-                  <div>
-                    <strong>{event.event_type || "Vehicle Event"}</strong>
-                    <span>{event.description || "No event description."}</span>
-                  </div>
-
-                  <div className="record-list-meta">
-                    <span>{formatDate(event.created_at)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-header">
-          <div>
-            <span className="panel-kicker">Vehicle Record</span>
-            <h2>Notes</h2>
-          </div>
-        </div>
-
-        <div className="vehicle-notes">
-          {vehicle.notes ? vehicle.notes : "No vehicle notes have been recorded."}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Drivers({ canEdit, openDriverDetails }) {
-  const [drivers, setDrivers] = useState([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-
-  async function loadData(showLoading = false) {
+  async function loadDrivers(showLoading = false) {
     if (showLoading) {
       setLoading(true);
+    } else {
+      setRefreshing(true);
     }
 
-    setRefreshing(true);
     setError("");
 
     const { data, error: queryError } = await supabase.from("drivers").select(`
@@ -3314,15 +4099,19 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    const liveMap = new Map((liveData || []).filter((item) => item.driver_id).map((item) => [item.driver_id, item]));
+    const liveMap = new Map(
+      (liveData || [])
+        .filter((item) => item.driver_id)
+        .map((item) => [item.driver_id, item])
+    );
 
-    const enriched = (data || []).map((driver) => {
-      const live = liveMap.get(driver.id);
+    const enriched = (data || []).map((currentDriver) => {
+      const currentLive = liveMap.get(currentDriver.id);
 
       return {
-        ...driver,
-        live,
-        operationalStatus: live ? "ACTIVE" : "OFFLINE",
+        ...currentDriver,
+        live: currentLive,
+        operationalStatus: currentLive ? "ACTIVE" : "OFFLINE",
       };
     });
 
@@ -3331,36 +4120,146 @@ function Drivers({ canEdit, openDriverDetails }) {
     setLoading(false);
   }
 
+  async function loadDriverDetails(showLoading = false) {
+    if (showLoading) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    setError("");
+
+    if (!selectedDriverId) {
+      setError("No driver was selected.");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const { data: driverData, error: driverError } = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("id", selectedDriverId)
+      .maybeSingle();
+
+    if (driverError) {
+      setError(driverError.message);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    if (!driverData) {
+      setDriver(null);
+      setError("Driver not found.");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    setDriver(driverData);
+
+    setEditForm({
+      name: driverData.name ?? "",
+      employeeNumber: driverData.employee_number ?? "",
+      robloxUserId: driverData.roblox_user_id ?? "",
+      status: driverData.status ?? "",
+    });
+
+    const [
+      { data: vehicleData, error: vehicleError },
+      { data: routeData, error: routeError },
+      { data: liveData, error: liveError },
+      { data: assignmentData, error: assignmentError },
+      { data: routeAssignmentData, error: routeAssignmentError },
+      { data: sessionData, error: sessionError },
+      { data: auditData, error: auditError },
+    ] = await Promise.all([
+      driverData.current_vehicle_id
+        ? supabase.from("vehicles").select("id,fleet_number,year,make,model,engine,mileage,status,garage,notes,updated_at").eq("id", driverData.current_vehicle_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+
+      driverData.current_route_id
+        ? supabase.from("routes").select("id,name,route_code,description,status,updated_at").eq("id", driverData.current_route_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+
+      supabase.from("fleet_live").select("*").eq("driver_id", selectedDriverId).maybeSingle(),
+
+      supabase.from("assignments").select("id,vehicle_id,driver_id,route_id,status,started_at,ended_at,notes,route_number").eq("driver_id", selectedDriverId).order("started_at", { ascending: false }).limit(10),
+
+      supabase.from("route_assignments").select("id,route_id,route_code,driver_id,vehicle_id,status,started_at,ended_at,created_at,updated_at").eq("driver_id", selectedDriverId).order("created_at", { ascending: false }).limit(10),
+
+      driverData.roblox_user_id
+        ? supabase.from("driver_sessions").select("id,roblox_user_id,server_id,player_name,last_seen").eq("roblox_user_id", driverData.roblox_user_id).order("last_seen", { ascending: false }).limit(10)
+        : Promise.resolve({ data: [], error: null }),
+
+      supabase.from("audits").select("id,vehicle_id,driver_id,audit_type,result,checklist,notes,completed_at,created_at").eq("driver_id", selectedDriverId).order("created_at", { ascending: false }).limit(10),
+    ]);
+
+    if (vehicleError || routeError || liveError || assignmentError || routeAssignmentError || sessionError || auditError) {
+      const firstError = vehicleError || routeError || liveError || assignmentError || routeAssignmentError || sessionError || auditError;
+      setError(firstError.message);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    setVehicle(vehicleData || null);
+    setRoute(routeData || null);
+    setLive(liveData || null);
+    setAssignments(assignmentData || []);
+    setRouteAssignments(routeAssignmentData || []);
+    setSessions(sessionData || []);
+    setAudits(auditData || []);
+
+    setLoading(false);
+    setRefreshing(false);
+  }
+
   useEffect(() => {
-    loadData(true);
+    if (driverView === "list") {
+      loadDrivers(true);
+      return;
+    }
 
-    const interval = window.setInterval(() => {
-      loadData(false);
-    }, 15000);
+    if (driverView === "details") {
+      loadDriverDetails(true);
+    }
+  }, [driverView, selectedDriverId]);
 
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, []);
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
 
-  async function deleteDriver(driver) {
+    const timeout = setTimeout(() => {
+      setMessage("");
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [message]);
+
+  async function deleteDriver(currentDriver) {
     if (deletingId) {
       return;
     }
 
     const confirmed = window.confirm(
-      `Delete driver "${driver.name || "Unnamed Driver"}"?\n\nThis removes the driver from the personnel directory. Historical assignments, audits, and route records will be retained without the deleted driver attached.`
+      `Delete driver "${currentDriver.name || "Unnamed Driver"}"?\n\nThis removes the driver from the personnel directory. Historical assignments, audits, and route records will be retained without the deleted driver attached.`
     );
 
     if (!confirmed) {
       return;
     }
 
-    setDeletingId(driver.id);
+    setDeletingId(currentDriver.id);
     setError("");
     setMessage("");
 
-    const { error: vehicleError } = await supabase.from("vehicles").update({ current_driver_id: null }).eq("current_driver_id", driver.id);
+    const { error: vehicleError } = await supabase
+      .from("vehicles")
+      .update({ current_driver_id: null })
+      .eq("current_driver_id", currentDriver.id);
 
     if (vehicleError) {
       setError(vehicleError.message);
@@ -3368,7 +4267,10 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    const { error: assignmentError } = await supabase.from("assignments").update({ driver_id: null }).eq("driver_id", driver.id);
+    const { error: assignmentError } = await supabase
+      .from("assignments")
+      .update({ driver_id: null })
+      .eq("driver_id", currentDriver.id);
 
     if (assignmentError) {
       setError(assignmentError.message);
@@ -3376,7 +4278,10 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    const { error: routeAssignmentError } = await supabase.from("route_assignments").update({ driver_id: null }).eq("driver_id", driver.id);
+    const { error: routeAssignmentError } = await supabase
+      .from("route_assignments")
+      .update({ driver_id: null })
+      .eq("driver_id", currentDriver.id);
 
     if (routeAssignmentError) {
       setError(routeAssignmentError.message);
@@ -3384,7 +4289,10 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    const { error: auditError } = await supabase.from("audits").update({ driver_id: null }).eq("driver_id", driver.id);
+    const { error: auditError } = await supabase
+      .from("audits")
+      .update({ driver_id: null })
+      .eq("driver_id", currentDriver.id);
 
     if (auditError) {
       setError(auditError.message);
@@ -3392,7 +4300,10 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    const { error: stateError } = await supabase.from("vehicle_current_state").update({ driver_id: null }).eq("driver_id", driver.id);
+    const { error: stateError } = await supabase
+      .from("vehicle_current_state")
+      .update({ driver_id: null })
+      .eq("driver_id", currentDriver.id);
 
     if (stateError) {
       setError(stateError.message);
@@ -3400,7 +4311,10 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    const { error: driverError } = await supabase.from("drivers").delete().eq("id", driver.id);
+    const { error: driverError } = await supabase
+      .from("drivers")
+      .delete()
+      .eq("id", currentDriver.id);
 
     if (driverError) {
       setError(driverError.message);
@@ -3408,79 +4322,902 @@ function Drivers({ canEdit, openDriverDetails }) {
       return;
     }
 
-    setDrivers((current) => current.filter((item) => item.id !== driver.id));
-    setMessage(`${driver.name || "Driver"} was deleted.`);
+    setDrivers((current) => current.filter((item) => item.id !== currentDriver.id));
+    setMessage(`${currentDriver.name || "Driver"} was deleted.`);
     setDeletingId(null);
   }
 
-  const filteredDrivers = drivers.filter((driver) => {
+  async function saveNewDriver() {
+    if (!canEdit || saving) {
+      return;
+    }
+
+    setNewFormError("");
+    setError("");
+
+    const name = newDriverForm.name.trim();
+    const employeeNumber = newDriverForm.employeeNumber.trim();
+    const robloxUserId = newDriverForm.robloxUserId.trim();
+
+    if (!name) {
+      setNewFormError("Driver Name is required.");
+      return;
+    }
+
+    if (!employeeNumber) {
+      setNewFormError("Employee Number is required.");
+      return;
+    }
+
+    if (!robloxUserId) {
+      setNewFormError("Roblox User ID is required.");
+      return;
+    }
+
+    setSaving(true);
+
+    const { error: insertError } = await supabase.from("drivers").insert({
+      name,
+      employee_number: employeeNumber,
+      roblox_user_id: robloxUserId,
+      status: newDriverForm.status,
+    });
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        setNewFormError("A driver with that employee number or Roblox User ID already exists.");
+      } else {
+        setNewFormError(insertError.message);
+      }
+
+      setSaving(false);
+      return;
+    }
+
+    resetNewDriverForm();
+    setSaving(false);
+    setMessage(`${name} was added to the driver directory.`);
+    setDriverView("list");
+    await loadDrivers(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function saveDriverEdits() {
+    if (!canEdit || !driver || saving) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    const name = editForm.name.trim();
+    const employeeNumber = editForm.employeeNumber.trim();
+    const robloxUserId = editForm.robloxUserId.trim();
+
+    if (!name) {
+      setError("Driver Name is required.");
+      return;
+    }
+
+    if (!employeeNumber) {
+      setError("Employee Number is required.");
+      return;
+    }
+
+    if (!robloxUserId) {
+      setError("Roblox User ID is required.");
+      return;
+    }
+
+    setSaving(true);
+
+    const { error: updateError } = await supabase
+      .from("drivers")
+      .update({
+        name,
+        employee_number: employeeNumber,
+        roblox_user_id: robloxUserId,
+        status: editForm.status,
+      })
+      .eq("id", driver.id);
+
+    if (updateError) {
+      setError(updateError.message);
+      setSaving(false);
+      return;
+    }
+
+    setEditing(false);
+    setMessage("Driver record updated.");
+    await loadDriverDetails(false);
+    setSaving(false);
+  }
+
+  const filteredDrivers = drivers.filter((currentDriver) => {
     const query = search.trim().toLowerCase();
 
     const matchesSearch = !query || [
-      driver.name,
-      driver.employee_number,
-      driver.roblox_user_id,
-      driver.current_vehicle?.fleet_number,
-      driver.current_route?.route_code,
-      driver.current_route?.name,
-    ].some((value) => value?.toString().toLowerCase().includes(query));
+      currentDriver.name,
+      currentDriver.employee_number,
+      currentDriver.roblox_user_id,
+      currentDriver.current_vehicle?.fleet_number,
+      currentDriver.current_route?.route_code,
+      currentDriver.current_route?.name,
+    ].some((value) => String(value ?? "").toLowerCase().includes(query));
 
-    const matchesStatus = statusFilter === "ALL" || driver.operationalStatus === statusFilter;
+    const matchesStatus = statusFilter === "ALL" || currentDriver.operationalStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
-  const activeCount = drivers.filter((driver) => driver.operationalStatus === "ACTIVE").length;
-  const assignedCount = drivers.filter((driver) => driver.current_vehicle || driver.current_route).length;
-  const offlineCount = drivers.filter((driver) => driver.operationalStatus === "OFFLINE").length;
+  const activeCount = drivers.filter((currentDriver) => currentDriver.operationalStatus === "ACTIVE").length;
+  const assignedCount = drivers.filter((currentDriver) => currentDriver.current_vehicle || currentDriver.current_route).length;
+  const offlineCount = drivers.filter((currentDriver) => currentDriver.operationalStatus === "OFFLINE").length;
 
-  function formatTelemetry(timestamp) {
-    if (!timestamp) {
-      return "No telemetry";
+  if (driverView === "new") {
+    return (
+      <section className="page-section inspection-page inspection-form-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToDriverList}
+              disabled={saving}
+            >
+              ← Back to Drivers
+            </button>
+
+            <span className="eyebrow">Personnel / New Driver</span>
+            <h1>New Driver</h1>
+            <p>Register a driver in the personnel directory.</p>
+          </div>
+
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={returnToDriverList}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={saveNewDriver}
+              disabled={saving || !canEdit}
+            >
+              {saving ? "Adding..." : "Add Driver"}
+            </button>
+          </div>
+        </div>
+
+        {newFormError && (
+          <div className="alert alert-error">
+            {newFormError}
+          </div>
+        )}
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Driver Setup</span>
+              <h3>Personnel Information</h3>
+            </div>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <label className="form-field">
+              <span>Driver Name</span>
+
+              <input
+                type="text"
+                value={newDriverForm.name}
+                onChange={(event) => updateNewDriverField("name", event.target.value)}
+                placeholder="e.g. John Smith"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Employee Number</span>
+
+              <input
+                type="text"
+                value={newDriverForm.employeeNumber}
+                onChange={(event) => updateNewDriverField("employeeNumber", event.target.value)}
+                placeholder="e.g. 1042"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Roblox User ID</span>
+
+              <input
+                type="text"
+                value={newDriverForm.robloxUserId}
+                onChange={(event) => updateNewDriverField("robloxUserId", event.target.value)}
+                placeholder="e.g. 123456789"
+                disabled={saving}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Personnel Operations</span>
+              <h3>Account Configuration</h3>
+            </div>
+
+            <span className={getDriverStatusClass(newDriverForm.status)}>
+              {getDriverStatusLabel(newDriverForm.status)}
+            </span>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <label className="select-control">
+              <span>Initial Status</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => setNewStatusDropdownOpen((open) => !open)}
+                  disabled={saving}
+                >
+                  <span>{getDriverStatusLabel(newDriverForm.status)}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {newStatusDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {driverStatusOptions.map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        className={`custom-select-option ${newDriverForm.status === value ? "selected" : ""}`}
+                        onClick={() => {
+                          updateNewDriverField("status", value);
+                          setNewStatusDropdownOpen(false);
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToDriverList}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={saveNewDriver}
+            disabled={saving || !canEdit}
+          >
+            {saving ? "Adding..." : "Add Driver"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (driverView === "details") {
+    if (loading) {
+      return (
+        <section className="page-section inspection-page">
+          <div className="empty-state">
+            <strong>Loading driver</strong>
+            <span>Retrieving driver information and operating history.</span>
+          </div>
+        </section>
+      );
     }
 
-    const elapsed = Math.max(0, Date.now() - new Date(timestamp).getTime());
-    const seconds = Math.floor(elapsed / 1000);
+    if (!driver) {
+      return (
+        <section className="page-section inspection-page">
+          <div className="page-intro">
+            <div className="page-intro-copy">
+              <button
+                type="button"
+                className="button button-secondary button-small inspection-back-button"
+                onClick={returnToDriverList}
+              >
+                ← Back to Drivers
+              </button>
 
-    if (seconds < 60) {
-      return `${seconds}s ago`;
+              <span className="eyebrow">Personnel / Driver Record</span>
+              <h1>Driver Details</h1>
+              <p>{error || "The requested driver could not be loaded."}</p>
+            </div>
+          </div>
+        </section>
+      );
     }
 
-    const minutes = Math.floor(seconds / 60);
+    const active = Boolean(live);
 
-    if (minutes < 60) {
-      return `${minutes}m ago`;
-    }
+    return (
+      <section className="page-section inspection-page inspection-detail-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToDriverList}
+            >
+              ← Back to Drivers
+            </button>
 
-    const hours = Math.floor(minutes / 60);
+            <span className="eyebrow">Personnel / Driver Record</span>
+            <h1>{driver.name || "Unnamed Driver"}</h1>
+            <p>{driver.employee_number ? `Employee ${driver.employee_number}` : "No employee number assigned"}</p>
+          </div>
 
-    if (hours < 24) {
-      return `${hours}h ago`;
-    }
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => loadDriverDetails(false)}
+              disabled={refreshing}
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
 
-    return new Date(timestamp).toLocaleDateString();
+            {canEdit && (
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setEditing((current) => !current)}
+              >
+                {editing ? "Cancel Edit" : "Edit Driver"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div className="alert alert-error">
+            {error}
+          </div>
+        )}
+
+        {message && (
+          <div className="alert alert-success">
+            {message}
+          </div>
+        )}
+
+        {editing && (
+          <>
+            <div className="panel inspection-selection-panel">
+              <div className="panel-header">
+                <div>
+                  <span className="eyebrow">Personnel / Edit</span>
+                  <h3>Edit Driver</h3>
+                </div>
+              </div>
+
+              <div className="inspection-setup-grid form-grid form-grid-three">
+                <label className="form-field">
+                  <span>Driver Name</span>
+
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(event) => updateEditField("name", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Employee Number</span>
+
+                  <input
+                    type="text"
+                    value={editForm.employeeNumber}
+                    onChange={(event) => updateEditField("employeeNumber", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Roblox User ID</span>
+
+                  <input
+                    type="text"
+                    value={editForm.robloxUserId}
+                    onChange={(event) => updateEditField("robloxUserId", event.target.value)}
+                    disabled={saving}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="panel inspection-selection-panel">
+              <div className="panel-header">
+                <div>
+                  <span className="eyebrow">Personnel Operations</span>
+                  <h3>Driver Status</h3>
+                </div>
+
+                <span className={getDriverStatusClass(editForm.status)}>
+                  {getDriverStatusLabel(editForm.status)}
+                </span>
+              </div>
+
+              <div className="inspection-setup-grid form-grid form-grid-three">
+                <label className="select-control">
+                  <span>Status</span>
+
+                  <div className="custom-select">
+                    <button
+                      type="button"
+                      className="custom-select-trigger"
+                      onClick={() => setEditStatusDropdownOpen((open) => !open)}
+                      disabled={saving}
+                    >
+                      <span>{getDriverStatusLabel(editForm.status)}</span>
+
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 10l5 5 5-5" />
+                      </svg>
+                    </button>
+
+                    {editStatusDropdownOpen && (
+                      <div className="custom-select-menu">
+                        {driverStatusOptions.map(([value, label]) => (
+                          <button
+                            type="button"
+                            key={value}
+                            className={`custom-select-option ${editForm.status === value ? "selected" : ""}`}
+                            onClick={() => {
+                              updateEditField("status", value);
+                              setEditStatusDropdownOpen(false);
+                            }}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="inspection-page-footer">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setEditing(false)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={saveDriverEdits}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Driver"}
+              </button>
+            </div>
+          </>
+        )}
+
+        <div className="panel inspection-information-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Driver Information</span>
+              <h3>Personnel Record</h3>
+            </div>
+
+            <span className={getDriverStatusClass(active ? "ACTIVE" : "OFFLINE")}>
+              {active ? "ACTIVE" : "OFFLINE"}
+            </span>
+          </div>
+
+          <div className="detail-list">
+            <div className="detail-list-row">
+              <span>Name</span>
+              <strong>{driver.name || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Employee Number</span>
+              <strong>{driver.employee_number || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Roblox User ID</span>
+              <strong>{driver.roblox_user_id || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>System Status</span>
+              <strong>{driver.status || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Record Created</span>
+              <strong>{formatDate(driver.created_at, false)}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Last Updated</span>
+              <strong>{formatDate(driver.updated_at)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Current Assignment</span>
+              <h3>Operational Assignment</h3>
+            </div>
+
+            <span className={active ? "status-badge status-active" : "status-badge status-neutral"}>
+              {active ? "ACTIVE" : "OFFLINE"}
+            </span>
+          </div>
+
+          <div className="detail-list">
+            <div className="detail-list-row">
+              <span>Vehicle</span>
+              <strong>{vehicle?.fleet_number || "Unassigned"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Vehicle Details</span>
+              <strong>
+                {vehicle
+                  ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")
+                  : "No vehicle assigned"}
+              </strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Vehicle Status</span>
+              <strong>{vehicle?.status || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Garage</span>
+              <strong>{vehicle?.garage || "—"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Route</span>
+              <strong>{route?.route_code || route?.name || "Unassigned"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Route Status</span>
+              <strong>{route?.status || "—"}</strong>
+            </div>
+          </div>
+        </div>
+
+        {live && (
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Live Telemetry</span>
+                <h3>Current Vehicle Telemetry</h3>
+              </div>
+
+              <span className="status-badge status-active">
+                REPORTING
+              </span>
+            </div>
+
+            <div className="telemetry-grid">
+              <div className="telemetry-card">
+                <span>Speed</span>
+                <strong>{Math.round(Number(live.speed) || 0)} MPH</strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>RPM</span>
+                <strong>{Math.round(Number(live.rpm) || 0).toLocaleString()}</strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Heading</span>
+                <strong>{Math.round(Number(live.heading) || 0)}°</strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Coolant</span>
+                <strong>{live.coolant_temp != null ? `${Math.round(Number(live.coolant_temp))}°` : "—"}</strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Oil</span>
+                <strong>{live.oil_temp != null ? `${Math.round(Number(live.oil_temp))}°` : "—"}</strong>
+              </div>
+
+              <div className="telemetry-card">
+                <span>Last Update</span>
+                <strong>{formatRelative(live.last_ping)}</strong>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="detail-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Assignment History</span>
+                <h3>Vehicle Assignments</h3>
+              </div>
+
+              <span className="panel-count">{assignments.length}</span>
+            </div>
+
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Ended</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {assignments.length === 0 ? (
+                    <tr>
+                      <td colSpan="4">
+                        <div className="empty-state compact">
+                          <strong>No assignment history</strong>
+                          <span>No vehicle assignment records exist for this driver.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    assignments.map((assignment) => (
+                      <tr key={assignment.id}>
+                        <td>
+                          <div className="table-main-text">
+                            {assignment.route_number || "No route number"}
+                          </div>
+
+                          <div className="table-secondary">
+                            {assignment.notes || "Vehicle assignment"}
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="status-badge status-neutral">
+                            {getDriverStatusLabel(assignment.status)}
+                          </span>
+                        </td>
+
+                        <td>{formatDate(assignment.started_at)}</td>
+                        <td>{formatDate(assignment.ended_at)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Route History</span>
+                <h3>Route Assignments</h3>
+              </div>
+
+              <span className="panel-count">{routeAssignments.length}</span>
+            </div>
+
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Ended</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {routeAssignments.length === 0 ? (
+                    <tr>
+                      <td colSpan="4">
+                        <div className="empty-state compact">
+                          <strong>No route history</strong>
+                          <span>No route assignment records exist for this driver.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    routeAssignments.map((assignment) => (
+                      <tr key={assignment.id}>
+                        <td>
+                          <div className="table-main-text">
+                            {assignment.route_code || "—"}
+                          </div>
+
+                          <div className="table-secondary">
+                            Route assignment
+                          </div>
+                        </td>
+
+                        <td>
+                          <span className="status-badge status-neutral">
+                            {getDriverStatusLabel(assignment.status)}
+                          </span>
+                        </td>
+
+                        <td>{formatDate(assignment.started_at)}</td>
+                        <td>{formatDate(assignment.ended_at)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="detail-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Server Activity</span>
+                <h3>Recent Sessions</h3>
+              </div>
+
+              <span className="panel-count">{sessions.length}</span>
+            </div>
+
+            {sessions.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No session history</strong>
+                <span>No Roblox driver sessions have been recorded.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {sessions.map((currentSession) => (
+                  <div className="record-list-item" key={currentSession.id}>
+                    <div>
+                      <strong>{currentSession.player_name || driver.name}</strong>
+                      <span>
+                        Server {currentSession.server_id ? currentSession.server_id.slice(0, 8) : "—"}
+                      </span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <span>{formatDate(currentSession.last_seen)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="eyebrow">Inspection Records</span>
+                <h3>Recent Audits</h3>
+              </div>
+
+              <span className="panel-count">{audits.length}</span>
+            </div>
+
+            {audits.length === 0 ? (
+              <div className="empty-state compact">
+                <strong>No driver-linked audits</strong>
+                <span>No inspection records are associated with this driver.</span>
+              </div>
+            ) : (
+              <div className="record-list">
+                {audits.map((audit) => (
+                  <div className="record-list-item" key={audit.id}>
+                    <div>
+                      <strong>{audit.audit_type || "Inspection"}</strong>
+                      <span>{audit.notes || "No inspection notes."}</span>
+                    </div>
+
+                    <div className="record-list-meta">
+                      <span className={getAuditTagClass(audit.result)}>
+                        {getAuditTagLabel(audit.result)}
+                      </span>
+
+                      <span>{formatDate(audit.completed_at || audit.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="inspection-notes-section inspection-notes-readonly">
+          <div className="inspection-notes-header">
+            <div>
+              <span className="eyebrow">Driver Record</span>
+              <h3>Record Information</h3>
+            </div>
+          </div>
+
+          <div className="inspection-notes-content">
+            Driver ID: {driver.id || "—"}
+            <br />
+            Roblox User ID: {driver.roblox_user_id || "—"}
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToDriverList}
+          >
+            Back to Drivers
+          </button>
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="page-section drivers-page">
+    <section className="page-section inspection-page">
       <div className="page-intro">
         <div className="page-intro-copy">
-          <span className="eyebrow">PERSONNEL / DRIVER OPERATIONS</span>
-          <h2>Drivers</h2>
+          <span className="eyebrow">Personnel / Driver Operations</span>
+          <h1>Drivers</h1>
           <p>Driver records, current assignments, and live operating status.</p>
         </div>
 
         <div className="page-intro-actions">
           {canEdit && (
-            <button type="button" className="button button-primary" onClick={() => openDriverDetails(null)}>
-              Add Driver
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={openNewDriver}
+            >
+              New Driver
             </button>
           )}
 
           <button
             type="button"
             className="button button-secondary refresh-button"
-            onClick={() => loadData(false)}
+            onClick={() => loadDrivers(false)}
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
@@ -3490,16 +5227,14 @@ function Drivers({ canEdit, openDriverDetails }) {
       </div>
 
       {message && (
-        <div className="panel panel-success">
-          <div className="panel-alert-title">Driver record updated</div>
-          <div className="panel-alert-copy">{message}</div>
+        <div className="alert alert-success">
+          {message}
         </div>
       )}
 
       {error && (
-        <div className="panel panel-alert">
-          <div className="panel-alert-title">Driver operation failed</div>
-          <div className="panel-alert-copy">{error}</div>
+        <div className="alert alert-error">
+          {error}
         </div>
       )}
 
@@ -3536,7 +5271,7 @@ function Drivers({ canEdit, openDriverDetails }) {
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="eyebrow">DRIVER DIRECTORY</span>
+            <span className="eyebrow">Driver Directory</span>
             <h3>Personnel Records</h3>
           </div>
 
@@ -3554,7 +5289,7 @@ function Drivers({ canEdit, openDriverDetails }) {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name, employee number, fleet, or route"
+                placeholder="Name, employee number, fleet, route..."
               />
             </label>
 
@@ -3606,55 +5341,59 @@ function Drivers({ canEdit, openDriverDetails }) {
           </div>
         </div>
 
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Status</th>
-                <th>Vehicle</th>
-                <th>Route</th>
-                <th>Telemetry</th>
-                <th />
-              </tr>
-            </thead>
+        {loading ? (
+          <div className="empty-state">
+            <strong>Loading drivers</strong>
+            <span>Retrieving personnel records and live operating status.</span>
+          </div>
+        ) : filteredDrivers.length === 0 ? (
+          <div className="empty-state">
+            <strong>No drivers found</strong>
+            <span>Adjust the search or filters to find a driver.</span>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>Status</th>
+                  <th>Vehicle</th>
+                  <th>Route</th>
+                  <th>Telemetry</th>
+                  <th></th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {loading && drivers.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-empty">
-                    Loading driver records...
-                  </td>
-                </tr>
-              ) : filteredDrivers.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-empty">
-                    No drivers match the current filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredDrivers.map((driver) => (
-                  <tr key={driver.id}>
+              <tbody>
+                {filteredDrivers.map((currentDriver) => (
+                  <tr key={currentDriver.id}>
                     <td>
-                      <div className="table-primary">{driver.name || "Unnamed Driver"}</div>
+                      <div className="table-main-text">
+                        {currentDriver.name || "Unnamed Driver"}
+                      </div>
+
                       <div className="table-secondary">
-                        {driver.employee_number || "No employee number"} · Roblox {driver.roblox_user_id || "—"}
+                        {currentDriver.employee_number || "No employee number"} · Roblox {currentDriver.roblox_user_id || "—"}
                       </div>
                     </td>
 
                     <td>
-                      <span className={`status-badge status-${driver.operationalStatus.toLowerCase()}`}>
+                      <span className={getDriverStatusClass(currentDriver.operationalStatus)}>
                         <span className="status-badge-dot" />
-                        {driver.operationalStatus === "ACTIVE" ? "Active" : "Offline"}
+                        {currentDriver.operationalStatus === "ACTIVE" ? "Active" : "Offline"}
                       </span>
                     </td>
 
                     <td>
-                      {driver.current_vehicle ? (
+                      {currentDriver.current_vehicle ? (
                         <>
-                          <div className="table-primary">{driver.current_vehicle.fleet_number}</div>
+                          <div className="table-main-text">
+                            {currentDriver.current_vehicle.fleet_number}
+                          </div>
+
                           <div className="table-secondary">
-                            {driver.current_vehicle.year} {driver.current_vehicle.make} {driver.current_vehicle.model}
+                            {currentDriver.current_vehicle.year} {currentDriver.current_vehicle.make} {currentDriver.current_vehicle.model}
                           </div>
                         </>
                       ) : (
@@ -3663,10 +5402,15 @@ function Drivers({ canEdit, openDriverDetails }) {
                     </td>
 
                     <td>
-                      {driver.current_route ? (
+                      {currentDriver.current_route ? (
                         <>
-                          <div className="table-primary">{driver.current_route.route_code || driver.current_route.name}</div>
-                          <div className="table-secondary">{driver.current_route.name}</div>
+                          <div className="table-main-text">
+                            {currentDriver.current_route.route_code || currentDriver.current_route.name}
+                          </div>
+
+                          <div className="table-secondary">
+                            {currentDriver.current_route.name}
+                          </div>
                         </>
                       ) : (
                         <span className="table-muted">Unassigned</span>
@@ -3675,622 +5419,45 @@ function Drivers({ canEdit, openDriverDetails }) {
 
                     <td>
                       <span className="table-secondary">
-                        {formatTelemetry(driver.live?.last_ping)}
+                        {formatRelative(currentDriver.live?.last_ping)}
                       </span>
                     </td>
 
-                    <td className="table-action-cell">
-                      <div className="table-actions">
+                    <td className="table-actions">
+                      <button
+                        type="button"
+                        className="button button-secondary button-small"
+                        onClick={() => openDriverDetails(currentDriver.id)}
+                      >
+                        View
+                      </button>
+
+                      {canEdit && (
                         <button
                           type="button"
-                          className="button button-secondary button-small"
-                          onClick={() => openDriverDetails(driver.id)}
+                          className="button button-danger button-small"
+                          onClick={() => deleteDriver(currentDriver)}
+                          disabled={deletingId === currentDriver.id}
                         >
-                          View
+                          {deletingId === currentDriver.id ? "Deleting..." : "Delete"}
                         </button>
-
-                        {canEdit && (
-                          <button
-                            type="button"
-                            className="button button-danger button-small"
-                            onClick={() => deleteDriver(driver)}
-                            disabled={deletingId === driver.id}
-                          >
-                            {deletingId === driver.id ? "Deleting..." : "Delete"}
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DriverDetails({ canEdit, driverId, returnToDrivers }) {
-  const [driver, setDriver] = useState(null);
-  const [vehicle, setVehicle] = useState(null);
-  const [route, setRoute] = useState(null);
-  const [live, setLive] = useState(null);
-  const [assignments, setAssignments] = useState([]);
-  const [routeAssignments, setRouteAssignments] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [audits, setAudits] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  async function loadData() {
-    if (!driverId) {
-      setError("No driver was selected.");
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const { data: driverData, error: driverError } = await supabase.from("drivers").select("*").eq("id", driverId).single();
-
-    if (driverError) {
-      setError(driverError.message);
-      setLoading(false);
-      return;
-    }
-
-    const [
-      { data: vehicleData, error: vehicleError },
-      { data: routeData, error: routeError },
-      { data: liveData, error: liveError },
-      { data: assignmentData, error: assignmentError },
-      { data: routeAssignmentData, error: routeAssignmentError },
-      { data: sessionData, error: sessionError },
-      { data: auditData, error: auditError },
-    ] = await Promise.all([
-      driverData.current_vehicle_id
-        ? supabase.from("vehicles").select("id,fleet_number,year,make,model,engine,mileage,status,garage,notes,updated_at").eq("id", driverData.current_vehicle_id).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-
-      driverData.current_route_id
-        ? supabase.from("routes").select("id,name,route_code,description,status,updated_at").eq("id", driverData.current_route_id).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-
-      supabase.from("fleet_live").select("*").eq("driver_id", driverId).maybeSingle(),
-
-      supabase.from("assignments").select("id,vehicle_id,driver_id,route_id,status,started_at,ended_at,notes,route_number").eq("driver_id", driverId).order("started_at", { ascending: false }).limit(10),
-
-      supabase.from("route_assignments").select("id,route_id,route_code,driver_id,vehicle_id,status,started_at,ended_at,created_at,updated_at").eq("driver_id", driverId).order("created_at", { ascending: false }).limit(10),
-
-      driverData.roblox_user_id
-        ? supabase.from("driver_sessions").select("id,roblox_user_id,server_id,player_name,last_seen").eq("roblox_user_id", driverData.roblox_user_id).order("last_seen", { ascending: false }).limit(10)
-        : Promise.resolve({ data: [], error: null }),
-
-      supabase.from("audits").select("id,vehicle_id,driver_id,audit_type,result,checklist,notes,completed_at,created_at").eq("driver_id", driverId).order("created_at", { ascending: false }).limit(10),
-    ]);
-
-    if (vehicleError || routeError || liveError || assignmentError || routeAssignmentError || sessionError || auditError) {
-      const firstError = vehicleError || routeError || liveError || assignmentError || routeAssignmentError || sessionError || auditError;
-      setError(firstError.message);
-      setLoading(false);
-      return;
-    }
-
-    setDriver(driverData);
-    setVehicle(vehicleData);
-    setRoute(routeData);
-    setLive(liveData);
-    setAssignments(assignmentData || []);
-    setRouteAssignments(routeAssignmentData || []);
-    setSessions(sessionData || []);
-    setAudits(auditData || []);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadData();
-
-    const interval = window.setInterval(loadData, 15000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [driverId]);
-
-  function formatDate(timestamp, includeTime = true) {
-    if (!timestamp) {
-      return "—";
-    }
-
-    const date = new Date(timestamp);
-
-    return includeTime ? date.toLocaleString() : date.toLocaleDateString();
-  }
-
-  function formatRelative(timestamp) {
-    if (!timestamp) {
-      return "No telemetry";
-    }
-
-    const seconds = Math.max(0, Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000));
-
-    if (seconds < 60) {
-      return `${seconds}s ago`;
-    }
-
-    const minutes = Math.floor(seconds / 60);
-
-    if (minutes < 60) {
-      return `${minutes}m ago`;
-    }
-
-    const hours = Math.floor(minutes / 60);
-
-    if (hours < 24) {
-      return `${hours}h ago`;
-    }
-
-    return `${Math.floor(hours / 24)}d ago`;
-  }
-
-  if (loading && !driver) {
-    return (
-      <section className="page-section driver-details-page">
-        <div className="detail-loading">
-          <span className="loading-indicator" />
-          <span>Loading driver record...</span>
-        </div>
-      </section>
-    );
-  }
-
-  if (!driver) {
-    return (
-      <section className="page-section driver-details-page">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <span className="eyebrow">PERSONNEL / DRIVER RECORD</span>
-            <h2>Driver Details</h2>
-          </div>
-
-          <div className="page-intro-actions">
-            <button type="button" className="button button-secondary" onClick={returnToDrivers}>
-              Back to Drivers
-            </button>
-          </div>
-        </div>
-
-        <div className="panel panel-alert">
-          <div className="panel-alert-title">Driver not found</div>
-          <div className="panel-alert-copy">{error || "The requested driver record could not be found."}</div>
-        </div>
-      </section>
-    );
-  }
-
-  const active = Boolean(live);
-
-  return (
-    <section className="page-section driver-details-page">
-      <div className="page-intro">
-        <div className="page-intro-copy">
-          <div className="detail-breadcrumb">
-            <button type="button" className="text-button" onClick={returnToDrivers}>
-              Drivers
-            </button>
-            <span>/</span>
-            <span>Driver Details</span>
-          </div>
-
-          <span className="eyebrow">PERSONNEL / DRIVER RECORD</span>
-
-          <div className="detail-title-row">
-            <div>
-              <h2>{driver.name || "Unnamed Driver"}</h2>
-              <p>{driver.employee_number ? `Employee ${driver.employee_number}` : "No employee number assigned"}</p>
-            </div>
-
-            <span className={`status-badge status-${active ? "active" : "offline"}`}>
-              <span className="status-badge-dot" />
-              {active ? "Active" : "Offline"}
-            </span>
-          </div>
-        </div>
-
-        <div className="page-intro-actions">
-          <button type="button" className="button button-secondary" onClick={returnToDrivers}>
-            Back to Drivers
-          </button>
-
-          <button type="button" className="button button-secondary" onClick={loadData} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="panel panel-alert">
-          <div className="panel-alert-title">Some driver data could not be loaded</div>
-          <div className="panel-alert-copy">{error}</div>
-        </div>
-      )}
-
-      <div className="detail-kpi-grid">
-        <div className="stat-card">
-          <span className="stat-card-label">Current Vehicle</span>
-          <strong className="stat-card-value">{vehicle?.fleet_number || "—"}</strong>
-          <span className="stat-card-meta">
-            {vehicle ? `${vehicle.year || ""} ${vehicle.make || ""} ${vehicle.model || ""}`.trim() : "No vehicle assigned"}
-          </span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-card-label">Current Route</span>
-          <strong className="stat-card-value">{route?.route_code || "—"}</strong>
-          <span className="stat-card-meta">{route?.name || "No route assigned"}</span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-card-label">Live Speed</span>
-          <strong className="stat-card-value">{live ? `${Math.round(Number(live.speed) || 0)} MPH` : "—"}</strong>
-          <span className="stat-card-meta">{live ? `Updated ${formatRelative(live.last_ping)}` : "No active telemetry"}</span>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-card-label">Audit Records</span>
-          <strong className="stat-card-value">{audits.length}</strong>
-          <span className="stat-card-meta">Recent driver-linked inspections</span>
-        </div>
-      </div>
-
-      <div className="content-grid-2">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">DRIVER PROFILE</span>
-              <h3>Personnel Information</h3>
-            </div>
-          </div>
-
-          <div className="detail-list">
-            <div className="detail-list-row">
-              <span>Name</span>
-              <strong>{driver.name || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Employee Number</span>
-              <strong>{driver.employee_number || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Roblox User ID</span>
-              <strong className="table-mono">{driver.roblox_user_id || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>System Status</span>
-              <strong>{driver.status || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Record Created</span>
-              <strong>{formatDate(driver.created_at, false)}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Last Updated</span>
-              <strong>{formatDate(driver.updated_at)}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">CURRENT ASSIGNMENT</span>
-              <h3>Operational Assignment</h3>
-            </div>
-          </div>
-
-          <div className="detail-list">
-            <div className="detail-list-row">
-              <span>Vehicle</span>
-              <strong>{vehicle?.fleet_number || "Unassigned"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Vehicle Status</span>
-              <strong>{vehicle?.status || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Garage</span>
-              <strong>{vehicle?.garage || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Route</span>
-              <strong>{route?.route_code || route?.name || "Unassigned"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Route Status</span>
-              <strong>{route?.status || "—"}</strong>
-            </div>
-
-            <div className="detail-list-row">
-              <span>Telemetry</span>
-              <span className={`status-badge status-${active ? "active" : "offline"}`}>
-                <span className="status-badge-dot" />
-                {active ? "Active" : "Offline"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {live && (
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">LIVE TELEMETRY</span>
-              <h3>Current Vehicle Telemetry</h3>
-            </div>
-
-            <div className="panel-header-meta">
-              <span>Updated {formatRelative(live.last_ping)}</span>
-            </div>
-          </div>
-
-          <div className="telemetry-grid">
-            <div className="telemetry-item">
-              <span>Speed</span>
-              <strong>{Math.round(Number(live.speed) || 0)} MPH</strong>
-            </div>
-
-            <div className="telemetry-item">
-              <span>RPM</span>
-              <strong>{Math.round(Number(live.rpm) || 0).toLocaleString()}</strong>
-            </div>
-
-            <div className="telemetry-item">
-              <span>Heading</span>
-              <strong>{Math.round(Number(live.heading) || 0)}°</strong>
-            </div>
-
-            <div className="telemetry-item">
-              <span>Coolant</span>
-              <strong>{live.coolant_temp != null ? `${Math.round(Number(live.coolant_temp))}°` : "—"}</strong>
-            </div>
-
-            <div className="telemetry-item">
-              <span>Oil</span>
-              <strong>{live.oil_temp != null ? `${Math.round(Number(live.oil_temp))}°` : "—"}</strong>
-            </div>
-
-            <div className="telemetry-item">
-              <span>Status</span>
-              <strong>{live.effective_status || "ONLINE"}</strong>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="content-grid-2">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">ASSIGNMENT HISTORY</span>
-              <h3>Vehicle Assignments</h3>
-            </div>
-
-            <div className="panel-header-meta">
-              <span>{assignments.length} records</span>
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Route</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                  <th>Ended</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {assignments.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="table-empty">
-                      No vehicle assignment history.
-                    </td>
-                  </tr>
-                ) : (
-                  assignments.map((assignment) => (
-                    <tr key={assignment.id}>
-                      <td>
-                        <div className="table-primary">{assignment.route_number || "No route number"}</div>
-                        <div className="table-secondary">
-                          {assignment.notes || "Vehicle assignment"}
-                        </div>
-                      </td>
-
-                      <td>
-                        <span className={`status-badge status-${(assignment.status || "unknown").toLowerCase()}`}>
-                          {assignment.status || "Unknown"}
-                        </span>
-                      </td>
-
-                      <td>{formatDate(assignment.started_at)}</td>
-                      <td>{formatDate(assignment.ended_at)}</td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">ROUTE HISTORY</span>
-              <h3>Route Assignments</h3>
-            </div>
-
-            <div className="panel-header-meta">
-              <span>{routeAssignments.length} records</span>
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Route</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                  <th>Ended</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {routeAssignments.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="table-empty">
-                      No route assignment history.
-                    </td>
-                  </tr>
-                ) : (
-                  routeAssignments.map((assignment) => (
-                    <tr key={assignment.id}>
-                      <td>
-                        <div className="table-primary">{assignment.route_code || "—"}</div>
-                        <div className="table-secondary">
-                          Route assignment
-                        </div>
-                      </td>
-
-                      <td>
-                        <span className={`status-badge status-${(assignment.status || "unknown").toLowerCase()}`}>
-                          {assignment.status || "Unknown"}
-                        </span>
-                      </td>
-
-                      <td>{formatDate(assignment.started_at)}</td>
-                      <td>{formatDate(assignment.ended_at)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="content-grid-2">
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">SERVER ACTIVITY</span>
-              <h3>Recent Sessions</h3>
-            </div>
-
-            <div className="panel-header-meta">
-              <span>{sessions.length} records</span>
-            </div>
-          </div>
-
-          <div className="activity-list">
-            {sessions.length === 0 ? (
-              <div className="empty-state">
-                <strong>No session history</strong>
-                <span>No Roblox driver sessions have been recorded.</span>
-              </div>
-            ) : (
-              sessions.map((session) => (
-                <div className="activity-list-item" key={session.id}>
-                  <div className="activity-list-marker" />
-
-                  <div className="activity-list-copy">
-                    <strong>{session.player_name || driver.name}</strong>
-                    <span>Server {session.server_id ? session.server_id.slice(0, 8) : "—"}</span>
-                  </div>
-
-                  <div className="activity-list-time">
-                    {formatDate(session.last_seen)}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-eyebrow">INSPECTION RECORDS</span>
-              <h3>Recent Audits</h3>
-            </div>
-
-            <div className="panel-header-meta">
-              <span>{audits.length} records</span>
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Result</th>
-                  <th>Completed</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {audits.length === 0 ? (
-                  <tr>
-                    <td colSpan="3" className="table-empty">
-                      No driver-linked audits.
-                    </td>
-                  </tr>
-                ) : (
-                  audits.map((audit) => (
-                    <tr key={audit.id}>
-                      <td>
-                        <div className="table-primary">{audit.audit_type || "Inspection"}</div>
-                        <div className="table-secondary">
-                          Created {formatDate(audit.created_at)}
-                        </div>
-                      </td>
-
-                      <td>
-                        <span className={`status-badge status-${(audit.result || "pending").toLowerCase()}`}>
-                          {audit.result || "Pending"}
-                        </span>
-                      </td>
-
-                      <td>{formatDate(audit.completed_at)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        )}
       </div>
     </section>
   );
 }
 
 function Assignments({ canEdit }) {
+  const [assignmentView, setAssignmentView] = useState("list");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState(null);
+
   const [assignments, setAssignments] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -4298,6 +5465,9 @@ function Assignments({ canEdit }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  const [vehicleDropdownOpen, setVehicleDropdownOpen] = useState(false);
+  const [driverDropdownOpen, setDriverDropdownOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -4307,13 +5477,62 @@ function Assignments({ canEdit }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const [showForm, setShowForm] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState(null);
-
   const [formVehicleId, setFormVehicleId] = useState("");
   const [formDriverId, setFormDriverId] = useState("");
   const [formRouteNumber, setFormRouteNumber] = useState("");
   const [formNotes, setFormNotes] = useState("");
+
+  function resetForm() {
+    setSelectedAssignmentId(null);
+    setFormVehicleId("");
+    setFormDriverId("");
+    setFormRouteNumber("");
+    setFormNotes("");
+    setVehicleDropdownOpen(false);
+    setDriverDropdownOpen(false);
+  }
+
+  function openNewAssignment() {
+    if (!canEdit) {
+      return;
+    }
+
+    resetForm();
+    setError("");
+    setMessage("");
+    setAssignmentView("new");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openEditAssignment(assignment) {
+    if (!canEdit) {
+      return;
+    }
+
+    setSelectedAssignmentId(assignment.id);
+    setFormVehicleId(assignment.vehicle_id || "");
+    setFormDriverId(assignment.driver_id || "");
+    setFormRouteNumber(assignment.route_number || "");
+    setFormNotes(assignment.notes || "");
+    setVehicleDropdownOpen(false);
+    setDriverDropdownOpen(false);
+    setError("");
+    setMessage("");
+    setAssignmentView("edit");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function returnToAssignmentList() {
+    if (saving || endingId) {
+      return;
+    }
+
+    resetForm();
+    setError("");
+    setMessage("");
+    setAssignmentView("list");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function loadData(showLoading = false) {
     if (showLoading) {
@@ -4375,8 +5594,13 @@ function Assignments({ canEdit }) {
       return;
     }
 
-    const vehicleMap = new Map((vehicleData || []).map((vehicle) => [vehicle.id, vehicle]));
-    const driverMap = new Map((driverData || []).map((driver) => [driver.id, driver]));
+    const vehicleMap = new Map(
+      (vehicleData || []).map((vehicle) => [vehicle.id, vehicle])
+    );
+
+    const driverMap = new Map(
+      (driverData || []).map((driver) => [driver.id, driver])
+    );
 
     const enrichedAssignments = (assignmentData || []).map((assignment) => ({
       ...assignment,
@@ -4403,43 +5627,25 @@ function Assignments({ canEdit }) {
     };
   }, []);
 
-  function resetForm() {
-    setEditingAssignment(null);
-    setFormVehicleId("");
-    setFormDriverId("");
-    setFormRouteNumber("");
-    setFormNotes("");
-    setShowForm(false);
-  }
-
-  function openNewAssignment() {
-    setError("");
-    setMessage("");
-    setEditingAssignment(null);
-    setFormVehicleId("");
-    setFormDriverId("");
-    setFormRouteNumber("");
-    setFormNotes("");
-    setShowForm(true);
-  }
-
-  function openEditAssignment(assignment) {
-    setError("");
-    setMessage("");
-    setEditingAssignment(assignment);
-    setFormVehicleId(assignment.vehicle_id || "");
-    setFormDriverId(assignment.driver_id || "");
-    setFormRouteNumber(assignment.route_number || "");
-    setFormNotes(assignment.notes || "");
-    setShowForm(true);
-  }
-
-  async function saveAssignment(event) {
-    event.preventDefault();
-
-    if (saving) {
+  useEffect(() => {
+    if (!message) {
       return;
     }
+
+    const timeout = setTimeout(() => {
+      setMessage("");
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [message]);
+
+  async function saveAssignment() {
+    if (!canEdit || saving) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
 
     if (!formVehicleId || !formDriverId || !formRouteNumber.trim()) {
       setError("Bus, driver, and route number are required.");
@@ -4460,19 +5666,25 @@ function Assignments({ canEdit }) {
     }
 
     setSaving(true);
-    setError("");
-    setMessage("");
 
-    if (editingAssignment) {
-      const oldVehicleId = editingAssignment.vehicle_id;
-      const oldDriverId = editingAssignment.driver_id;
+    if (assignmentView === "edit") {
+      const existingAssignment = assignments.find((assignment) => assignment.id === selectedAssignmentId);
+
+      if (!existingAssignment) {
+        setError("The selected assignment could not be found.");
+        setSaving(false);
+        return;
+      }
+
+      const oldVehicleId = existingAssignment.vehicle_id;
+      const oldDriverId = existingAssignment.driver_id;
 
       const { error: assignmentError } = await supabase.from("assignments").update({
         vehicle_id: formVehicleId,
         driver_id: formDriverId,
         route_number: formRouteNumber.trim(),
         notes: formNotes.trim() || null,
-      }).eq("id", editingAssignment.id);
+      }).eq("id", existingAssignment.id);
 
       if (assignmentError) {
         setError(assignmentError.message);
@@ -4481,7 +5693,9 @@ function Assignments({ canEdit }) {
       }
 
       if (oldVehicleId !== formVehicleId) {
-        const { error: oldVehicleError } = await supabase.from("vehicles").update({ current_driver_id: null }).eq("id", oldVehicleId).eq("current_driver_id", oldDriverId);
+        const { error: oldVehicleError } = await supabase.from("vehicles").update({
+          current_driver_id: null,
+        }).eq("id", oldVehicleId).eq("current_driver_id", oldDriverId);
 
         if (oldVehicleError) {
           setError(oldVehicleError.message);
@@ -4489,7 +5703,9 @@ function Assignments({ canEdit }) {
           return;
         }
 
-        const { error: newVehicleError } = await supabase.from("vehicles").update({ current_driver_id: formDriverId }).eq("id", formVehicleId);
+        const { error: newVehicleError } = await supabase.from("vehicles").update({
+          current_driver_id: formDriverId,
+        }).eq("id", formVehicleId);
 
         if (newVehicleError) {
           setError(newVehicleError.message);
@@ -4497,7 +5713,9 @@ function Assignments({ canEdit }) {
           return;
         }
       } else {
-        const { error: vehicleError } = await supabase.from("vehicles").update({ current_driver_id: formDriverId }).eq("id", formVehicleId);
+        const { error: vehicleError } = await supabase.from("vehicles").update({
+          current_driver_id: formDriverId,
+        }).eq("id", formVehicleId);
 
         if (vehicleError) {
           setError(vehicleError.message);
@@ -4507,7 +5725,9 @@ function Assignments({ canEdit }) {
       }
 
       if (oldDriverId !== formDriverId) {
-        const { error: oldDriverError } = await supabase.from("drivers").update({ current_vehicle_id: null }).eq("id", oldDriverId).eq("current_vehicle_id", oldVehicleId);
+        const { error: oldDriverError } = await supabase.from("drivers").update({
+          current_vehicle_id: null,
+        }).eq("id", oldDriverId).eq("current_vehicle_id", oldVehicleId);
 
         if (oldDriverError) {
           setError(oldDriverError.message);
@@ -4516,7 +5736,9 @@ function Assignments({ canEdit }) {
         }
       }
 
-      const { error: driverError } = await supabase.from("drivers").update({ current_vehicle_id: formVehicleId }).eq("id", formDriverId);
+      const { error: driverError } = await supabase.from("drivers").update({
+        current_vehicle_id: formVehicleId,
+      }).eq("id", formDriverId);
 
       if (driverError) {
         setError(driverError.message);
@@ -4524,10 +5746,10 @@ function Assignments({ canEdit }) {
         return;
       }
 
-      setMessage("Assignment updated successfully.");
-      resetForm();
       setSaving(false);
+      setMessage("Assignment updated successfully.");
       await loadData(false);
+      returnToAssignmentList();
       return;
     }
 
@@ -4563,10 +5785,10 @@ function Assignments({ canEdit }) {
       }
     }
 
-    setMessage(`${selectedVehicle.fleet_number} was assigned to ${selectedDriver.name || "the selected driver"}.`);
-    resetForm();
     setSaving(false);
+    setMessage(`${selectedVehicle.fleet_number} was assigned to ${selectedDriver.name || "the selected driver"}.`);
     await loadData(false);
+    returnToAssignmentList();
   }
 
   async function endAssignment(assignment) {
@@ -4609,11 +5831,18 @@ function Assignments({ canEdit }) {
     return String(assignment.status || "").toUpperCase() !== "ACTIVE";
   });
 
-  const assignedVehicleIds = new Set(activeAssignments.map((assignment) => assignment.vehicle_id));
-  const assignedDriverIds = new Set(activeAssignments.map((assignment) => assignment.driver_id));
+  const assignedVehicleIds = new Set(
+    activeAssignments.map((assignment) => assignment.vehicle_id)
+  );
+
+  const assignedDriverIds = new Set(
+    activeAssignments.map((assignment) => assignment.driver_id)
+  );
 
   const availableVehicleCount = vehicles.filter((vehicle) => {
-    return !assignedVehicleIds.has(vehicle.id) && String(vehicle.status || "").toUpperCase() !== "OUT_OF_SERVICE" && String(vehicle.status || "").toUpperCase() !== "MAINTENANCE";
+    return !assignedVehicleIds.has(vehicle.id) &&
+      String(vehicle.status || "").toUpperCase() !== "OUT_OF_SERVICE" &&
+      String(vehicle.status || "").toUpperCase() !== "MAINTENANCE";
   }).length;
 
   const availableDriverCount = drivers.filter((driver) => {
@@ -4633,7 +5862,7 @@ function Assignments({ canEdit }) {
       assignment.driver?.employee_number,
       assignment.route_number,
       assignment.notes,
-    ].some((value) => value?.toString().toLowerCase().includes(query));
+    ].some((value) => String(value ?? "").toLowerCase().includes(query));
 
     const matchesStatus = statusFilter === "ALL" || String(assignment.status || "").toUpperCase() === statusFilter;
 
@@ -4645,7 +5874,13 @@ function Assignments({ canEdit }) {
       return "—";
     }
 
-    return new Date(timestamp).toLocaleString([], {
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(timestamp);
+    }
+
+    return date.toLocaleString([], {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -4682,12 +5917,16 @@ function Assignments({ canEdit }) {
     return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
   }
 
+  const editingAssignment = assignments.find((assignment) => assignment.id === selectedAssignmentId) || null;
+
   const availableFormVehicles = vehicles.filter((vehicle) => {
     if (editingAssignment?.vehicle_id === vehicle.id) {
       return true;
     }
 
-    return !assignedVehicleIds.has(vehicle.id) && String(vehicle.status || "").toUpperCase() !== "OUT_OF_SERVICE" && String(vehicle.status || "").toUpperCase() !== "MAINTENANCE";
+    return !assignedVehicleIds.has(vehicle.id) &&
+      String(vehicle.status || "").toUpperCase() !== "OUT_OF_SERVICE" &&
+      String(vehicle.status || "").toUpperCase() !== "MAINTENANCE";
   }).sort((a, b) => {
     const garageOrder = {
       CLIO: 0,
@@ -4719,12 +5958,257 @@ function Assignments({ canEdit }) {
     return !assignedDriverIds.has(driver.id);
   }).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
+  const selectedFormVehicle = availableFormVehicles.find((vehicle) => vehicle.id === formVehicleId) || vehicles.find((vehicle) => vehicle.id === formVehicleId);
+  const selectedFormDriver = availableFormDrivers.find((driver) => driver.id === formDriverId) || drivers.find((driver) => driver.id === formDriverId);
+
+  if (assignmentView === "new" || assignmentView === "edit") {
+    const isEditing = assignmentView === "edit";
+
+    return (
+      <section className="page-section inspection-page inspection-form-page assignments-page">
+        <div className="page-intro">
+          <div className="page-intro-copy">
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToAssignmentList}
+              disabled={saving}
+            >
+              ← Back to Assignments
+            </button>
+
+            <span className="eyebrow">
+              Fleet Operations / {isEditing ? "Edit Assignment" : "New Assignment"}
+            </span>
+
+            <h1>{isEditing ? "Edit Assignment" : "New Assignment"}</h1>
+
+            <p>
+              {isEditing
+                ? "Update the vehicle, driver, route, and notes associated with this assignment."
+                : "Create a current vehicle and driver assignment."}
+            </p>
+          </div>
+
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={returnToAssignmentList}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={saveAssignment}
+              disabled={saving || !canEdit}
+            >
+              {saving
+                ? "Saving..."
+                : isEditing
+                  ? "Save Changes"
+                  : "Assign Vehicle"}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="alert alert-error">
+            {error}
+          </div>
+        )}
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Assignment Setup</span>
+              <h3>Assignment Information</h3>
+            </div>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <label className="select-control">
+              <span>Vehicle</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setVehicleDropdownOpen((open) => !open);
+                    setDriverDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>
+                    {selectedFormVehicle
+                      ? `${selectedFormVehicle.fleet_number} — ${selectedFormVehicle.year || ""} ${selectedFormVehicle.make || ""} ${selectedFormVehicle.model || ""}`.trim()
+                      : "Select vehicle"}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {vehicleDropdownOpen && (
+                  <div className="custom-select-menu">
+                    <button
+                      type="button"
+                      className={`custom-select-option ${!formVehicleId ? "selected" : ""}`}
+                      onClick={() => {
+                        setFormVehicleId("");
+                        setVehicleDropdownOpen(false);
+                      }}
+                    >
+                      Select vehicle
+                    </button>
+
+                    {availableFormVehicles.map((currentVehicle) => (
+                      <button
+                        type="button"
+                        key={currentVehicle.id}
+                        className={`custom-select-option ${formVehicleId === currentVehicle.id ? "selected" : ""}`}
+                        onClick={() => {
+                          setFormVehicleId(currentVehicle.id);
+                          setVehicleDropdownOpen(false);
+                          setError("");
+                        }}
+                      >
+                        {currentVehicle.fleet_number} — {currentVehicle.year || ""} {currentVehicle.make || ""} {currentVehicle.model || ""}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="select-control">
+              <span>Driver</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setDriverDropdownOpen((open) => !open);
+                    setVehicleDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>
+                    {selectedFormDriver
+                      ? `${selectedFormDriver.name}${selectedFormDriver.employee_number ? ` — ${selectedFormDriver.employee_number}` : ""}`
+                      : "Select driver"}
+                  </span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {driverDropdownOpen && (
+                  <div className="custom-select-menu">
+                    <button
+                      type="button"
+                      className={`custom-select-option ${!formDriverId ? "selected" : ""}`}
+                      onClick={() => {
+                        setFormDriverId("");
+                        setDriverDropdownOpen(false);
+                      }}
+                    >
+                      Select driver
+                    </button>
+
+                    {availableFormDrivers.map((currentDriver) => (
+                      <button
+                        type="button"
+                        key={currentDriver.id}
+                        className={`custom-select-option ${formDriverId === currentDriver.id ? "selected" : ""}`}
+                        onClick={() => {
+                          setFormDriverId(currentDriver.id);
+                          setDriverDropdownOpen(false);
+                          setError("");
+                        }}
+                      >
+                        {currentDriver.name}
+                        {currentDriver.employee_number ? ` — ${currentDriver.employee_number}` : ""}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="form-field">
+              <span>Route Number</span>
+
+              <input
+                type="text"
+                value={formRouteNumber}
+                onChange={(event) => setFormRouteNumber(event.target.value)}
+                placeholder="e.g. 16"
+                disabled={saving}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="inspection-notes-section">
+          <div className="inspection-notes-header">
+            <div>
+              <span className="eyebrow">Assignment Record</span>
+              <h3>Notes</h3>
+            </div>
+          </div>
+
+          <div className="inspection-notes-content inspection-notes-editor">
+            <textarea
+              value={formNotes}
+              onChange={(event) => setFormNotes(event.target.value)}
+              placeholder="Enter assignment notes..."
+              rows="6"
+              disabled={saving}
+            />
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToAssignmentList}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={saveAssignment}
+            disabled={saving || !canEdit}
+          >
+            {saving
+              ? "Saving..."
+              : isEditing
+                ? "Save Changes"
+                : "Assign Vehicle"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="page-section assignments-page">
+    <section className="page-section assignments-page inspection-page">
       <div className="page-intro">
         <div className="page-intro-copy">
-          <span className="eyebrow">FLEET OPERATIONS / ASSIGNMENTS</span>
-          <h2>Assignments</h2>
+          <span className="eyebrow">Fleet Operations / Assignments</span>
+          <h1>Assignments</h1>
           <p>Manage current driver, vehicle, and route assignments.</p>
         </div>
 
@@ -4752,16 +6236,14 @@ function Assignments({ canEdit }) {
       </div>
 
       {message && (
-        <div className="panel panel-success">
-          <div className="panel-alert-title">Assignment updated</div>
-          <div className="panel-alert-copy">{message}</div>
+        <div className="alert alert-success">
+          {message}
         </div>
       )}
 
       {error && (
-        <div className="panel panel-alert">
-          <div className="panel-alert-title">Assignment operation failed</div>
-          <div className="panel-alert-copy">{error}</div>
+        <div className="alert alert-error">
+          {error}
         </div>
       )}
 
@@ -4795,104 +6277,10 @@ function Assignments({ canEdit }) {
         />
       </div>
 
-      {showForm && canEdit && (
-        <section className="panel assignment-form-panel">
-          <div className="panel-header">
-            <div>
-              <span className="eyebrow">
-                {editingAssignment ? "ASSIGNMENT MANAGEMENT" : "NEW ASSIGNMENT"}
-              </span>
-              <h3>{editingAssignment ? "Edit Assignment" : "Create Assignment"}</h3>
-            </div>
-          </div>
-
-          <form className="assignment-form" onSubmit={saveAssignment}>
-            <div className="form-grid form-grid-three">
-              <label className="form-field">
-                <span>Bus</span>
-
-                <select
-                  value={formVehicleId}
-                  onChange={(event) => setFormVehicleId(event.target.value)}
-                  required
-                >
-                  <option value="">Select bus</option>
-
-                  {availableFormVehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.fleet_number} — {vehicle.year} {vehicle.make} {vehicle.model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="form-field">
-                <span>Driver</span>
-
-                <select
-                  value={formDriverId}
-                  onChange={(event) => setFormDriverId(event.target.value)}
-                  required
-                >
-                  <option value="">Select driver</option>
-
-                  {availableFormDrivers.map((driver) => (
-                    <option key={driver.id} value={driver.id}>
-                      {driver.name}{driver.employee_number ? ` — ${driver.employee_number}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="form-field">
-                <span>Route Number</span>
-
-                <input
-                  type="text"
-                  value={formRouteNumber}
-                  onChange={(event) => setFormRouteNumber(event.target.value)}
-                  placeholder="e.g. 16-A1"
-                  required
-                />
-              </label>
-
-              <label className="form-field form-field-wide">
-                <span>Notes <span className="form-optional">Optional</span></span>
-
-                <textarea
-                  value={formNotes}
-                  onChange={(event) => setFormNotes(event.target.value)}
-                  placeholder="Add assignment notes if needed..."
-                />
-              </label>
-            </div>
-
-            <div className="assignment-form-actions">
-              <button
-                type="button"
-                className="button button-secondary"
-                onClick={resetForm}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="submit"
-                className="button button-primary"
-                disabled={saving}
-              >
-                {saving ? "Saving..." : editingAssignment ? "Save Changes" : "Assign Vehicle"}
-              </button>
-            </div>
-          </form>
-        </section>
-      )}
-
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="eyebrow">CURRENT ASSIGNMENTS</span>
+            <span className="eyebrow">Current Assignments</span>
             <h3>Active Fleet Assignments</h3>
           </div>
 
@@ -4910,7 +6298,7 @@ function Assignments({ canEdit }) {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Fleet, driver, route, or notes"
+                placeholder="Fleet, driver, route, notes..."
               />
             </label>
 
@@ -4960,37 +6348,35 @@ function Assignments({ canEdit }) {
           </div>
         </div>
 
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Vehicle</th>
-                <th>Driver</th>
-                <th>Route</th>
-                <th>Started</th>
-                <th>Duration</th>
-                <th />
-              </tr>
-            </thead>
+        {loading ? (
+          <div className="empty-state">
+            <strong>Loading assignments</strong>
+            <span>Retrieving current vehicle and driver assignments.</span>
+          </div>
+        ) : filteredAssignments.length === 0 ? (
+          <div className="empty-state">
+            <strong>No active assignments found</strong>
+            <span>Adjust the search or create a new assignment.</span>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Driver</th>
+                  <th>Route</th>
+                  <th>Started</th>
+                  <th>Duration</th>
+                  <th></th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {loading && assignments.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-empty">
-                    Loading assignments...
-                  </td>
-                </tr>
-              ) : filteredAssignments.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-empty">
-                    No current assignments match the selected filters.
-                  </td>
-                </tr>
-              ) : (
-                filteredAssignments.map((assignment) => (
+              <tbody>
+                {filteredAssignments.map((assignment) => (
                   <tr key={assignment.id}>
                     <td>
-                      <div className="table-primary">
+                      <div className="table-main-text">
                         {assignment.vehicle?.fleet_number || "Unknown"}
                       </div>
 
@@ -5002,7 +6388,7 @@ function Assignments({ canEdit }) {
                     </td>
 
                     <td>
-                      <div className="table-primary">
+                      <div className="table-main-text">
                         {assignment.driver?.name || "Unknown Driver"}
                       </div>
 
@@ -5012,7 +6398,7 @@ function Assignments({ canEdit }) {
                     </td>
 
                     <td>
-                      <div className="table-primary">
+                      <div className="table-main-text">
                         {assignment.route_number || "—"}
                       </div>
 
@@ -5035,42 +6421,40 @@ function Assignments({ canEdit }) {
                       </span>
                     </td>
 
-                    <td className="table-action-cell">
-                      <div className="table-actions">
-                        {canEdit && (
-                          <>
-                            <button
-                              type="button"
-                              className="button button-secondary button-small"
-                              onClick={() => openEditAssignment(assignment)}
-                            >
-                              Edit
-                            </button>
+                    <td className="table-actions">
+                      {canEdit && (
+                        <>
+                          <button
+                            type="button"
+                            className="button button-secondary button-small"
+                            onClick={() => openEditAssignment(assignment)}
+                          >
+                            Edit
+                          </button>
 
-                            <button
-                              type="button"
-                              className="button button-danger button-small"
-                              onClick={() => endAssignment(assignment)}
-                              disabled={endingId === assignment.id}
-                            >
-                              {endingId === assignment.id ? "Ending..." : "End"}
-                            </button>
-                          </>
-                        )}
-                      </div>
+                          <button
+                            type="button"
+                            className="button button-danger button-small"
+                            onClick={() => endAssignment(assignment)}
+                            disabled={endingId === assignment.id}
+                          >
+                            {endingId === assignment.id ? "Ending..." : "End"}
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="eyebrow">ASSIGNMENT HISTORY</span>
+            <span className="eyebrow">Assignment History</span>
             <h3>Completed Assignments</h3>
           </div>
 
@@ -5079,37 +6463,35 @@ function Assignments({ canEdit }) {
           </span>
         </div>
 
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Vehicle</th>
-                <th>Driver</th>
-                <th>Route</th>
-                <th>Started</th>
-                <th>Ended</th>
-                <th>Duration</th>
-              </tr>
-            </thead>
+        {loading ? (
+          <div className="empty-state">
+            <strong>Loading assignment history</strong>
+            <span>Retrieving completed assignment records.</span>
+          </div>
+        ) : historyAssignments.length === 0 ? (
+          <div className="empty-state">
+            <strong>No completed assignments</strong>
+            <span>Completed assignments will appear here.</span>
+          </div>
+        ) : (
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle</th>
+                  <th>Driver</th>
+                  <th>Route</th>
+                  <th>Started</th>
+                  <th>Ended</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {loading && assignments.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-empty">
-                    Loading assignment history...
-                  </td>
-                </tr>
-              ) : historyAssignments.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="table-empty">
-                    No completed assignments yet.
-                  </td>
-                </tr>
-              ) : (
-                historyAssignments.map((assignment) => (
+              <tbody>
+                {historyAssignments.map((assignment) => (
                   <tr key={assignment.id}>
                     <td>
-                      <div className="table-primary">
+                      <div className="table-main-text">
                         {assignment.vehicle?.fleet_number || "Unknown"}
                       </div>
 
@@ -5119,7 +6501,7 @@ function Assignments({ canEdit }) {
                     </td>
 
                     <td>
-                      <div className="table-primary">
+                      <div className="table-main-text">
                         {assignment.driver?.name || "Unknown Driver"}
                       </div>
 
@@ -5129,7 +6511,7 @@ function Assignments({ canEdit }) {
                     </td>
 
                     <td>
-                      <div className="table-primary">
+                      <div className="table-main-text">
                         {assignment.route_number || "—"}
                       </div>
 
@@ -5158,40 +6540,91 @@ function Assignments({ canEdit }) {
                       </span>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
 function Routes({ canEdit }) {
+  const [routeView, setRouteView] = useState("list");
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
+
   const [routes, setRoutes] = useState([]);
   const [routePointCounts, setRoutePointCounts] = useState({});
   const [routeUsage, setRouteUsage] = useState({});
-  const [allRoutesOpen, setAllRoutesOpen] = useState(false);
-  const [editingRoute, setEditingRoute] = useState(null);
-  const [previewRoute, setPreviewRoute] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingDetails, setEditingDetails] = useState(null);
-  const [routeCode, setRouteCode] = useState("");
-  const [editRouteCode, setEditRouteCode] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  async function loadRoutes(showLoading = false) {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingRouteId, setDeletingRouteId] = useState(null);
+
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const [formRouteCode, setFormRouteCode] = useState("");
+  const [formRouteName, setFormRouteName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+
+  const [editingRoute, setEditingRoute] = useState(null);
+  const [previewRoute, setPreviewRoute] = useState(null);
+  const [allRoutesOpen, setAllRoutesOpen] = useState(false);
+
+  function resetForm() {
+    setSelectedRouteId(null);
+    setFormRouteCode("");
+    setFormRouteName("");
+    setFormDescription("");
+  }
+
+  function openNewRoute() {
+    if (!canEdit) {
+      return;
+    }
+
+    resetForm();
+    setError("");
+    setMessage("");
+    setRouteView("new");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openEditRoute(route) {
+    if (!canEdit) {
+      return;
+    }
+
+    setSelectedRouteId(route.id);
+    setFormRouteCode(route.route_code || "");
+    setFormRouteName(route.name || "");
+    setFormDescription(route.description || "");
+    setError("");
+    setMessage("");
+    setRouteView("edit");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function returnToRouteList() {
+    if (saving || deletingRouteId) {
+      return;
+    }
+
+    resetForm();
+    setError("");
+    setMessage("");
+    setRouteView("list");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function loadData(showLoading = false) {
     if (showLoading) {
       setLoading(true);
     }
@@ -5199,105 +6632,88 @@ function Routes({ canEdit }) {
     setRefreshing(true);
     setError("");
 
-    try {
-      const [
-        { data: routeData, error: routeError },
-        { data: pointData, error: pointError },
-        { data: assignmentData, error: assignmentError },
-        { data: routeAssignmentData, error: routeAssignmentError },
-      ] = await Promise.all([
-        supabase.from("routes").select("*").order("name", { ascending: true }),
-        supabase.from("route_points").select("route_id"),
-        supabase.from("assignments").select("route_id,status"),
-        supabase.from("route_assignments").select("route_id,status"),
-      ]);
+    const { data: routeData, error: routeError } = await supabase.from("routes").select(`
+      id,
+      route_code,
+      name,
+      description,
+      status,
+      created_at,
+      updated_at
+    `).order("route_code", { ascending: true });
 
-      if (routeError) {
-        throw routeError;
-      }
-
-      if (pointError) {
-        throw pointError;
-      }
-
-      if (assignmentError) {
-        throw assignmentError;
-      }
-
-      if (routeAssignmentError) {
-        throw routeAssignmentError;
-      }
-
-      const counts = {};
-
-      (pointData || []).forEach((point) => {
-        if (!point.route_id) {
-          return;
-        }
-
-        counts[point.route_id] = (counts[point.route_id] || 0) + 1;
-      });
-
-      const usage = {};
-
-      (assignmentData || []).forEach((assignment) => {
-        if (!assignment.route_id) {
-          return;
-        }
-
-        if (!usage[assignment.route_id]) {
-          usage[assignment.route_id] = {
-            assignments: 0,
-            activeAssignments: 0,
-            routeAssignments: 0,
-            activeRouteAssignments: 0,
-          };
-        }
-
-        usage[assignment.route_id].assignments += 1;
-
-        if (assignment.status === "ACTIVE") {
-          usage[assignment.route_id].activeAssignments += 1;
-        }
-      });
-
-      (routeAssignmentData || []).forEach((assignment) => {
-        if (!assignment.route_id) {
-          return;
-        }
-
-        if (!usage[assignment.route_id]) {
-          usage[assignment.route_id] = {
-            assignments: 0,
-            activeAssignments: 0,
-            routeAssignments: 0,
-            activeRouteAssignments: 0,
-          };
-        }
-
-        usage[assignment.route_id].routeAssignments += 1;
-
-        if (assignment.status === "ACTIVE" || assignment.status === "AWAITING") {
-          usage[assignment.route_id].activeRouteAssignments += 1;
-        }
-      });
-
-      setRoutes(routeData || []);
-      setRoutePointCounts(counts);
-      setRouteUsage(usage);
-    } catch (err) {
-      setError(err.message || "Unable to load routes.");
-    } finally {
-      setLoading(false);
+    if (routeError) {
+      setError(routeError.message);
       setRefreshing(false);
+      setLoading(false);
+      return;
     }
+
+    const { data: pointData, error: pointError } = await supabase.from("route_points").select(`
+      route_id,
+      sequence
+    `).order("sequence", { ascending: true });
+
+    if (pointError) {
+      setError(pointError.message);
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+
+    const { data: assignmentData, error: assignmentError } = await supabase.from("assignments").select(`
+      route_number,
+      status
+    `);
+
+    if (assignmentError) {
+      setError(assignmentError.message);
+      setRefreshing(false);
+      setLoading(false);
+      return;
+    }
+
+    const pointCounts = {};
+
+    (pointData || []).forEach((point) => {
+      pointCounts[point.route_id] = (pointCounts[point.route_id] || 0) + 1;
+    });
+
+    const usageCounts = {};
+
+    (assignmentData || []).forEach((assignment) => {
+      const routeNumber = String(assignment.route_number || "").trim();
+
+      if (!routeNumber) {
+        return;
+      }
+
+      if (!usageCounts[routeNumber]) {
+        usageCounts[routeNumber] = {
+          total: 0,
+          active: 0,
+        };
+      }
+
+      usageCounts[routeNumber].total += 1;
+
+      if (String(assignment.status || "").toUpperCase() === "ACTIVE") {
+        usageCounts[routeNumber].active += 1;
+      }
+    });
+
+    setRoutes(routeData || []);
+    setRoutePointCounts(pointCounts);
+    setRouteUsage(usageCounts);
+    setRefreshing(false);
+    setLoading(false);
   }
 
   useEffect(() => {
-    loadRoutes(true);
+    loadData(true);
 
     const interval = window.setInterval(() => {
-      loadRoutes(false);
+      loadData(false);
     }, 15000);
 
     return () => {
@@ -5310,240 +6726,199 @@ function Routes({ canEdit }) {
       return;
     }
 
-    const timer = window.setTimeout(() => {
+    const timeout = setTimeout(() => {
       setMessage("");
-    }, 3500);
+    }, 5000);
 
-    return () => window.clearTimeout(timer);
+    return () => clearTimeout(timeout);
   }, [message]);
 
-  function resetForm() {
-    setRouteCode("");
-    setEditRouteCode("");
-    setName("");
-    setDescription("");
-    setEditingDetails(null);
-  }
-
-  async function createRoute(event) {
-    event.preventDefault();
-
-    if (!canEdit) {
+  async function saveRoute() {
+    if (!canEdit || saving) {
       return;
     }
 
-    const cleanCode = routeCode.trim();
-    const cleanName = name.trim();
-    const cleanDescription = description.trim();
+    setError("");
+    setMessage("");
 
-    if (!cleanCode || !cleanName) {
+    if (!formRouteCode.trim() || !formRouteName.trim()) {
       setError("Route code and route name are required.");
       return;
     }
 
     setSaving(true);
-    setError("");
 
-    try {
-      const { error: insertError } = await supabase.from("routes").insert({
-        route_code: cleanCode,
-        name: cleanName,
-        description: cleanDescription || null,
-        status: "ACTIVE",
-      });
+    if (routeView === "edit") {
+      const existingRoute = routes.find((route) => route.id === selectedRouteId);
 
-      if (insertError) {
-        throw insertError;
+      if (!existingRoute) {
+        setError("The selected route could not be found.");
+        setSaving(false);
+        return;
       }
 
-      setShowForm(false);
-      resetForm();
-      setMessage("Route created.");
-      await loadRoutes(false);
-    } catch (err) {
-      setError(err.message || "Unable to create route.");
-    } finally {
+      const { error: routeError } = await supabase.from("routes").update({
+        route_code: formRouteCode.trim(),
+        name: formRouteName.trim(),
+        description: formDescription.trim() || null,
+      }).eq("id", existingRoute.id);
+
+      if (routeError) {
+        setError(routeError.message);
+        setSaving(false);
+        return;
+      }
+
       setSaving(false);
-    }
-  }
-
-  function openDetailsEditor(route) {
-    setEditingDetails(route);
-    setEditRouteCode(route.route_code || "");
-    setName(route.name || "");
-    setDescription(route.description || "");
-    setError("");
-  }
-
-  async function saveRouteDetails(event) {
-    event.preventDefault();
-
-    if (!canEdit || !editingDetails) {
+      setMessage(`${formRouteCode.trim()} was updated successfully.`);
+      await loadData(false);
+      returnToRouteList();
       return;
     }
 
-    const cleanCode = editRouteCode.trim();
-    const cleanName = name.trim();
-    const cleanDescription = description.trim();
+    const { data: createdRoute, error: routeError } = await supabase.from("routes").insert({
+      route_code: formRouteCode.trim(),
+      name: formRouteName.trim(),
+      description: formDescription.trim() || null,
+      status: "ACTIVE",
+    }).select("id").single();
 
-    if (!cleanCode || !cleanName) {
-      setError("Route code and route name are required.");
+    if (routeError) {
+      setError(routeError.message);
+      setSaving(false);
       return;
     }
 
-    setSaving(true);
-    setError("");
+    setSaving(false);
+    setMessage(`${formRouteCode.trim()} was created successfully.`);
+    await loadData(false);
 
-    try {
-      const { error: updateError } = await supabase.from("routes").update({
-        route_code: cleanCode,
-        name: cleanName,
-        description: cleanDescription || null,
-      }).eq("id", editingDetails.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      setEditingDetails(null);
-      resetForm();
-      setMessage("Route details updated.");
-      await loadRoutes(false);
-    } catch (err) {
-      setError(err.message || "Unable to update route.");
-    } finally {
-      setSaving(false);
+    if (createdRoute?.id) {
+      setSelectedRouteId(createdRoute.id);
     }
+
+    returnToRouteList();
   }
 
   async function duplicateRoute(route) {
-    if (!canEdit) {
+    if (!canEdit || saving) {
       return;
     }
 
     setSaving(true);
     setError("");
+    setMessage("");
 
-    try {
-      const baseCode = `${route.route_code || route.name || "ROUTE"}-COPY`;
-      const baseName = `${route.name} Copy`;
+    const baseCode = String(route.route_code || "ROUTE").trim();
+    let duplicateCode = `${baseCode}-COPY`;
+    let suffix = 2;
 
-      const { data: existingRoutes, error: existingError } = await supabase.from("routes").select("route_code,name");
-
-      if (existingError) {
-        throw existingError;
-      }
-
-      const existingCodes = new Set((existingRoutes || []).map((item) => item.route_code).filter(Boolean));
-      const existingNames = new Set((existingRoutes || []).map((item) => item.name).filter(Boolean));
-
-      let newCode = baseCode;
-      let codeIndex = 2;
-
-      while (existingCodes.has(newCode)) {
-        newCode = `${baseCode}-${codeIndex}`;
-        codeIndex += 1;
-      }
-
-      let newName = baseName;
-      let nameIndex = 2;
-
-      while (existingNames.has(newName)) {
-        newName = `${baseName} ${nameIndex}`;
-        nameIndex += 1;
-      }
-
-      const { data: newRoute, error: routeError } = await supabase.from("routes").insert({
-        route_code: newCode,
-        name: newName,
-        description: route.description || null,
-        status: route.status || "ACTIVE",
-      }).select().single();
-
-      if (routeError) {
-        throw routeError;
-      }
-
-      const { data: sourcePoints, error: pointError } = await supabase.from("route_points").select("sequence,x,y,z,point_type").eq("route_id", route.id).order("sequence", { ascending: true });
-
-      if (pointError) {
-        throw pointError;
-      }
-
-      if (sourcePoints?.length) {
-        const pointRows = sourcePoints.map((point, index) => ({
-          route_id: newRoute.id,
-          sequence: index + 1,
-          x: point.x,
-          y: point.y,
-          z: point.z,
-          point_type: point.point_type || "STRAIGHT",
-        }));
-
-        const { error: insertPointsError } = await supabase.from("route_points").insert(pointRows);
-
-        if (insertPointsError) {
-          await supabase.from("routes").delete().eq("id", newRoute.id);
-          throw insertPointsError;
-        }
-      }
-
-      setMessage(`Route duplicated as ${newName}.`);
-      await loadRoutes(false);
-    } catch (err) {
-      setError(err.message || "Unable to duplicate route.");
-    } finally {
-      setSaving(false);
+    while (routes.some((currentRoute) => String(currentRoute.route_code || "").toUpperCase() === duplicateCode.toUpperCase())) {
+      duplicateCode = `${baseCode}-COPY-${suffix}`;
+      suffix += 1;
     }
+
+    const { data: duplicatedRoute, error: routeError } = await supabase.from("routes").insert({
+      route_code: duplicateCode,
+      name: `${route.name || "Route"} Copy`,
+      description: route.description || null,
+      status: route.status || "ACTIVE",
+    }).select("id").single();
+
+    if (routeError) {
+      setError(routeError.message);
+      setSaving(false);
+      return;
+    }
+
+    const { data: sourcePoints, error: pointError } = await supabase.from("route_points").select(`
+      sequence,
+      x,
+      y,
+      z,
+      point_type
+    `).eq("route_id", route.id).order("sequence", { ascending: true });
+
+    if (pointError) {
+      setError(pointError.message);
+      setSaving(false);
+      return;
+    }
+
+    if (duplicatedRoute?.id && sourcePoints?.length) {
+      const copiedPoints = sourcePoints.map((point, index) => ({
+        route_id: duplicatedRoute.id,
+        sequence: index + 1,
+        x: Number(point.x) || 0,
+        y: Number(point.y) || 0,
+        z: Number(point.z) || 0,
+        point_type: point.point_type || "STRAIGHT",
+      }));
+
+      const { error: insertPointError } = await supabase.from("route_points").insert(copiedPoints);
+
+      if (insertPointError) {
+        setError(insertPointError.message);
+        setSaving(false);
+        return;
+      }
+    }
+
+    setSaving(false);
+    setMessage(`${duplicateCode} was created as a duplicate.`);
+    await loadData(false);
   }
 
-  function requestDeleteRoute(route) {
-    if (!canEdit) {
+  async function deleteRoute(route) {
+    if (!canEdit || deletingRouteId) {
       return;
     }
 
-    setDeleteTarget(route);
+    const confirmed = window.confirm(
+      `Delete route ${route.route_code || route.name || "Unknown"}?\n\nThis will permanently remove the route record and all of its route points.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingRouteId(route.id);
     setError("");
+    setMessage("");
+
+    const { error: pointError } = await supabase.from("route_points").delete().eq("route_id", route.id);
+
+    if (pointError) {
+      setError(pointError.message);
+      setDeletingRouteId(null);
+      return;
+    }
+
+    const { error: routeError } = await supabase.from("routes").delete().eq("id", route.id);
+
+    if (routeError) {
+      setError(routeError.message);
+      setDeletingRouteId(null);
+      return;
+    }
+
+    setMessage(`${route.route_code || route.name || "Route"} was deleted.`);
+    setDeletingRouteId(null);
+    await loadData(false);
   }
 
-  async function deleteRoute() {
-    if (!canEdit || !deleteTarget) {
-      return;
-    }
+  function openRouteEditor(route) {
+    setEditingRoute(route);
+  }
 
-    const route = deleteTarget;
-    const usage = routeUsage[route.id];
+  function openRoutePreview(route) {
+    setPreviewRoute(route);
+  }
 
-    if (usage?.activeAssignments || usage?.activeRouteAssignments) {
-      setError("This route cannot be deleted while it is actively assigned.");
-      setDeleteTarget(null);
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-
-    try {
-      const { error: pointError } = await supabase.from("route_points").delete().eq("route_id", route.id);
-
-      if (pointError) {
-        throw pointError;
-      }
-
-      const { error: routeError } = await supabase.from("routes").delete().eq("id", route.id);
-
-      if (routeError) {
-        throw routeError;
-      }
-
-      setDeleteTarget(null);
-      setMessage(`${route.name} deleted.`);
-      await loadRoutes(false);
-    } catch (err) {
-      setError(err.message || "Unable to delete route.");
-    } finally {
-      setSaving(false);
-    }
+  function handleRouteSaved() {
+    setEditingRoute(null);
+    setMessage("Route geometry saved successfully.");
+    loadData(false);
   }
 
   const filteredRoutes = routes.filter((route) => {
@@ -5553,38 +6928,230 @@ function Routes({ canEdit }) {
       route.route_code,
       route.name,
       route.description,
-    ].filter(Boolean).some((value) => value.toLowerCase().includes(query));
+      route.status,
+    ].some((value) => String(value ?? "").toLowerCase().includes(query));
 
-    const matchesStatus = statusFilter === "ALL" || route.status === statusFilter;
+    const normalizedStatus = String(route.status || "").toUpperCase();
+
+    const matchesStatus = statusFilter === "ALL" || normalizedStatus === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
-  const activeCount = routes.filter((route) => route.status === "ACTIVE").length;
-  const inactiveCount = routes.filter((route) => route.status === "INACTIVE").length;
-  const totalPoints = routes.reduce((total, route) => total + (routePointCounts[route.id] || 0), 0);
+  const activeRoutes = routes.filter((route) => {
+    return String(route.status || "").toUpperCase() === "ACTIVE";
+  });
 
-  if (loading && routes.length === 0) {
+  const inactiveRoutes = routes.filter((route) => {
+    return String(route.status || "").toUpperCase() !== "ACTIVE";
+  });
+
+  const routesWithGeometry = routes.filter((route) => {
+    return Number(routePointCounts[route.id] || 0) > 0;
+  });
+
+  const routesInUse = routes.filter((route) => {
+    const code = String(route.route_code || "").trim();
+
+    if (!code) {
+      return false;
+    }
+
+    return Number(routeUsage[code]?.active || 0) > 0;
+  });
+
+  const selectedRoute = routes.find((route) => route.id === selectedRouteId) || null;
+
+  function getRouteUsage(route) {
+    const routeCode = String(route.route_code || "").trim();
+
+    return routeUsage[routeCode] || {
+      total: 0,
+      active: 0,
+    };
+  }
+
+  function formatDate(timestamp) {
+    if (!timestamp) {
+      return "—";
+    }
+
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(timestamp);
+    }
+
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  if (routeView === "new" || routeView === "edit") {
+    const isEditing = routeView === "edit";
+
     return (
-      <section className="page-section">
+      <section className="page-section inspection-page inspection-form-page routes-page">
         <div className="page-intro">
           <div className="page-intro-copy">
-            <span className="eyebrow">ROUTE OPERATIONS</span>
-            <h2>Routes</h2>
-            <p>Loading route registry...</p>
+            <button
+              type="button"
+              className="button button-secondary button-small inspection-back-button"
+              onClick={returnToRouteList}
+              disabled={saving}
+            >
+              ← Back to Routes
+            </button>
+
+            <span className="eyebrow">
+              Route Operations / {isEditing ? "Edit Route" : "New Route"}
+            </span>
+
+            <h1>{isEditing ? "Edit Route" : "New Route"}</h1>
+
+            <p>
+              {isEditing
+                ? "Update the route record and maintain its operational information."
+                : "Create a route record before adding or editing route geometry."}
+            </p>
           </div>
+
+          <div className="page-intro-actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={returnToRouteList}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={saveRoute}
+              disabled={saving || !canEdit}
+            >
+              {saving
+                ? "Saving..."
+                : isEditing
+                  ? "Save Changes"
+                  : "Create Route"}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="alert alert-error">
+            {error}
+          </div>
+        )}
+
+        <div className="panel inspection-selection-panel">
+          <div className="panel-header">
+            <div>
+              <span className="eyebrow">Route Setup</span>
+              <h3>Route Information</h3>
+            </div>
+          </div>
+
+          <div className="inspection-setup-grid form-grid form-grid-three">
+            <label className="form-field">
+              <span>Route Code</span>
+
+              <input
+                type="text"
+                value={formRouteCode}
+                onChange={(event) => setFormRouteCode(event.target.value)}
+                placeholder="e.g. 16-A1"
+                disabled={saving}
+              />
+            </label>
+
+            <label className="form-field">
+              <span>Route Name</span>
+
+              <input
+                type="text"
+                value={formRouteName}
+                onChange={(event) => setFormRouteName(event.target.value)}
+                placeholder="e.g. North Elementary AM"
+                disabled={saving}
+              />
+            </label>
+
+            <div className="form-field">
+              <span>Status</span>
+
+              <div className="form-static-value">
+                <StatusBadge status={isEditing ? selectedRoute?.status : "ACTIVE"} />
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="inspection-notes-content inspection-notes-editor route-information-description"
+            style={{ padding: "20px", boxSizing: "border-box", }}
+          >
+            <label
+              className="form-field"
+              style={{ width: "100%", margin: 0, }}
+            >
+              <span>Description</span>
+
+              <textarea
+                value={formDescription}
+                onChange={(event) => setFormDescription(event.target.value)}
+                placeholder="Enter route description or operational notes..."
+                rows="6"
+                disabled={saving}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="inspection-page-footer">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={returnToRouteList}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={saveRoute}
+            disabled={saving || !canEdit}
+          >
+            {saving
+              ? "Saving..."
+              : isEditing
+                ? "Save Changes"
+                : "Create Route"}
+          </button>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="page-section routes-page">
+    <section className="page-section routes-page inspection-page">
       <div className="page-intro">
         <div className="page-intro-copy">
-          <span className="eyebrow">ROUTE OPERATIONS</span>
-          <h2>Routes</h2>
-          <p>Manage route definitions, geometry, status, and operational usage.</p>
+          <span className="eyebrow">Route Operations / Routes</span>
+          <h1>Routes</h1>
+          <p>Manage route records, route geometry, and route utilization.</p>
         </div>
 
         <div className="page-intro-actions">
@@ -5592,6 +7159,7 @@ function Routes({ canEdit }) {
             type="button"
             className="button button-secondary"
             onClick={() => setAllRoutesOpen(true)}
+            disabled={!routes.length}
           >
             View All Routes
           </button>
@@ -5600,11 +7168,7 @@ function Routes({ canEdit }) {
             <button
               type="button"
               className="button button-primary"
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-                setError("");
-              }}
+              onClick={openNewRoute}
             >
               New Route
             </button>
@@ -5613,7 +7177,7 @@ function Routes({ canEdit }) {
           <button
             type="button"
             className="button button-secondary refresh-button"
-            onClick={() => loadRoutes(false)}
+            onClick={() => loadData(false)}
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
@@ -5622,46 +7186,44 @@ function Routes({ canEdit }) {
         </div>
       </div>
 
-      {error && (
-        <div className="panel panel-alert">
-          <div className="panel-alert-title">Route operation failed</div>
-          <div className="panel-alert-copy">{error}</div>
-        </div>
-      )}
-
       {message && (
-        <div className="panel panel-success">
-          <div className="panel-alert-title">Route updated</div>
-          <div className="panel-alert-copy">{message}</div>
+        <div className="alert alert-success">
+          {message}
         </div>
       )}
 
-      <div className="dashboard-kpi-grid route-stat-grid">
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
+      )}
+
+      <div className="dashboard-kpi-grid assignment-stat-grid">
         <DashboardKpi
           label="Total Routes"
           value={routes.length}
-          detail="Registered route definitions"
+          detail="Route records"
           icon="fleet"
         />
 
         <DashboardKpi
           label="Active Routes"
-          value={activeCount}
-          detail="Available for operations"
+          value={activeRoutes.length}
+          detail="Currently operational"
           icon="active"
         />
 
         <DashboardKpi
-          label="Inactive Routes"
-          value={inactiveCount}
-          detail="Temporarily unavailable"
-          icon="out-of-service"
+          label="With Geometry"
+          value={routesWithGeometry.length}
+          detail="Routes with saved points"
+          icon="available"
         />
 
         <DashboardKpi
-          label="Route Points"
-          value={totalPoints}
-          detail="Mapped geometry points"
+          label="In Use"
+          value={routesInUse.length}
+          detail="Currently assigned"
           icon="assigned"
         />
       </div>
@@ -5669,8 +7231,8 @@ function Routes({ canEdit }) {
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="eyebrow">ROUTE REGISTRY</span>
-            <h3>Route Definitions</h3>
+            <span className="eyebrow">Route Registry</span>
+            <h3>Route Directory</h3>
           </div>
 
           <span className="panel-count">
@@ -5687,7 +7249,7 @@ function Routes({ canEdit }) {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Route code, name, or description"
+                placeholder="Route code, name, description..."
               />
             </label>
 
@@ -5705,8 +7267,7 @@ function Routes({ canEdit }) {
                       ALL: "All statuses",
                       ACTIVE: "Active",
                       INACTIVE: "Inactive",
-                      ARCHIVED: "Archived",
-                    }[statusFilter]}
+                    }[statusFilter] || "All statuses"}
                   </span>
 
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -5720,7 +7281,6 @@ function Routes({ canEdit }) {
                       ["ALL", "All statuses"],
                       ["ACTIVE", "Active"],
                       ["INACTIVE", "Inactive"],
-                      ["ARCHIVED", "Archived"],
                     ].map(([value, label]) => (
                       <button
                         key={value}
@@ -5741,49 +7301,84 @@ function Routes({ canEdit }) {
           </div>
         </div>
 
-        {filteredRoutes.length === 0 ? (
-          <div className="table-empty">
-            No routes match the current filters.
+        {loading ? (
+          <div className="empty-state">
+            <strong>Loading routes</strong>
+            <span>Retrieving route records and geometry information.</span>
+          </div>
+        ) : filteredRoutes.length === 0 ? (
+          <div className="empty-state">
+            <strong>No routes found</strong>
+            <span>Adjust the search or status filter, or create a new route.</span>
+
+            {canEdit && routes.length === 0 && (
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={openNewRoute}
+              >
+                New Route
+              </button>
+            )}
           </div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-container">
             <table className="data-table">
               <thead>
                 <tr>
                   <th>Route</th>
-                  <th>Description</th>
-                  <th>Status</th>
-                  <th>Points</th>
+                  <th>Name</th>
+                  <th>Geometry</th>
                   <th>Usage</th>
-                  <th />
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th></th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredRoutes.map((route) => {
-                  const usage = routeUsage[route.id] || {
-                    assignments: 0,
-                    activeAssignments: 0,
-                    routeAssignments: 0,
-                    activeRouteAssignments: 0,
-                  };
+                  const usage = getRouteUsage(route);
+                  const pointCount = routePointCounts[route.id] || 0;
 
                   return (
                     <tr key={route.id}>
                       <td>
-                        <div className="table-primary">
+                        <div className="table-main-text">
                           {route.route_code || "—"}
-                        </div>
-
-                        <div className="table-secondary">
-                          {route.name}
                         </div>
                       </td>
 
                       <td>
-                        <span className="table-muted">
-                          {route.description || "No description"}
-                        </span>
+                        <div className="table-main-text">
+                          {route.name || "Unnamed Route"}
+                        </div>
+
+                        {route.description && (
+                          <div className="table-secondary">
+                            {route.description}
+                          </div>
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="table-main-text">
+                          {pointCount} point{pointCount === 1 ? "" : "s"}
+                        </div>
+
+                        <div className="table-secondary">
+                          {pointCount > 0 ? "Geometry configured" : "No geometry"}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="table-main-text">
+                          {usage.active} active
+                        </div>
+
+                        <div className="table-secondary">
+                          {usage.total} total assignment{usage.total === 1 ? "" : "s"}
+                        </div>
                       </td>
 
                       <td>
@@ -5791,67 +7386,57 @@ function Routes({ canEdit }) {
                       </td>
 
                       <td>
-                        <strong>{routePointCounts[route.id] || 0}</strong>
+                        <span className="table-secondary">
+                          {formatDate(route.updated_at || route.created_at)}
+                        </span>
                       </td>
 
-                      <td>
-                        <div className="table-primary">
-                          {usage.activeAssignments + usage.activeRouteAssignments} active
-                        </div>
+                      <td className="table-actions">
+                        <button
+                          type="button"
+                          className="button button-secondary button-small"
+                          onClick={() => openRoutePreview(route)}
+                        >
+                          Preview
+                        </button>
 
-                        <div className="table-secondary">
-                          {usage.assignments + usage.routeAssignments} total
-                        </div>
-                      </td>
+                        {canEdit && (
+                          <>
+                            <button
+                              type="button"
+                              className="button button-secondary button-small"
+                              onClick={() => openRouteEditor(route)}
+                            >
+                              Edit Route
+                            </button>
 
-                      <td className="table-action-cell">
-                        <div className="table-actions">
-                          <button
-                            type="button"
-                            className="button button-small button-secondary"
-                            onClick={() => setPreviewRoute(route)}
-                          >
-                            Preview
-                          </button>
+                            <button
+                              type="button"
+                              className="button button-secondary button-small"
+                              onClick={() => openEditRoute(route)}
+                            >
+                              Edit Details
+                            </button>
 
-                          {canEdit && (
-                            <>
-                              <button
-                                type="button"
-                                className="button button-small button-secondary"
-                                onClick={() => setEditingRoute(route)}
-                              >
-                                Edit Route
-                              </button>
+                            <button
+                              type="button"
+                              className="button button-secondary button-small"
+                              onClick={() => duplicateRoute(route)}
+                              disabled={saving}
+                            >
+                              Duplicate
+                            </button>
 
-                              <button
-                                type="button"
-                                className="button button-small button-secondary"
-                                onClick={() => openDetailsEditor(route)}
-                              >
-                                Edit Details
-                              </button>
-
-                              <button
-                                type="button"
-                                className="button button-small button-secondary"
-                                onClick={() => duplicateRoute(route)}
-                                disabled={saving}
-                              >
-                                Duplicate
-                              </button>
-
-                              <button
-                                type="button"
-                                className="button button-small button-danger"
-                                onClick={() => requestDeleteRoute(route)}
-                                disabled={saving}
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
+                            <button
+                              type="button"
+                              className="button button-danger button-small"
+                              onClick={() => deleteRoute(route)}
+                              disabled={deletingRouteId === route.id}
+                            >
+                              {deletingRouteId === route.id ? "Deleting..." : "Delete"}
+                            </button>
+                          </>
+                        )}
                       </td>
                     </tr>
                   );
@@ -5862,235 +7447,11 @@ function Routes({ canEdit }) {
         )}
       </div>
 
-      {showForm && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !saving) {
-            setShowForm(false);
-          }
-        }}>
-          <div className="modal modal-medium">
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">ROUTE REGISTRY</span>
-                <h2>New Route</h2>
-                <p>Create the route definition before adding geometry.</p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                aria-label="Close"
-                onClick={() => setShowForm(false)}
-                disabled={saving}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={createRoute}>
-              <div className="modal-body">
-                <div className="form-grid">
-                  <label className="form-field">
-                    <span>Route Code</span>
-                    <input
-                      value={routeCode}
-                      onChange={(event) => setRouteCode(event.target.value)}
-                      placeholder="e.g. 101A"
-                      autoFocus
-                    />
-                  </label>
-
-                  <label className="form-field">
-                    <span>Route Name</span>
-                    <input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="e.g. North Elementary"
-                    />
-                  </label>
-
-                  <label className="form-field form-field-wide">
-                    <span>Description</span>
-                    <textarea
-                      value={description}
-                      onChange={(event) => setDescription(event.target.value)}
-                      placeholder="Describe the route and its service area."
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={() => setShowForm(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="button button-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Creating..." : "Create Route"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {editingDetails && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !saving) {
-            setEditingDetails(null);
-            resetForm();
-          }
-        }}>
-          <div className="modal modal-medium">
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">ROUTE REGISTRY</span>
-                <h2>Edit Route Details</h2>
-                <p>Update the route identity and description.</p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                aria-label="Close"
-                onClick={() => {
-                  setEditingDetails(null);
-                  resetForm();
-                }}
-                disabled={saving}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={saveRouteDetails}>
-              <div className="modal-body">
-                <div className="form-grid">
-                  <label className="form-field">
-                    <span>Route Code</span>
-                    <input
-                      value={editRouteCode}
-                      onChange={(event) => setEditRouteCode(event.target.value)}
-                      autoFocus
-                    />
-                  </label>
-
-                  <label className="form-field">
-                    <span>Route Name</span>
-                    <input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                    />
-                  </label>
-
-                  <label className="form-field form-field-wide">
-                    <span>Description</span>
-                    <textarea
-                      value={description}
-                      onChange={(event) => setDescription(event.target.value)}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="button button-secondary"
-                  onClick={() => {
-                    setEditingDetails(null);
-                    resetForm();
-                  }}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="button button-primary"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save Details"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {deleteTarget && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !saving) {
-            setDeleteTarget(null);
-          }
-        }}>
-          <div className="modal modal-small">
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">DESTRUCTIVE ACTION</span>
-                <h2>Delete Route</h2>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                aria-label="Close"
-                onClick={() => setDeleteTarget(null)}
-                disabled={saving}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <p>
-                Delete <strong>{deleteTarget.name}</strong> and all of its route points?
-                This cannot be undone.
-              </p>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="button button-secondary"
-                onClick={() => setDeleteTarget(null)}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="button button-danger"
-                onClick={deleteRoute}
-                disabled={saving}
-              >
-                {saving ? "Deleting..." : "Delete Route"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {editingRoute && (
         <RouteEditor
           route={editingRoute}
           onClose={() => setEditingRoute(null)}
-          onSaved={() => {
-            setEditingRoute(null);
-            loadRoutes(false);
-            setMessage("Route geometry saved.");
-          }}
+          onSaved={handleRouteSaved}
         />
       )}
 
@@ -10639,29 +12000,45 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
   const sections = [
     {
       label: "Operations",
-      description: "Fleet tracking and live operations behavior.",
+      description: "Live fleet refresh and vehicle visibility.",
     },
     {
       label: "Dashboard",
-      description: "Control the amount of operational information displayed.",
+      description: "Control dashboard feed sizes and information density.",
     },
     {
       label: "Alerts",
-      description: "Choose which operational warnings are displayed.",
+      description: "Control which operational conditions are flagged.",
     },
     {
       label: "Interface",
-      description: "Control the appearance and default behavior of the system.",
+      description: "Configure layout density and startup behavior.",
     },
     {
       label: "Account",
-      description: "Manage your account session and authentication settings.",
+      description: "Manage authentication and the current session.",
     },
     {
       label: "System",
-      description: "Review system configuration and account access.",
+      description: "Review application state and permissions.",
     },
   ];
+
+  const defaults = {
+    density: "comfortable",
+    telemetryInterval: 15,
+    showOffline: true,
+    showStale: true,
+    defaultSection: "Dashboard",
+    activityCount: 8,
+    maintenanceCount: 8,
+    autoFollowVehicle: false,
+    vehicleLabels: true,
+    mapRefresh: 15,
+    maintenanceWarnings: true,
+    inspectionWarnings: true,
+    offlineWarnings: true,
+  };
 
   function updatePreference(key, value) {
     if (!canEdit) {
@@ -10673,8 +12050,10 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
       [key]: value,
     }));
 
-    setSaveMessage("Settings saved");
+    setSaveMessage("Saved");
+
     window.clearTimeout(window.__clinoSettingsMessageTimeout);
+
     window.__clinoSettingsMessageTimeout = window.setTimeout(() => {
       setSaveMessage("");
     }, 1800);
@@ -10685,25 +12064,11 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
       return;
     }
 
-    const defaults = {
-      density: "comfortable",
-      telemetryInterval: 15,
-      showOffline: true,
-      showStale: true,
-      defaultSection: "Dashboard",
-      activityCount: 8,
-      maintenanceCount: 8,
-      autoFollowVehicle: false,
-      vehicleLabels: true,
-      mapRefresh: 15,
-      maintenanceWarnings: true,
-      inspectionWarnings: true,
-      offlineWarnings: true,
-    };
-
     setPreferences(defaults);
-    setSaveMessage("Preferences reset to defaults");
+    setSaveMessage("Defaults restored");
+
     window.clearTimeout(window.__clinoSettingsMessageTimeout);
+
     window.__clinoSettingsMessageTimeout = window.setTimeout(() => {
       setSaveMessage("");
     }, 2200);
@@ -10754,246 +12119,128 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
     await supabase.auth.signOut();
   }
 
-  const accountName = session?.user?.email?.split("@")[0] || "User";
   const accountEmail = session?.user?.email || "Unknown";
-  const roleLabel = role === "admin" ? "Administrator" : role === "viewer" ? "Viewer" : role;
+  const accountName = accountEmail.split("@")[0] || "User";
+  const roleLabel = role === "admin"
+    ? "Administrator"
+    : role === "viewer"
+      ? "Viewer"
+      : role || "Unknown";
 
-  function renderOperations() {
+  function renderToggle({ label, description, value, preferenceKey }) {
     return (
-      <>
-        <div className="page-section">
-          <div className="page-intro">
-            <div className="page-intro-copy">
-              <div className="eyebrow">OPERATIONS CONFIGURATION</div>
-              <h2>Fleet tracking</h2>
-              <p>Control how frequently the application refreshes live fleet information and how vehicles are presented during operations.</p>
-            </div>
-          </div>
-
-          <div className="settings-grid">
-            <section className="panel settings-panel">
-              <div className="panel-header">
-                <div>
-                  <span className="panel-kicker">TELEMETRY</span>
-                  <h3>Live fleet updates</h3>
-                </div>
-              </div>
-
-              <div className="settings-list">
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <strong>Telemetry interval</strong>
-                    <span>How often the application expects updated vehicle telemetry.</span>
-                  </div>
-
-                  <select
-                    className="select-control settings-select"
-                    value={preferences.telemetryInterval}
-                    onChange={(event) => updatePreference("telemetryInterval", Number(event.target.value))}
-                    disabled={!canEdit}
-                  >
-                    <option value={5}>5 seconds</option>
-                    <option value={10}>10 seconds</option>
-                    <option value={15}>15 seconds</option>
-                    <option value={30}>30 seconds</option>
-                    <option value={60}>60 seconds</option>
-                  </select>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <strong>Map refresh</strong>
-                    <span>Controls how frequently the live map refreshes its displayed fleet state.</span>
-                  </div>
-
-                  <select
-                    className="select-control settings-select"
-                    value={preferences.mapRefresh}
-                    onChange={(event) => updatePreference("mapRefresh", Number(event.target.value))}
-                    disabled={!canEdit}
-                  >
-                    <option value={5}>5 seconds</option>
-                    <option value={10}>10 seconds</option>
-                    <option value={15}>15 seconds</option>
-                    <option value={30}>30 seconds</option>
-                    <option value={60}>60 seconds</option>
-                  </select>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <strong>Automatically follow selected vehicle</strong>
-                    <span>Keep the live map centered on a selected vehicle while it is being tracked.</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`settings-toggle ${preferences.autoFollowVehicle ? "active" : ""}`}
-                    onClick={() => updatePreference("autoFollowVehicle", !preferences.autoFollowVehicle)}
-                    disabled={!canEdit}
-                    aria-pressed={preferences.autoFollowVehicle}
-                  >
-                    <span />
-                    <strong>{preferences.autoFollowVehicle ? "On" : "Off"}</strong>
-                  </button>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <strong>Vehicle labels</strong>
-                    <span>Display fleet numbers directly on live vehicle markers.</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`settings-toggle ${preferences.vehicleLabels ? "active" : ""}`}
-                    onClick={() => updatePreference("vehicleLabels", !preferences.vehicleLabels)}
-                    disabled={!canEdit}
-                    aria-pressed={preferences.vehicleLabels}
-                  >
-                    <span />
-                    <strong>{preferences.vehicleLabels ? "On" : "Off"}</strong>
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <section className="panel settings-panel">
-              <div className="panel-header">
-                <div>
-                  <span className="panel-kicker">FLEET VISIBILITY</span>
-                  <h3>Vehicle status display</h3>
-                </div>
-              </div>
-
-              <div className="settings-list">
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <strong>Show offline vehicles</strong>
-                    <span>Keep vehicles without a current live connection visible in fleet views.</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`settings-toggle ${preferences.showOffline ? "active" : ""}`}
-                    onClick={() => updatePreference("showOffline", !preferences.showOffline)}
-                    disabled={!canEdit}
-                    aria-pressed={preferences.showOffline}
-                  >
-                    <span />
-                    <strong>{preferences.showOffline ? "On" : "Off"}</strong>
-                  </button>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row-copy">
-                    <strong>Show stale telemetry</strong>
-                    <span>Display vehicles whose latest telemetry is older than the normal update interval.</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`settings-toggle ${preferences.showStale ? "active" : ""}`}
-                    onClick={() => updatePreference("showStale", !preferences.showStale)}
-                    disabled={!canEdit}
-                    aria-pressed={preferences.showStale}
-                  >
-                    <span />
-                    <strong>{preferences.showStale ? "On" : "Off"}</strong>
-                  </button>
-                </div>
-              </div>
-            </section>
-          </div>
+      <div className="settings-control-row">
+        <div className="settings-control-copy">
+          <strong>{label}</strong>
+          <span>{description}</span>
         </div>
-      </>
+
+        <button
+          type="button"
+          className={`settings-toggle ${value ? "active" : ""}`}
+          onClick={() => updatePreference(preferenceKey, !value)}
+          disabled={!canEdit}
+          aria-pressed={value}
+        >
+          <span />
+          <strong>{value ? "On" : "Off"}</strong>
+        </button>
+      </div>
     );
   }
 
-  function renderDashboard() {
+  function renderOperations() {
     return (
-      <div className="page-section">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <div className="eyebrow">DASHBOARD CONFIGURATION</div>
-            <h2>Dashboard display</h2>
-            <p>Set how much recent operational information is shown on the dashboard.</p>
-          </div>
+      <div className="settings-section-content">
+        <div className="settings-section-intro">
+          <span className="eyebrow">LIVE OPERATIONS</span>
+          <h2>Fleet behavior</h2>
+          <p>
+            These settings control how frequently the dashboard and live fleet
+            views retrieve fresh information and how vehicles are presented.
+          </p>
         </div>
 
-        <div className="settings-grid">
-          <section className="panel settings-panel">
-            <div className="panel-header">
+        <div className="settings-card-grid">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
-                <span className="panel-kicker">RECENT ACTIVITY</span>
-                <h3>Activity feed</h3>
+                <span className="panel-kicker">DATA REFRESH</span>
+                <h3>Fleet data</h3>
+                <p>Control application polling intervals.</p>
               </div>
             </div>
 
-            <div className="settings-list">
-              <div className="settings-row">
-                <div className="settings-row-copy">
-                  <strong>Activity entries</strong>
-                  <span>Number of recent operational events shown on the dashboard.</span>
-                </div>
+            <div className="settings-controls">
+              <SettingsSelect
+                label="Dashboard refresh interval"
+                description="How often the dashboard requests fresh fleet and operational data."
+                value={preferences.telemetryInterval}
+                options={[
+                  ["5", "5 seconds"],
+                  ["10", "10 seconds"],
+                  ["15", "15 seconds"],
+                  ["30", "30 seconds"],
+                  ["60", "60 seconds"],
+                ]}
+                onChange={(value) => updatePreference("telemetryInterval", Number(value))}
+                disabled={!canEdit}
+              />
 
-                <select
-                  className="select-control settings-select"
-                  value={preferences.activityCount}
-                  onChange={(event) => updatePreference("activityCount", Number(event.target.value))}
-                  disabled={!canEdit}
-                >
-                  <option value={5}>5 entries</option>
-                  <option value={8}>8 entries</option>
-                  <option value={10}>10 entries</option>
-                  <option value={15}>15 entries</option>
-                  <option value={20}>20 entries</option>
-                </select>
-              </div>
-
-              <div className="settings-row">
-                <div className="settings-row-copy">
-                  <strong>Maintenance entries</strong>
-                  <span>Number of maintenance records shown in the dashboard service section.</span>
-                </div>
-
-                <select
-                  className="select-control settings-select"
-                  value={preferences.maintenanceCount}
-                  onChange={(event) => updatePreference("maintenanceCount", Number(event.target.value))}
-                  disabled={!canEdit}
-                >
-                  <option value={5}>5 entries</option>
-                  <option value={8}>8 entries</option>
-                  <option value={10}>10 entries</option>
-                  <option value={15}>15 entries</option>
-                  <option value={20}>20 entries</option>
-                </select>
-              </div>
+              <SettingsSelect
+                label="Live fleet refresh interval"
+                description="How often the Live Fleet page retrieves updated vehicle telemetry."
+                value={preferences.mapRefresh}
+                options={[
+                  ["5", "5 seconds"],
+                  ["10", "10 seconds"],
+                  ["15", "15 seconds"],
+                  ["30", "30 seconds"],
+                  ["60", "60 seconds"],
+                ]}
+                onChange={(value) => updatePreference("mapRefresh", Number(value))}
+                disabled={!canEdit}
+              />
             </div>
           </section>
 
-          <section className="panel settings-panel settings-info-panel">
-            <div className="panel-header">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
-                <span className="panel-kicker">CONFIGURATION</span>
-                <h3>Current dashboard profile</h3>
+                <span className="panel-kicker">VEHICLE DISPLAY</span>
+                <h3>Live fleet visibility</h3>
+                <p>Control what appears in live fleet views.</p>
               </div>
             </div>
 
-            <div className="settings-summary">
-              <div>
-                <span>Activity feed</span>
-                <strong>{preferences.activityCount} entries</strong>
-              </div>
-              <div>
-                <span>Maintenance feed</span>
-                <strong>{preferences.maintenanceCount} entries</strong>
-              </div>
-              <div>
-                <span>Default section</span>
-                <strong>{preferences.defaultSection}</strong>
-              </div>
+            <div className="settings-controls">
+              {renderToggle({
+                label: "Show offline vehicles",
+                description: "Keep vehicles with no current live connection in the fleet list.",
+                value: Boolean(preferences.showOffline),
+                preferenceKey: "showOffline",
+              })}
+
+              {renderToggle({
+                label: "Show stale telemetry",
+                description: "Keep vehicles with delayed telemetry visible in live fleet views.",
+                value: Boolean(preferences.showStale),
+                preferenceKey: "showStale",
+              })}
+
+              {renderToggle({
+                label: "Vehicle labels",
+                description: "Display fleet numbers directly on vehicle markers.",
+                value: Boolean(preferences.vehicleLabels),
+                preferenceKey: "vehicleLabels",
+              })}
+
+              {renderToggle({
+                label: "Automatically follow vehicle",
+                description: "Center the map on the selected vehicle whenever the selection changes.",
+                value: Boolean(preferences.autoFollowVehicle),
+                preferenceKey: "autoFollowVehicle",
+              })}
             </div>
           </section>
         </div>
@@ -11001,79 +12248,145 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
     );
   }
 
-  function renderAlerts() {
+  function renderDashboard() {
     return (
-      <div className="page-section">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <div className="eyebrow">ALERT CONFIGURATION</div>
-            <h2>Operational alerts</h2>
-            <p>Control which fleet conditions produce visible warnings throughout the system.</p>
-          </div>
+      <div className="settings-section-content">
+        <div className="settings-section-intro">
+          <span className="eyebrow">DASHBOARD</span>
+          <h2>Dashboard display</h2>
+          <p>
+            Control how much recent operational information the dashboard retrieves
+            and displays.
+          </p>
         </div>
 
-        <section className="panel settings-panel">
-          <div className="panel-header">
+        <div className="settings-card-grid">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
+              <div>
+                <span className="panel-kicker">RECENT ACTIVITY</span>
+                <h3>Activity feed</h3>
+                <p>Set the amount of recent activity shown on the dashboard.</p>
+              </div>
+            </div>
+
+            <div className="settings-controls">
+              <SettingsSelect
+                label="Activity entries"
+                description="Maximum number of recent fleet events retrieved and displayed."
+                value={preferences.activityCount}
+                options={[
+                  ["5", "5 entries"],
+                  ["8", "8 entries"],
+                  ["10", "10 entries"],
+                  ["15", "15 entries"],
+                  ["20", "20 entries"],
+                ]}
+                onChange={(value) => updatePreference("activityCount", Number(value))}
+                disabled={!canEdit}
+              />
+            </div>
+          </section>
+
+          <section className="panel settings-card">
+            <div className="settings-card-header">
+              <div>
+                <span className="panel-kicker">SERVICE QUEUE</span>
+                <h3>Maintenance feed</h3>
+                <p>Set the amount of maintenance work shown on the dashboard.</p>
+              </div>
+            </div>
+
+            <div className="settings-controls">
+              <SettingsSelect
+                label="Maintenance entries"
+                description="Maximum number of maintenance records retrieved and displayed."
+                value={preferences.maintenanceCount}
+                options={[
+                  ["5", "5 entries"],
+                  ["8", "8 entries"],
+                  ["10", "10 entries"],
+                  ["15", "15 entries"],
+                  ["20", "20 entries"],
+                ]}
+                onChange={(value) => updatePreference("maintenanceCount", Number(value))}
+                disabled={!canEdit}
+              />
+            </div>
+          </section>
+        </div>
+
+        <section className="panel settings-summary-card">
+          <div className="settings-card-header">
             <div>
-              <span className="panel-kicker">WARNING TYPES</span>
-              <h3>Alert visibility</h3>
+              <span className="panel-kicker">CURRENT PROFILE</span>
+              <h3>Dashboard configuration</h3>
             </div>
           </div>
 
-          <div className="settings-list">
-            <div className="settings-row">
-              <div className="settings-row-copy">
-                <strong>Maintenance warnings</strong>
-                <span>Display warnings when vehicles have outstanding service requirements.</span>
-              </div>
-
-              <button
-                type="button"
-                className={`settings-toggle ${preferences.maintenanceWarnings ? "active" : ""}`}
-                onClick={() => updatePreference("maintenanceWarnings", !preferences.maintenanceWarnings)}
-                disabled={!canEdit}
-                aria-pressed={preferences.maintenanceWarnings}
-              >
-                <span />
-                <strong>{preferences.maintenanceWarnings ? "On" : "Off"}</strong>
-              </button>
+          <div className="settings-summary-grid">
+            <div>
+              <span>Refresh interval</span>
+              <strong>{preferences.telemetryInterval}s</strong>
             </div>
 
-            <div className="settings-row">
-              <div className="settings-row-copy">
-                <strong>Inspection warnings</strong>
-                <span>Display warnings for pending or failed vehicle inspections.</span>
-              </div>
-
-              <button
-                type="button"
-                className={`settings-toggle ${preferences.inspectionWarnings ? "active" : ""}`}
-                onClick={() => updatePreference("inspectionWarnings", !preferences.inspectionWarnings)}
-                disabled={!canEdit}
-                aria-pressed={preferences.inspectionWarnings}
-              >
-                <span />
-                <strong>{preferences.inspectionWarnings ? "On" : "Off"}</strong>
-              </button>
+            <div>
+              <span>Activity feed</span>
+              <strong>{preferences.activityCount} entries</strong>
             </div>
 
-            <div className="settings-row">
-              <div className="settings-row-copy">
-                <strong>Offline vehicle warnings</strong>
-                <span>Display warnings when expected fleet telemetry is no longer being received.</span>
-              </div>
-
-              <button
-                type="button"
-                className={`settings-toggle ${preferences.offlineWarnings ? "active" : ""}`}
-                onClick={() => updatePreference("offlineWarnings", !preferences.offlineWarnings)}
-                disabled={!canEdit}
-                aria-pressed={preferences.offlineWarnings}
-              >
-                <span />
-                <strong>{preferences.offlineWarnings ? "On" : "Off"}</strong>
-              </button>
+            <div>
+              <span>Maintenance feed</span>
+              <strong>{preferences.maintenanceCount} entries</strong>
             </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  function renderAlerts() {
+    return (
+      <div className="settings-section-content">
+        <div className="settings-section-intro">
+          <span className="eyebrow">ALERTS</span>
+          <h2>Operational alerts</h2>
+          <p>
+            Choose which operational conditions are surfaced in the dashboard's
+            Attention Required panel.
+          </p>
+        </div>
+
+        <section className="panel settings-card">
+          <div className="settings-card-header">
+            <div>
+              <span className="panel-kicker">WARNING VISIBILITY</span>
+              <h3>Alert sources</h3>
+              <p>Disabled alert types are removed from the dashboard attention queue.</p>
+            </div>
+          </div>
+
+          <div className="settings-controls">
+            {renderToggle({
+              label: "Maintenance warnings",
+              description: "Flag overdue maintenance records requiring operational attention.",
+              value: Boolean(preferences.maintenanceWarnings),
+              preferenceKey: "maintenanceWarnings",
+            })}
+
+            {renderToggle({
+              label: "Inspection warnings",
+              description: "Flag failed vehicle inspections requiring review.",
+              value: Boolean(preferences.inspectionWarnings),
+              preferenceKey: "inspectionWarnings",
+            })}
+
+            {renderToggle({
+              label: "Offline vehicle warnings",
+              description: "Flag vehicles that are currently not reporting telemetry.",
+              value: Boolean(preferences.offlineWarnings),
+              preferenceKey: "offlineWarnings",
+            })}
           </div>
         </section>
       </div>
@@ -11082,98 +12395,102 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
 
   function renderInterface() {
     return (
-      <div className="page-section">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <div className="eyebrow">INTERFACE CONFIGURATION</div>
-            <h2>System interface</h2>
-            <p>Configure the layout density and the section opened when you enter the fleet system.</p>
-          </div>
+      <div className="settings-section-content">
+        <div className="settings-section-intro">
+          <span className="eyebrow">INTERFACE</span>
+          <h2>Interface behavior</h2>
+          <p>
+            Control the amount of information shown and the section used as your
+            startup destination.
+          </p>
         </div>
 
-        <div className="settings-grid">
-          <section className="panel settings-panel">
-            <div className="panel-header">
+        <div className="settings-card-grid">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
-                <span className="panel-kicker">DISPLAY</span>
-                <h3>Interface density</h3>
+                <span className="panel-kicker">LAYOUT</span>
+                <h3>Content density</h3>
+                <p>Change spacing throughout the application.</p>
               </div>
             </div>
 
-            <div className="settings-list">
-              <div className="settings-row">
-                <div className="settings-row-copy">
-                  <strong>Content density</strong>
-                  <span>Adjust the amount of information shown within tables and operational panels.</span>
-                </div>
-
-                <select
-                  className="select-control settings-select"
-                  value={preferences.density}
-                  onChange={(event) => updatePreference("density", event.target.value)}
-                  disabled={!canEdit}
-                >
-                  <option value="comfortable">Comfortable</option>
-                  <option value="compact">Compact</option>
-                </select>
-              </div>
+            <div className="settings-controls">
+              <SettingsSelect
+                label="Density"
+                description="Comfortable provides more spacing. Compact reduces spacing in tables and operational panels."
+                value={preferences.density}
+                options={[
+                  ["comfortable", "Comfortable"],
+                  ["compact", "Compact"],
+                ]}
+                onChange={(value) => updatePreference("density", value)}
+                disabled={!canEdit}
+              />
             </div>
           </section>
 
-          <section className="panel settings-panel">
-            <div className="panel-header">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
                 <span className="panel-kicker">STARTUP</span>
                 <h3>Default section</h3>
+                <p>Choose the section opened when the application starts.</p>
               </div>
             </div>
 
-            <div className="settings-list">
-              <div className="settings-row">
-                <div className="settings-row-copy">
-                  <strong>Open this section after sign-in</strong>
-                  <span>The selected page becomes the initial destination when the system loads.</span>
-                </div>
+            <div className="settings-controls">
+              <SettingsSelect
+                label="Startup destination"
+                description="This preference is used the next time the application is loaded."
+                value={preferences.defaultSection}
+                options={[
+                  ["Dashboard", "Dashboard"],
+                  ["Live Fleet", "Live Fleet"],
+                  ["Vehicles", "Vehicles"],
+                  ["Drivers", "Drivers"],
+                  ["Assignments", "Assignments"],
+                  ["Routes", "Routes"],
+                  ["Maintenance", "Maintenance"],
+                  ["Inspections", "Inspections"],
+                  ["Audits", "Audits"],
+                  ["Settings", "Settings"],
+                ]}
+                onChange={(value) => updatePreference("defaultSection", value)}
+                disabled={!canEdit}
+              />
 
-                <select
-                  className="select-control settings-select"
-                  value={preferences.defaultSection}
-                  onChange={(event) => updatePreference("defaultSection", event.target.value)}
-                  disabled={!canEdit}
+              <div className="settings-inline-action">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setPage(preferences.defaultSection)}
                 >
-                  <option value="Dashboard">Dashboard</option>
-                  <option value="Live Fleet">Live Fleet</option>
-                  <option value="Vehicles">Vehicles</option>
-                  <option value="Drivers">Drivers</option>
-                  <option value="Assignments">Assignments</option>
-                  <option value="Routes">Routes</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Audits">Audits</option>
-                </select>
+                  Open {preferences.defaultSection}
+                </button>
               </div>
             </div>
           </section>
         </div>
 
         {canEdit && (
-          <section className="panel settings-danger-panel">
-            <div className="panel-header">
-              <div>
-                <span className="panel-kicker">LOCAL CONFIGURATION</span>
-                <h3>Reset preferences</h3>
-              </div>
+          <section className="panel settings-reset-card">
+            <div>
+              <span className="panel-kicker">LOCAL PREFERENCES</span>
+              <h3>Reset settings</h3>
+              <p>
+                Restore all application preferences to their original defaults.
+                Fleet records and database information are not affected.
+              </p>
             </div>
 
-            <div className="settings-danger-content">
-              <div>
-                <strong>Restore default interface settings</strong>
-                <span>This only resets your saved application preferences. Fleet records, assignments, routes, maintenance records, audits, and other database information are not changed.</span>
-              </div>
-
-              <button type="button" className="secondary-button" onClick={resetPreferences}>
-                Reset preferences
-              </button>
-            </div>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={resetPreferences}
+            >
+              Reset to defaults
+            </button>
           </section>
         )}
       </div>
@@ -11182,45 +12499,47 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
 
   function renderAccount() {
     return (
-      <div className="page-section">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <div className="eyebrow">ACCOUNT MANAGEMENT</div>
-            <h2>Account</h2>
-            <p>Review your account identity, access level, and authentication settings.</p>
-          </div>
+      <div className="settings-section-content">
+        <div className="settings-section-intro">
+          <span className="eyebrow">ACCOUNT</span>
+          <h2>Account security</h2>
+          <p>
+            Review the signed-in account and manage its authentication settings.
+          </p>
         </div>
 
-        <div className="settings-grid">
-          <section className="panel settings-panel">
-            <div className="panel-header">
+        <div className="settings-card-grid">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
                 <span className="panel-kicker">IDENTITY</span>
                 <h3>Current account</h3>
               </div>
             </div>
 
-            <div className="account-settings-profile">
+            <div className="settings-account">
               <div className="account-avatar large">
                 {accountEmail.charAt(0).toUpperCase()}
               </div>
 
-              <div>
+              <div className="settings-account-copy">
                 <strong>{accountName}</strong>
                 <span>{accountEmail}</span>
                 <small>{roleLabel}</small>
               </div>
             </div>
 
-            <div className="settings-summary account-summary">
+            <div className="settings-summary-grid">
               <div>
                 <span>Email</span>
                 <strong>{accountEmail}</strong>
               </div>
+
               <div>
                 <span>Access level</span>
                 <strong>{roleLabel}</strong>
               </div>
+
               <div>
                 <span>User ID</span>
                 <strong>{session?.user?.id || "Unavailable"}</strong>
@@ -11228,8 +12547,8 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
             </div>
           </section>
 
-          <section className="panel settings-panel">
-            <div className="panel-header">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
                 <span className="panel-kicker">AUTHENTICATION</span>
                 <h3>Change password</h3>
@@ -11239,10 +12558,14 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
             <form className="settings-form" onSubmit={changePassword}>
               <label className="form-field">
                 <span>New password</span>
+
                 <input
                   type="password"
                   value={passwordForm.password}
-                  onChange={(event) => setPasswordForm((current) => ({ ...current, password: event.target.value }))}
+                  onChange={(event) => setPasswordForm((current) => ({
+                    ...current,
+                    password: event.target.value,
+                  }))}
                   autoComplete="new-password"
                   placeholder="Enter new password"
                   disabled={!canEdit || passwordBusy}
@@ -11251,22 +12574,39 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
 
               <label className="form-field">
                 <span>Confirm new password</span>
+
                 <input
                   type="password"
                   value={passwordForm.confirmPassword}
-                  onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  onChange={(event) => setPasswordForm((current) => ({
+                    ...current,
+                    confirmPassword: event.target.value,
+                  }))}
                   autoComplete="new-password"
                   placeholder="Confirm new password"
                   disabled={!canEdit || passwordBusy}
                 />
               </label>
 
-              {passwordError && <div className="error">{passwordError}</div>}
-              {passwordMessage && <div className="success-message">{passwordMessage}</div>}
+              {passwordError && (
+                <div className="form-alert form-alert-error">
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              {passwordMessage && (
+                <div className="form-alert form-alert-success">
+                  <span>{passwordMessage}</span>
+                </div>
+              )}
 
               {canEdit && (
                 <div className="settings-form-actions">
-                  <button type="submit" className="primary-button" disabled={passwordBusy}>
+                  <button
+                    type="submit"
+                    className="button button-primary"
+                    disabled={passwordBusy}
+                  >
                     {passwordBusy ? "Updating..." : "Update password"}
                   </button>
                 </div>
@@ -11275,24 +12615,20 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
           </section>
         </div>
 
-        <section className="panel settings-danger-panel">
-          <div className="panel-header">
-            <div>
-              <span className="panel-kicker">SESSION</span>
-              <h3>Sign out</h3>
-            </div>
+        <section className="panel settings-danger-card">
+          <div>
+            <span className="panel-kicker">SESSION</span>
+            <h3>Sign out</h3>
+            <p>End the current authentication session on this device.</p>
           </div>
 
-          <div className="settings-danger-content">
-            <div>
-              <strong>End the current session</strong>
-              <span>Sign out of the fleet operations system on this device.</span>
-            </div>
-
-            <button type="button" className="secondary-button" onClick={signOut}>
-              Sign out
-            </button>
-          </div>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={signOut}
+          >
+            Sign out
+          </button>
         </section>
       </div>
     );
@@ -11300,86 +12636,99 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
 
   function renderSystem() {
     return (
-      <div className="page-section">
-        <div className="page-intro">
-          <div className="page-intro-copy">
-            <div className="eyebrow">SYSTEM INFORMATION</div>
-            <h2>System</h2>
-            <p>Review the current application configuration and your permissions within the fleet system.</p>
-          </div>
+      <div className="settings-section-content">
+        <div className="settings-section-intro">
+          <span className="eyebrow">SYSTEM</span>
+          <h2>System status</h2>
+          <p>
+            Review the application environment, active preferences, and current
+            account permissions.
+          </p>
         </div>
 
-        <div className="settings-grid">
-          <section className="panel settings-panel">
-            <div className="panel-header">
+        <div className="settings-card-grid">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
                 <span className="panel-kicker">APPLICATION</span>
-                <h3>Fleet Tracker</h3>
+                <h3>Clino Fleet Tracker</h3>
               </div>
 
-              <span className="status-badge status-active">Operational</span>
+              <span className="status-badge status-active">
+                Operational
+              </span>
             </div>
 
-            <div className="system-details">
-              <div>
-                <span>Application</span>
-                <strong>Clino Fleet Tracker</strong>
-              </div>
+            <div className="settings-summary-grid settings-system-grid">
               <div>
                 <span>Environment</span>
                 <strong>Private Operations</strong>
               </div>
+
               <div>
-                <span>Telemetry interval</span>
-                <strong>{preferences.telemetryInterval} seconds</strong>
+                <span>Dashboard refresh</span>
+                <strong>{preferences.telemetryInterval}s</strong>
               </div>
+
               <div>
-                <span>Map refresh</span>
-                <strong>{preferences.mapRefresh} seconds</strong>
+                <span>Live fleet refresh</span>
+                <strong>{preferences.mapRefresh}s</strong>
               </div>
+
               <div>
-                <span>Interface density</span>
-                <strong>{preferences.density}</strong>
+                <span>Density</span>
+                <strong>
+                  {preferences.density === "compact" ? "Compact" : "Comfortable"}
+                </strong>
               </div>
+
               <div>
-                <span>Access level</span>
+                <span>Default section</span>
+                <strong>{preferences.defaultSection}</strong>
+              </div>
+
+              <div>
+                <span>Account</span>
                 <strong>{roleLabel}</strong>
               </div>
             </div>
           </section>
 
-          <section className="panel settings-panel">
-            <div className="panel-header">
+          <section className="panel settings-card">
+            <div className="settings-card-header">
               <div>
                 <span className="panel-kicker">ACCESS</span>
                 <h3>Permissions</h3>
               </div>
             </div>
 
-            <div className="permission-list">
-              <div className="permission-row">
+            <div className="settings-permission-list">
+              <div className="settings-permission-row">
                 <div>
                   <strong>View fleet data</strong>
-                  <span>Vehicles, drivers, routes, assignments, maintenance, audits, and live telemetry.</span>
+                  <span>Fleet, drivers, routes, assignments, service, and telemetry.</span>
                 </div>
+
                 <span className="status-badge status-active">Allowed</span>
               </div>
 
-              <div className="permission-row">
+              <div className="settings-permission-row">
                 <div>
                   <strong>Modify fleet records</strong>
-                  <span>Create and update operational records when permitted by the assigned role.</span>
+                  <span>Create and update records according to your assigned role.</span>
                 </div>
+
                 <span className={`status-badge ${canEdit ? "status-active" : "status-neutral"}`}>
                   {canEdit ? "Allowed" : "Read only"}
                 </span>
               </div>
 
-              <div className="permission-row">
+              <div className="settings-permission-row">
                 <div>
                   <strong>Account administration</strong>
                   <span>Administrative account and system-management functions.</span>
                 </div>
+
                 <span className={`status-badge ${role === "admin" ? "status-active" : "status-neutral"}`}>
                   {role === "admin" ? "Administrator" : "Restricted"}
                 </span>
@@ -11392,16 +12741,24 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
   }
 
   return (
-    <div className="settings-page">
+    <section className="page-section settings-page">
       <div className="page-intro settings-page-intro">
         <div className="page-intro-copy">
-          <div className="eyebrow">SYSTEM CONFIGURATION</div>
-          <h2>Settings</h2>
-          <p>Configure fleet operations, interface behavior, alerts, and account preferences.</p>
+          <span className="eyebrow">SYSTEM CONFIGURATION</span>
+          <h1>Settings</h1>
+          <p>
+            Configure live fleet behavior, dashboard display, alerts, interface
+            preferences, and account security.
+          </p>
         </div>
 
         <div className="page-intro-actions">
-          {saveMessage && <span className="save-indicator">{saveMessage}</span>}
+          {saveMessage && (
+            <span className="save-indicator">
+              {saveMessage}
+            </span>
+          )}
+
           <span className={`status-badge ${canEdit ? "status-active" : "status-neutral"}`}>
             {canEdit ? "Editing enabled" : "Read only"}
           </span>
@@ -11411,15 +12768,15 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
       <div className="settings-layout">
         <aside className="panel settings-sidebar">
           <div className="settings-sidebar-heading">
-            <span className="panel-kicker">CONFIGURATION</span>
-            <strong>System settings</strong>
+            <span className="panel-kicker">SETTINGS</span>
+            <strong>Configuration</strong>
           </div>
 
           <nav className="settings-nav">
             {sections.map((section) => (
               <button
-                key={section.label}
                 type="button"
+                key={section.label}
                 className={`settings-nav-button ${activeSection === section.label ? "active" : ""}`}
                 onClick={() => setActiveSection(section.label)}
               >
@@ -11430,13 +12787,72 @@ function Settings({ role, canEdit, preferences, setPreferences, session, setPage
           </nav>
         </aside>
 
-        <div className="settings-content">
+        <main className="settings-content">
           {activeSection === "Operations" && renderOperations()}
           {activeSection === "Dashboard" && renderDashboard()}
           {activeSection === "Alerts" && renderAlerts()}
           {activeSection === "Interface" && renderInterface()}
           {activeSection === "Account" && renderAccount()}
           {activeSection === "System" && renderSystem()}
+        </main>
+      </div>
+    </section>
+  );
+}
+
+function SettingsSelect({ label, description, value, options, onChange, disabled }) {
+  const [open, setOpen] = useState(false);
+
+  const selectedOption = options.find(
+    ([optionValue]) => String(optionValue) === String(value)
+  );
+
+  const selectedLabel = selectedOption?.[1] || String(value);
+
+  return (
+    <div className="settings-control-row">
+      <div className="settings-control-copy">
+        <strong>{label}</strong>
+        <span>{description}</span>
+      </div>
+
+      <div className="settings-control-input">
+        <div className={`custom-select ${open ? "open" : ""}`}>
+          <button
+            type="button"
+            className="custom-select-trigger"
+            onClick={() => {
+              if (!disabled) {
+                setOpen((current) => !current);
+              }
+            }}
+            disabled={disabled}
+            aria-expanded={open}
+          >
+            <span>{selectedLabel}</span>
+
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          {open && (
+            <div className="custom-select-menu">
+              {options.map(([optionValue, optionLabel]) => (
+                <button
+                  key={optionValue}
+                  type="button"
+                  className={`custom-select-option ${String(value) === String(optionValue) ? "selected" : ""}`}
+                  onClick={() => {
+                    onChange(optionValue);
+                    setOpen(false);
+                  }}
+                >
+                  {optionLabel}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -11473,12 +12889,6 @@ function StatusBadge({ status }) {
 
 function Empty() {
   return <div className="empty">No records found.</div>;
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-
-  return new Date(value).toLocaleString();
 }
 
 export default App;
