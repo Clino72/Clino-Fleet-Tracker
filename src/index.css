@@ -1711,7 +1711,7 @@ p {
   left: 0;
   z-index: 9999;
   width: 100%;
-  padding: 5px;
+  padding: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -3021,6 +3021,19 @@ p {
   margin-left: auto;
 }
 
+.route-preview-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  margin-left: auto;
+}
+
+.all-routes-filter {
+  min-width: 150px;
+}
+
 
 /* =========================================================
    ROUTE PREVIEW / ALL ROUTES — FOOTERS
@@ -3314,59 +3327,82 @@ p {
   gap: 12px;
 }
 
+/* ---------------------------------------------------------
+   Panels
+   --------------------------------------------------------- */
+
 .inspection-selection-panel,
 .inspection-information-panel,
 .inspection-report-panel {
+  position: relative;
+  min-width: 0;
+}
+
+.inspection-selection-panel {
+  z-index: 50;
+  overflow: visible;
+}
+
+.inspection-information-panel,
+.inspection-report-panel {
   overflow: hidden;
+}
+
+.inspection-selection-panel .panel-header,
+.inspection-information-panel .panel-header,
+.inspection-report-panel .panel-header {
+  padding: 18px 20px;
 }
 
 .inspection-back-button {
   margin-bottom: 14px;
 }
 
-/* Inspection information */
+/* ---------------------------------------------------------
+   Inspection setup
+   --------------------------------------------------------- */
 
-.inspection-fact-grid {
+.inspection-setup-grid {
+  position: relative;
+  z-index: 51;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1px;
-  background: var(--border);
-}
-
-.inspection-fact {
   min-width: 0;
-  padding: 16px 18px;
-  background: var(--surface);
+  padding: 20px;
 }
 
-.inspection-fact span {
+.inspection-setup-grid > .select-control {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.inspection-setup-grid .custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 1000;
   display: block;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  text-transform: uppercase;
+  width: 100%;
+  min-width: 100%;
+  max-width: none;
+  max-height: 360px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-.inspection-fact strong {
-  display: block;
-  margin-top: 6px;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-/* Inspection checklist */
+/* ---------------------------------------------------------
+   Inspection checklist
+   --------------------------------------------------------- */
 
 .inspection-report-content {
   display: block;
+  min-width: 0;
   padding: 20px;
 }
 
 .inspection-report-section {
+  min-width: 0;
   overflow: visible;
 }
 
@@ -3406,10 +3442,30 @@ p {
   line-height: 1.3;
 }
 
-/* Checklist table */
+.inspection-report-section .table-container {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.inspection-report-section-header,
+.inspection-subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.inspection-report-section-header > .status-badge,
+.inspection-subsection-header > .status-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
 
 .inspection-checklist-table {
   width: 100%;
+  min-width: 650px;
   table-layout: fixed;
 }
 
@@ -3418,17 +3474,10 @@ p {
   vertical-align: middle;
 }
 
-.inspection-checklist-table th {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.inspection-checklist-table td {
-  padding-top: 14px;
-  padding-bottom: 14px;
+.inspection-checklist-table th:first-child,
+.inspection-checklist-table td:first-child {
+  width: auto;
+  text-align: left !important;
 }
 
 .inspection-item-label {
@@ -3438,73 +3487,147 @@ p {
   line-height: 1.4;
 }
 
-.inspection-condition-heading,
-.inspection-condition-cell {
-  width: 150px;
-  text-align: right;
-}
+/* ---------------------------------------------------------
+   Defective / Condition columns
+   --------------------------------------------------------- */
 
-.inspection-condition-cell {
+.inspection-checklist-table .inspection-defective-heading,
+.inspection-checklist-table .inspection-defective-cell {
+  width: 115px;
+  min-width: 115px;
+  max-width: 115px;
+  padding-left: 15px;
+  padding-right: 15px;
+  text-align: right !important;
   white-space: nowrap;
 }
 
-.inspection-condition {
-  min-width: 78px;
-  min-height: 34px;
-  justify-content: center;
-  padding: 7px 12px;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-/* Exterior lighting */
-
-.inspection-lighting-table th:nth-child(2),
-.inspection-lighting-table td:nth-child(2) {
-  width: 130px;
-}
-
-.inspection-lighting-table th:nth-child(3),
-.inspection-lighting-table td:nth-child(3) {
-  width: 150px;
-  text-align: right;
-}
-
-.inspection-defective-heading {
-  text-align: left;
-}
-
-.inspection-defective-cell {
+.inspection-checklist-table .inspection-condition-heading,
+.inspection-checklist-table .inspection-condition-cell {
+  width: 165px;
+  min-width: 165px;
+  max-width: 165px;
+  padding-left: 15px;
+  padding-right: 15px;
+  text-align: right !important;
   white-space: nowrap;
 }
+
+.inspection-lighting-table .inspection-defective-heading,
+.inspection-lighting-table .inspection-defective-cell {
+  padding-right: 10px;
+}
+
+.inspection-lighting-table .inspection-condition-heading,
+.inspection-lighting-table .inspection-condition-cell {
+  padding-left: 10px;
+}
+
+/* ---------------------------------------------------------
+   Pass / Fail / N/A
+   --------------------------------------------------------- */
+
+.inspection-condition-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.inspection-condition-button {
+  flex: 0 0 auto;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 30px;
+  padding: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.inspection-condition-button-pass,
+.inspection-condition-button-fail,
+.inspection-condition-button-na {
+  text-align: center;
+}
+
+.inspection-condition-button-pass.active {
+  color: var(--success);
+  background: var(--success-soft);
+  border-color: var(--success-border);
+}
+
+.inspection-condition-button-fail.active {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+}
+
+.inspection-condition-button-na.active {
+  color: var(--text-secondary);
+  background: var(--surface-active);
+  border-color: var(--border-light);
+}
+
+.inspection-condition-button:not(.active) {
+  color: var(--text-secondary);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.inspection-condition-button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-hover);
+  border-color: var(--border-light);
+}
+
+.inspection-result-yellow {
+  color: #d6ad4f;
+  background: rgba(214, 173, 79, 0.12);
+  border-color: rgba(214, 173, 79, 0.3);
+}
+
+/* ---------------------------------------------------------
+   Exterior lighting defect counter
+   --------------------------------------------------------- */
 
 .inspection-lamp-defect {
   display: inline-flex;
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 30px;
+  min-height: 30px;
   align-items: center;
   justify-content: center;
-  padding: 4px 9px;
+  padding: 3px 7px;
   color: var(--text);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
 .inspection-defect-counter {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  margin-left: auto;
 }
 
 .inspection-defect-button {
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  flex: 0 0 auto;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  min-height: 30px;
   padding: 0;
-  border-radius: 0;
-  font-size: 17px;
+  text-align: center;
 }
 
 .inspection-defect-button-minus {
@@ -3517,36 +3640,22 @@ p {
 
 .inspection-defect-count {
   display: inline-flex;
-  width: 40px;
-  min-height: 34px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 700;
+  width: 40px;
+  min-width: 40px;
+  min-height: 30px;
+  text-align: center;
 }
 
 .inspection-defect-count.active {
   color: var(--text);
 }
 
-/* New-inspection condition controls */
-
-.inspection-condition-buttons {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px;
-}
-
-.inspection-condition-button {
-  min-width: 58px;
-}
-
-/* Notes */
+/* ---------------------------------------------------------
+   Notes
+   --------------------------------------------------------- */
 
 .inspection-notes-section {
   padding: 18px;
@@ -3598,7 +3707,9 @@ p {
   border-color: var(--border-light);
 }
 
-/* Footer */
+/* ---------------------------------------------------------
+   Footer
+   --------------------------------------------------------- */
 
 .inspection-page-footer {
   display: flex;
@@ -3607,7 +3718,9 @@ p {
   padding-top: 2px;
 }
 
-/* Success message */
+/* ---------------------------------------------------------
+   Success message
+   --------------------------------------------------------- */
 
 .inspection-success-popup {
   display: flex;
@@ -4485,6 +4598,11 @@ p {
     height: calc(100% - 132px);
   }
 
+  .route-preview-toolbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .route-preview-sidebar,
   .all-routes-sidebar {
     max-height: 300px;
@@ -4499,22 +4617,6 @@ p {
   .route-preview-footer,
   .all-routes-footer {
     padding: 10px 12px;
-  }
-
-  .inspection-selected-vehicle-title {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .inspection-fact-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .inspection-report-section-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
   }
 
   .inspection-history-notes {
@@ -4534,13 +4636,6 @@ p {
     width: 100%;
   }
 
-  .inspection-checklist-table th:last-child,
-  .inspection-checklist-table td:last-child,
-  .inspection-lighting-table th:last-child,
-  .inspection-lighting-table td:last-child {
-    width: 110px;
-  }
-
   .inspection-setup-grid {
     grid-template-columns: 1fr;
     padding: 16px;
@@ -4554,14 +4649,18 @@ p {
     font-size: 13px;
   }
 
-  .inspection-lighting-table th:nth-child(2),
-  .inspection-lighting-table td:nth-child(2) {
+  .inspection-lighting-table .inspection-defective-heading,
+  .inspection-lighting-table .inspection-defective-cell {
     width: 95px;
+    min-width: 95px;
+    max-width: 95px;
   }
 
-  .inspection-lighting-table th:nth-child(3),
-  .inspection-lighting-table td:nth-child(3) {
+  .inspection-lighting-table .inspection-condition-heading,
+  .inspection-lighting-table .inspection-condition-cell {
     width: 110px;
+    min-width: 110px;
+    max-width: 110px;
   }
 }
 
@@ -4692,28 +4791,6 @@ p {
     padding: 18px;
   }
 
-  .inspection-selected-vehicle {
-    padding: 15px;
-  }
-
-  .inspection-fact {
-    padding: 14px;
-  }
-
-  .inspection-checklist-table th:last-child,
-  .inspection-checklist-table td:last-child {
-    width: 125px;
-  }
-
-  .inspection-condition-select {
-    min-width: 105px;
-  }
-
-  .inspection-kpi-grid,
-  .inspection-fact-grid {
-    grid-template-columns: 1fr;
-  }
-
   .inspection-report-content {
     padding: 12px;
   }
@@ -4721,5 +4798,9 @@ p {
   .inspection-report-section-header,
   .inspection-subsection-header {
     padding: 14px;
+  }
+
+  .inspection-kpi-grid {
+    grid-template-columns: 1fr;
   }
 }

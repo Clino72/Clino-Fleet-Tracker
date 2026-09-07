@@ -1099,6 +1099,10 @@ function DashboardIcon({ name }) {
     maintenance: "M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-2-2Z",
     assigned: "M8 7h8M8 12h8M8 17h5M5 4h14v16H5z",
     "out-of-service": "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM8 8l8 8",
+    clipboard: "M9 5h6M9 3h6a1 1 0 0 1 1 1v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2V4a1 1 0 0 1 1-1ZM8 11h8M8 15h8M8 19h5",
+    alert: "M12 3L2.8 20h18.4L12 3ZM12 9v5M12 17h.01",
+    wrench: "M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.2 2.2-2-2 2.2-2.2Z",
+    defect: "M12 3a9 9 0 1 0 0 18a9 9 0 0 0-9-9M12 7v5l3 2M17 4l3 3M20 4l-3 3",
   };
 
   return (
@@ -2221,7 +2225,7 @@ function Vehicles({ canEdit, openVehicleDetails, openNewVehicle }) {
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
-            <span>{refreshing ? "Refreshing" : "Refresh Fleet"}</span>
+            <span>{refreshing ? "Refreshing" : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -3480,7 +3484,7 @@ function Drivers({ canEdit, openDriverDetails }) {
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
-            <span>{refreshing ? "Refreshing" : "Refresh Drivers"}</span>
+            <span>{refreshing ? "Refreshing" : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -4742,7 +4746,7 @@ function Assignments({ canEdit }) {
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
-            <span>{refreshing ? "Refreshing" : "Refresh Assignments"}</span>
+            <span>{refreshing ? "Refreshing" : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -5613,7 +5617,7 @@ function Routes({ canEdit }) {
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
-            <span>{refreshing ? "Refreshing" : "Refresh Routes"}</span>
+            <span>{refreshing ? "Refreshing" : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -6761,13 +6765,6 @@ function RouteEditor({ route, onClose, onSaved }) {
 
         <div className="route-editor-workspace">
           <div className="route-editor-map-panel">
-            <div className="route-editor-map-toolbar">
-              <div>
-                <span className="eyebrow">MAP WORKSPACE</span>
-                <strong>Route Geometry</strong>
-              </div>
-            </div>
-
             <div className="route-editor-map" ref={mapRef}>
               {selectedPoint && (
                 <div className="route-point-inspector">
@@ -7205,6 +7202,10 @@ function RoutePreview({ route, onClose }) {
             <p>{points.length} route point{points.length === 1 ? "" : "s"} · {route.description || "No route description provided."}</p>
           </div>
 
+          <div className="route-preview-status">
+            <StatusBadge status={route.status} />
+          </div>
+
           <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
             ×
           </button>
@@ -7212,17 +7213,6 @@ function RoutePreview({ route, onClose }) {
 
         <div className="route-editor-workspace">
           <div className="route-editor-map-panel">
-            <div className="route-editor-map-toolbar">
-              <div>
-                <span className="eyebrow">MAP WORKSPACE</span>
-                <strong>Route Geometry</strong>
-              </div>
-
-              <div className="route-preview-status">
-                <StatusBadge status={route.status} />
-              </div>
-            </div>
-
             <div className="route-editor-map" ref={mapRef}>
               {loading && (
                 <div className="route-preview-loading">
@@ -7706,76 +7696,90 @@ function AllRoutesPreview({ routes, onClose }) {
       <div className="modal modal-all-routes">
         <div className="route-editor-header">
           <div className="route-editor-header-copy">
-            <span className="eyebrow">ROUTE NETWORK / GEOMETRY</span>
+            <span className="eyebrow">ROUTE NETWORK</span>
             <h2>All Routes</h2>
-            <p>{visibleRoutes.size} of {routes.length} routes visible across the route network.</p>
+            <p>
+              {visibleRoutes.size} of {routes.length} routes visible across the route network.
+            </p>
           </div>
 
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-            ×
-          </button>
+          <div className="route-preview-toolbar-actions">
+            <div className="custom-select all-routes-filter">
+              <button
+                type="button"
+                className="custom-select-trigger"
+                onClick={(event) => {
+                  const menu = event.currentTarget.nextElementSibling;
+
+                  if (menu) {
+                    menu.hidden = !menu.hidden;
+                  }
+                }}
+              >
+                <span>
+                  {routeFilter === "ALL"
+                    ? "All Routes"
+                    : routeFilter === "EARLY_AM"
+                      ? "Early AM"
+                      : routeFilter === "LATE_AM"
+                        ? "Late AM"
+                        : routeFilter === "EARLY_PM"
+                          ? "Early PM"
+                          : routeFilter === "LATE_PM"
+                            ? "Late PM"
+                            : "Transfers"}
+                </span>
+
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              <div className="custom-select-menu" hidden>
+                {[
+                  ["ALL", "All Routes"],
+                  ["EARLY_AM", "Early AM"],
+                  ["LATE_AM", "Late AM"],
+                  ["EARLY_PM", "Early PM"],
+                  ["LATE_PM", "Late PM"],
+                  ["SHUTTLE", "Transfers"],
+                ].map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    className={`custom-select-option${routeFilter === value ? " selected" : ""}`}
+                    onClick={(event) => {
+                      setFilter(value);
+                      event.currentTarget.parentElement.hidden = true;
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button type="button" className="button button-secondary" onClick={showAll}>
+              Show All
+            </button>
+
+            <button type="button" className="button button-secondary" onClick={hideAll}>
+              Hide All
+            </button>
+
+            <button
+              type="button"
+              className="modal-close"
+              aria-label="Close"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <div className="route-editor-workspace">
           <div className="route-editor-map-panel">
-            <div className="route-editor-map-toolbar">
-              <div>
-                <span className="eyebrow">MAP WORKSPACE</span>
-                <strong>Route Network</strong>
-              </div>
-
-              <div className="route-preview-toolbar-actions">
-                <div className="custom-select all-routes-filter">
-                  <button type="button" className="custom-select-trigger" onClick={(event) => {
-                    const menu = event.currentTarget.nextElementSibling;
-
-                    if (menu) {
-                      menu.hidden = !menu.hidden;
-                    }
-                  }}>
-                    <span>
-                      {routeFilter === "ALL" ? "All Routes" :
-                        routeFilter === "EARLY_AM" ? "Early AM" :
-                          routeFilter === "LATE_AM" ? "Late AM" :
-                            routeFilter === "EARLY_PM" ? "Early PM" :
-                              routeFilter === "LATE_PM" ? "Late PM" :
-                                "Transfers"}
-                    </span>
-
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-
-                  <div className="custom-select-menu" hidden>
-                    {[
-                      ["ALL", "All Routes"],
-                      ["EARLY_AM", "Early AM"],
-                      ["LATE_AM", "Late AM"],
-                      ["EARLY_PM", "Early PM"],
-                      ["LATE_PM", "Late PM"],
-                      ["SHUTTLE", "Transfers"],
-                    ].map(([value, label]) => (
-                      <button type="button" key={value} className={`custom-select-option${routeFilter === value ? " selected" : ""}`} onClick={(event) => {
-                        setFilter(value);
-                        event.currentTarget.parentElement.hidden = true;
-                      }}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button type="button" className="button button-secondary" onClick={showAll}>
-                  Show All
-                </button>
-
-                <button type="button" className="button button-secondary" onClick={hideAll}>
-                  Hide All
-                </button>
-              </div>
-            </div>
-
             <div className="route-editor-map" ref={mapRef}>
               {loading && (
                 <div className="route-preview-loading">
@@ -8271,7 +8275,7 @@ function Maintenance({ canEdit }) {
         <div className="page-intro-copy">
           <span className="eyebrow">Fleet Service</span>
           <h1>Maintenance</h1>
-          <p>Manage scheduled service, active work, defects, and completed maintenance history.</p>
+          <p>Manage scheduled service, active work, and defects.</p>
         </div>
 
         <div className="page-intro-actions">
@@ -9122,80 +9126,82 @@ function Inspections({ canEdit }) {
   ];
 
   const lightingKeys = new Set(lampSystems.map((lamp) => lamp.key));
-  const severityMap = {
-    lowBeam: "MAJOR",
-    highBeam: "MAJOR",
-    runningLights: "MINOR",
-    markerLights: "MINOR",
-    clearanceLights: "MINOR",
-    brakeLights: "MAJOR",
-    turnSignals: "MAJOR",
-    fourWayFlashers: "MAJOR",
-    reverseLights: "MINOR",
-    licensePlateLights: "MINOR",
-    amberWarningLights: "MAJOR",
-    redWarningLights: "CRITICAL",
-    stopArmLights: "MAJOR",
 
-    stopArm: "CRITICAL",
-    crossingGate: "MAJOR",
+  const mspFailureTagMap = {
+    outsideMirrors: "RED",
+    crossoverMirror: "RED",
+    windshield: "RED",
+    wipers: "RED",
+    washerFluid: "YELLOW",
+    bodyPanels: "YELLOW",
+    serviceDoor: "RED",
+    emergencyDoor: "RED",
+    emergencyWindows: "RED",
+    roofHatches: "RED",
+    stopArm: "RED",
+    crossingGate: "RED",
 
-    outsideMirrors: "MAJOR",
-    crossoverMirror: "MAJOR",
-    windshield: "MAJOR",
-    wipers: "MAJOR",
-    washerFluid: "MINOR",
-    bodyPanels: "MINOR",
-    serviceDoor: "MAJOR",
-    emergencyDoor: "CRITICAL",
-    emergencyWindows: "CRITICAL",
-    roofHatches: "CRITICAL",
+    seats: "RED",
+    aisle: "RED",
+    floor: "YELLOW",
+    interiorLighting: "YELLOW",
+    handrails: "RED",
+    gauges: "YELLOW",
+    horn: "RED",
+    interiorMirrors: "YELLOW",
+    warningIndicators: "RED",
+    heater: "YELLOW",
+    defrosterFan: "RED",
+    defroster: "RED",
+    fans: "YELLOW",
 
-    frontTires: "CRITICAL",
-    rearTires: "MAJOR",
-    tireTread: "CRITICAL",
-    wheelLugNuts: "CRITICAL",
-    wheels: "CRITICAL",
-    axles: "CRITICAL",
-    suspension: "MAJOR",
-    frame: "CRITICAL",
+    transmissionFluid: "YELLOW",
+    beltsHoses: "RED",
+    exhaustSystem: "RED",
+    dpf: "YELLOW",
+    def: "YELLOW",
 
-    serviceBrakes: "CRITICAL",
-    parkingBrake: "CRITICAL",
-    steering: "CRITICAL",
-    absWarning: "MAJOR",
-    electronicStabilityControl: "MAJOR",
+    serviceBrakes: "RED",
+    parkingBrake: "RED",
+    steering: "RED",
+    absWarning: "YELLOW",
+    electronicStabilityControl: "YELLOW",
 
-    transmissionFluid: "MAJOR",
-    beltsHoses: "MAJOR",
-    exhaustSystem: "MAJOR",
-    dpf: "MINOR",
-    def: "MINOR",
+    frontTires: "RED",
+    rearTires: "RED",
+    tireTread: "RED",
+    wheelLugNuts: "RED",
+    wheels: "RED",
+    axles: "RED",
+    suspension: "RED",
+    frame: "RED",
 
-    seats: "MAJOR",
-    aisle: "CRITICAL",
-    floor: "MAJOR",
-    interiorLighting: "MINOR",
-    handrails: "MAJOR",
-    gauges: "MAJOR",
-    horn: "MINOR",
-    interiorMirrors: "MINOR",
-    warningIndicators: "MAJOR",
-    heater: "MAJOR",
-    defrosterFan: "CRITICAL",
-    defroster: "CRITICAL",
-    fans: "MINOR",
+    emergencyExitAlarms: "YELLOW",
+    fireExtinguisher: "RED",
+    firstAidKit: "YELLOW",
+    emergencyReflectors: "YELLOW",
 
-    emergencyExitAlarms: "MAJOR",
-    fireExtinguisher: "MAJOR",
-    firstAidKit: "MINOR",
-    emergencyReflectors: "MINOR",
+    highVoltagePlacards: "YELLOW",
+    highVoltageWiring: "RED",
+    batteryCooling: "RED",
+    batteryCarriage: "RED",
+    electricDriveMotor: "RED",
+  };
 
-    highVoltagePlacards: "MINOR",
-    highVoltageWiring: "CRITICAL",
-    batteryCooling: "CRITICAL",
-    batteryCarriage: "CRITICAL",
-    electricDriveMotor: "CRITICAL",
+  const mspLightingRules = {
+    lowBeam: { yellowAt: 1, redAt: 2 },
+    highBeam: { yellowAt: 1, redAt: null },
+    runningLights: { yellowAt: 1, redAt: null },
+    markerLights: { yellowAt: 1, redAt: null },
+    clearanceLights: { yellowAt: 1, redAt: null },
+    brakeLights: { yellowAt: 1, redAt: 2 },
+    turnSignals: { yellowAt: null, redAt: 1 },
+    fourWayFlashers: { yellowAt: null, redAt: 1 },
+    reverseLights: { yellowAt: 1, redAt: 2 },
+    licensePlateLights: { yellowAt: 1, redAt: null },
+    amberWarningLights: { yellowAt: 1, redAt: null },
+    redWarningLights: { yellowAt: null, redAt: 1 },
+    stopArmLights: { yellowAt: 1, redAt: 2 },
   };
 
   const [audits, setAudits] = useState([]);
@@ -9206,6 +9212,9 @@ function Inspections({ canEdit }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [vehicleDropdownOpen, setVehicleDropdownOpen] = useState(false);
+  const [inspectorDropdownOpen, setInspectorDropdownOpen] = useState(false);
+  const [inspectionTypeDropdownOpen, setInspectionTypeDropdownOpen] = useState(false);
 
   const [inspectionView, setInspectionView] = useState("list");
   const [selectedInspection, setSelectedInspection] = useState(null);
@@ -9307,28 +9316,44 @@ function Inspections({ canEdit }) {
     return inspectionTypes.find((type) => type.value === value)?.label || value || "—";
   }
 
-  function getResultClass(result) {
-    if (result === "PASS") {
-      return "status-badge status-pass";
-    }
-
-    if (result === "FAIL") {
-      return "status-badge status-fail";
-    }
-
-    return "status-badge status-neutral";
-  }
-
   function getConditionClass(value) {
     if (value === "PASS") {
       return "status-badge status-pass";
     }
 
-    if (value === "FAIL") {
+    if (value === "FAIL" || value === "RED") {
       return "status-badge status-fail";
     }
 
+    if (value === "YELLOW") {
+      return "status-badge inspection-result-yellow";
+    }
+
+    if (value === "N/A" || value === "NA") {
+      return "status-badge status-neutral";
+    }
+
     return "status-badge status-neutral";
+  }
+
+  function getInspectionTagLabel(tag) {
+    if (tag === "RED") {
+      return "RED TAG";
+    }
+
+    if (tag === "YELLOW") {
+      return "YELLOW TAG";
+    }
+
+    if (tag === "PENDING") {
+      return "PENDING";
+    }
+
+    if (tag === "N/A") {
+      return "N/A";
+    }
+
+    return "PASS";
   }
 
   function resetInspectionForm() {
@@ -9343,6 +9368,9 @@ function Inspections({ canEdit }) {
 
   function openNewInspection() {
     resetInspectionForm();
+    setVehicleDropdownOpen(false);
+    setInspectorDropdownOpen(false);
+    setInspectionTypeDropdownOpen(false);
     setInspectionView("new");
     setMessage("");
   }
@@ -9416,6 +9444,155 @@ function Inspections({ canEdit }) {
     return effectiveChecklist;
   }
 
+  function getLightingTag(key, quantity) {
+    const count = Number(quantity) || 0;
+    const rule = mspLightingRules[key];
+
+    if (count <= 0 || !rule) {
+      return "PASS";
+    }
+
+    if (rule.redAt !== null && count >= rule.redAt) {
+      return "RED";
+    }
+
+    if (rule.yellowAt !== null && count >= rule.yellowAt) {
+      return "YELLOW";
+    }
+
+    return "PASS";
+  }
+
+  function getItemTag(itemKey, value) {
+    if (value === "N/A" || value === "NA") {
+      return "N/A";
+    }
+
+    if (value === "PENDING") {
+      return "PENDING";
+    }
+
+    if (value !== "FAIL") {
+      return "PASS";
+    }
+
+    return mspFailureTagMap[itemKey] || "YELLOW";
+  }
+
+  function getSectionTag(section, sectionItems, currentChecklist, currentLampDefects) {
+    const items = sectionItems || [];
+
+    if (items.length === 0) {
+      return "N/A";
+    }
+
+    let hasPending = false;
+    let hasYellow = false;
+
+    for (const item of items) {
+      if (section.type === "lighting") {
+        const tag = getLightingTag(item.key, currentLampDefects?.[item.key]);
+
+        if (tag === "RED") {
+          return "RED";
+        }
+
+        if (tag === "YELLOW") {
+          hasYellow = true;
+        }
+
+        continue;
+      }
+
+      const tag = getItemTag(item.key, currentChecklist?.[item.key]);
+
+      if (tag === "PENDING") {
+        hasPending = true;
+      }
+
+      if (tag === "RED") {
+        return "RED";
+      }
+
+      if (tag === "YELLOW") {
+        hasYellow = true;
+      }
+    }
+
+    if (hasPending) {
+      return "PENDING";
+    }
+
+    if (hasYellow) {
+      return "YELLOW";
+    }
+
+    return "PASS";
+  }
+
+  function getOverallInspectionTag(currentChecklist, currentLampDefects) {
+    let hasPending = false;
+    let hasYellow = false;
+
+    for (const section of checklistSections) {
+      const sectionTag = getSectionTag(section, section.items, currentChecklist, currentLampDefects);
+
+      if (sectionTag === "RED") {
+        return "RED";
+      }
+
+      if (sectionTag === "YELLOW") {
+        hasYellow = true;
+      }
+
+      if (sectionTag === "PENDING") {
+        hasPending = true;
+      }
+
+      if (section.evItems) {
+        const evTag = getSectionTag(section, section.evItems, currentChecklist, currentLampDefects);
+
+        if (evTag === "RED") {
+          return "RED";
+        }
+
+        if (evTag === "YELLOW") {
+          hasYellow = true;
+        }
+
+        if (evTag === "PENDING") {
+          hasPending = true;
+        }
+      }
+    }
+
+    if (hasPending) {
+      return "PENDING";
+    }
+
+    if (hasYellow) {
+      return "YELLOW";
+    }
+
+    return "PASS";
+  }
+
+  function getInspectionTagClass(tag) {
+    if (tag === "RED") {
+      return "status-badge status-fail";
+    }
+
+    if (tag === "YELLOW") {
+      return "status-badge inspection-result-yellow";
+    }
+
+    if (tag === "PENDING") {
+      return "status-badge status-neutral";
+    }
+
+    return "status-badge status-pass";
+  }
+
   function buildDefects() {
     const defects = [];
     const effectiveChecklist = getEffectiveChecklist();
@@ -9423,32 +9600,29 @@ function Inspections({ canEdit }) {
     Object.entries(effectiveChecklist).forEach(([item, value]) => {
       if (item === "lampDefects") {
         Object.entries(value).forEach(([lampKey, quantity]) => {
-          if (Number(quantity) <= 0) {
+          const count = Number(quantity) || 0;
+
+          if (count <= 0) {
             return;
           }
 
           const lamp = lampSystems.find((entry) => entry.key === lampKey);
+          const tag = getLightingTag(lampKey, count);
 
           defects.push({
             category: "Exterior Lighting",
             item: lamp?.label || lampKey,
-            description: `${quantity} defective ${String(lamp?.label || lampKey).toLowerCase()}.`,
-            severity: severityMap[lampKey] || "MINOR",
-            quantity: Number(quantity),
+            description: `${count} defective ${String(lamp?.label || lampKey).toLowerCase()}.`,
+            tag,
+            severity: tag === "RED" ? "CRITICAL" : "MINOR",
+            quantity: count,
           });
         });
 
         return;
       }
 
-      /*
-        A lamp with a defective count is already recorded above.
-        This avoids counting it a second time as a failed condition.
-      */
-      if (
-        lightingKeys.has(item) &&
-        Number(effectiveChecklist.lampDefects?.[item]) > 0
-      ) {
+      if (lightingKeys.has(item)) {
         return;
       }
 
@@ -9461,9 +9635,7 @@ function Inspections({ canEdit }) {
 
       checklistSections.forEach((section) => {
         const matchingItem = section.items.find((entry) => entry.key === item);
-        const matchingEvItem = (section.evItems || []).find(
-          (entry) => entry.key === item,
-        );
+        const matchingEvItem = (section.evItems || []).find((entry) => entry.key === item);
 
         if (matchingItem) {
           category = section.title;
@@ -9476,11 +9648,14 @@ function Inspections({ canEdit }) {
         }
       });
 
+      const tag = mspFailureTagMap[item] || "YELLOW";
+
       defects.push({
         category,
         item: label,
         description: `${label} failed inspection.`,
-        severity: severityMap[item] || "MINOR",
+        tag,
+        severity: tag === "RED" ? "CRITICAL" : "MINOR",
         quantity: 1,
       });
     });
@@ -9488,35 +9663,13 @@ function Inspections({ canEdit }) {
     return defects;
   }
 
-  function calculateResult(defects) {
-    let critical = 0;
-    let major = 0;
-    let minor = 0;
-
-    defects.forEach((defect) => {
-      if (defect.severity === "CRITICAL") {
-        critical += defect.quantity;
-      } else if (defect.severity === "MAJOR") {
-        major += defect.quantity;
-      } else if (defect.severity === "MINOR") {
-        minor += defect.quantity;
-      }
-    });
-
-    if (critical >= 1 || major >= 3 || minor >= 7) {
-      return {
-        result: "FAIL",
-        critical,
-        major,
-        minor,
-      };
-    }
+  function calculateResult() {
+    const effectiveChecklist = getEffectiveChecklist();
+    const tag = getOverallInspectionTag(effectiveChecklist, lampDefects);
 
     return {
-      result: "PASS",
-      critical,
-      major,
-      minor,
+      result: tag === "RED" ? "FAIL" : "PASS",
+      tag,
     };
   }
 
@@ -9607,7 +9760,12 @@ function Inspections({ canEdit }) {
     }
 
     const defects = buildDefects();
-    const calculated = calculateResult(defects);
+    const calculated = calculateResult();
+
+    if (calculated.tag === "PENDING") {
+      setFormError("Complete every applicable inspection item before completing the inspection.");
+      return;
+    }
 
     setSaving(true);
 
@@ -9626,19 +9784,18 @@ function Inspections({ canEdit }) {
       }
 
       const savedResult = data?.result || calculated.result;
-      const savedCritical = Number(data?.critical ?? calculated.critical);
-      const savedMajor = Number(data?.major ?? calculated.major);
-      const savedMinor = Number(data?.minor ?? calculated.minor);
 
       resetInspectionForm();
       await loadInspections();
 
       setInspectionView("list");
 
-      if (savedResult === "FAIL") {
-        setMessage(`Inspection failed. ${savedCritical} critical, ${savedMajor} major, ${savedMinor} minor defect(s).`);
+      if (calculated.tag === "RED" || savedResult === "FAIL") {
+        setMessage("Inspection completed. Red Tag condition identified.");
+      } else if (calculated.tag === "YELLOW") {
+        setMessage("Inspection completed. Yellow Tag deficiencies identified; no Red Tag condition was found.");
       } else {
-        setMessage("Inspection passed. No qualifying defect threshold was exceeded.");
+        setMessage("Inspection completed. No MSP Yellow Tag or Red Tag deficiencies identified.");
       }
     } catch (saveError) {
       setFormError(saveError.message || "Unable to save inspection.");
@@ -9653,6 +9810,20 @@ function Inspections({ canEdit }) {
 
   function getInspectionVehicle(inspection) {
     return vehicles.find((vehicle) => String(vehicle.id) === String(inspection?.vehicle_id)) || null;
+  }
+
+  function getStoredSectionTag(section, inspection, sectionItems) {
+    const storedChecklist = inspection?.checklist || {};
+    const storedLampDefects = storedChecklist.lampDefects || {};
+
+    return getSectionTag(section, sectionItems, storedChecklist, storedLampDefects);
+  }
+
+  function getStoredOverallTag(inspection) {
+    return getOverallInspectionTag(
+      inspection?.checklist || {},
+      inspection?.checklist?.lampDefects || {},
+    );
   }
 
   function renderConditionButtons(item, value) {
@@ -9742,18 +9913,6 @@ function Inspections({ canEdit }) {
           className={`data-table inspection-checklist-table ${isLighting ? "inspection-lighting-table" : ""
             }`}
         >
-          <thead>
-            <tr>
-              <th>Item</th>
-
-              {isLighting && (
-                <th className="inspection-defective-heading">Defective</th>
-              )}
-
-              <th className="inspection-condition-heading">Condition</th>
-            </tr>
-          </thead>
-
           <tbody>
             {sectionItems.map((item) => {
               const value = stored
@@ -9764,9 +9923,13 @@ function Inspections({ canEdit }) {
                 ? lampSystems.find((entry) => entry.key === item.key)
                 : null;
 
-              const defectiveCount = lamp
-                ? Number(storedLampDefects[lamp.key]) || 0
-                : 0;
+              const defectiveCount = stored
+                ? Number(storedLampDefects[item.key]) || 0
+                : Number(lampDefects[item.key]) || 0;
+
+              const storedTag = isLighting
+                ? getLightingTag(item.key, defectiveCount)
+                : getItemTag(item.key, value);
 
               return (
                 <tr key={item.key}>
@@ -9794,15 +9957,17 @@ function Inspections({ canEdit }) {
                     </td>
                   )}
 
-                  <td className="inspection-condition-cell">
-                    {stored ? (
-                      <span className={getConditionClass(value)}>
-                        {value === "NA" ? "N/A" : value}
-                      </span>
-                    ) : (
-                      renderConditionButtons(item, value)
-                    )}
-                  </td>
+                  {(stored || !isLighting) && (
+                    <td className="inspection-condition-cell">
+                      {stored ? (
+                        <span className={getConditionClass(storedTag)}>
+                          {getInspectionTagLabel(storedTag)}
+                        </span>
+                      ) : (
+                        renderConditionButtons(item, value)
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -9833,6 +9998,7 @@ function Inspections({ canEdit }) {
             return true;
           });
 
+          const sectionTag = getSectionTag(section, sectionItems, checklist, lampDefects);
           const showEvSystems = section.title === "Mechanical" && selectedVehicleIsElectric;
 
           if (sectionItems.length === 0 && !showEvSystems) {
@@ -9846,6 +10012,10 @@ function Inspections({ canEdit }) {
                   <span className="eyebrow">Checklist</span>
                   <h4>{section.title}</h4>
                 </div>
+
+                <span className={getInspectionTagClass(sectionTag)}>
+                  {getInspectionTagLabel(sectionTag)}
+                </span>
               </div>
 
               {sectionItems.length > 0 && renderInspectionTable(sectionItems, section)}
@@ -9857,6 +10027,10 @@ function Inspections({ canEdit }) {
                       <span className="eyebrow">Electric Vehicle</span>
                       <h4>EV Systems</h4>
                     </div>
+
+                    <span className={getInspectionTagClass(getSectionTag(section, section.evItems, checklist, lampDefects))}>
+                      {getInspectionTagLabel(getSectionTag(section, section.evItems, checklist, lampDefects))}
+                    </span>
                   </div>
 
                   {renderInspectionTable(section.evItems, section)}
@@ -9885,6 +10059,7 @@ function Inspections({ canEdit }) {
             return true;
           });
 
+          const sectionTag = getStoredSectionTag(section, inspection, sectionItems);
           const showEvSystems = section.title === "Mechanical" && inspectionIsElectric;
 
           if (sectionItems.length === 0 && !showEvSystems) {
@@ -9898,6 +10073,10 @@ function Inspections({ canEdit }) {
                   <span className="eyebrow">Checklist</span>
                   <h4>{section.title}</h4>
                 </div>
+
+                <span className={getInspectionTagClass(sectionTag)}>
+                  {getInspectionTagLabel(sectionTag)}
+                </span>
               </div>
 
               {sectionItems.length > 0 && renderInspectionTable(sectionItems, section, true, inspection)}
@@ -9909,6 +10088,10 @@ function Inspections({ canEdit }) {
                       <span className="eyebrow">Electric Vehicle</span>
                       <h4>EV Systems</h4>
                     </div>
+
+                    <span className={getInspectionTagClass(getStoredSectionTag(section, inspection, section.evItems))}>
+                      {getInspectionTagLabel(getStoredSectionTag(section, inspection, section.evItems))}
+                    </span>
                   </div>
 
                   {renderInspectionTable(section.evItems, section, true, inspection)}
@@ -9976,56 +10159,149 @@ function Inspections({ canEdit }) {
           </div>
 
           <div className="inspection-setup-grid form-grid form-grid-three">
-            <div className="form-field inspection-type-field">
-              <span>Inspection Type</span>
+            <label className="select-control">
+              <span>Vehicle</span>
 
-              <div className="inspection-type-options">
-                {inspectionTypes.map((type) => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    className={`inspection-type-option ${inspectionType === type.value ? "active" : ""}`}
-                    onClick={() => setInspectionType(type.value)}
-                    disabled={saving}
-                  >
-                    {type.label}
-                  </button>
-                ))}
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setVehicleDropdownOpen((open) => !open);
+                    setInspectorDropdownOpen(false);
+                    setInspectionTypeDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>{selectedVehicle?.fleet_number || "Select vehicle"}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {vehicleDropdownOpen && (
+                  <div className="custom-select-menu">
+                    <button
+                      type="button"
+                      className={`custom-select-option ${!selectedVehicleId ? "selected" : ""}`}
+                      onClick={() => {
+                        selectVehicle("");
+                        setVehicleDropdownOpen(false);
+                      }}
+                    >
+                      Select vehicle
+                    </button>
+
+                    {vehicles.map((vehicle) => (
+                      <button
+                        type="button"
+                        key={vehicle.id}
+                        className={`custom-select-option ${String(selectedVehicleId) === String(vehicle.id) ? "selected" : ""}`}
+                        onClick={() => {
+                          selectVehicle(vehicle.id);
+                          setVehicleDropdownOpen(false);
+                        }}
+                      >
+                        {vehicle.fleet_number}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-
-            <label className="form-field">
-              <span>Inspector</span>
-
-              <select
-                value={selectedDriverId}
-                onChange={(event) => setSelectedDriverId(event.target.value)}
-                disabled={saving}
-              >
-                <option value="">No inspector assigned</option>
-
-                {drivers.map((driver) => (
-                  <option key={driver.id} value={driver.id}>
-                    {driver.name}
-                  </option>
-                ))}
-              </select>
             </label>
 
-            <label className="form-field">
+            <label className="select-control">
+              <span>Inspector</span>
+
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setInspectorDropdownOpen((open) => !open);
+                    setVehicleDropdownOpen(false);
+                    setInspectionTypeDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>{drivers.find((driver) => String(driver.id) === String(selectedDriverId))?.name || "No inspector assigned"}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {inspectorDropdownOpen && (
+                  <div className="custom-select-menu">
+                    <button
+                      type="button"
+                      className={`custom-select-option ${!selectedDriverId ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelectedDriverId("");
+                        setInspectorDropdownOpen(false);
+                      }}
+                    >
+                      No inspector assigned
+                    </button>
+
+                    {drivers.map((driver) => (
+                      <button
+                        type="button"
+                        key={driver.id}
+                        className={`custom-select-option ${String(selectedDriverId) === String(driver.id) ? "selected" : ""}`}
+                        onClick={() => {
+                          setSelectedDriverId(driver.id);
+                          setInspectorDropdownOpen(false);
+                        }}
+                      >
+                        {driver.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+
+            <label className="select-control">
               <span>Inspection Type</span>
 
-              <select
-                value={inspectionType}
-                onChange={(event) => setInspectionType(event.target.value)}
-                disabled={saving}
-              >
-                {inspectionTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+              <div className="custom-select">
+                <button
+                  type="button"
+                  className="custom-select-trigger"
+                  onClick={() => {
+                    setInspectionTypeDropdownOpen((open) => !open);
+                    setVehicleDropdownOpen(false);
+                    setInspectorDropdownOpen(false);
+                  }}
+                  disabled={saving}
+                >
+                  <span>{getInspectionTypeLabel(inspectionType)}</span>
+
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 10l5 5 5-5" />
+                  </svg>
+                </button>
+
+                {inspectionTypeDropdownOpen && (
+                  <div className="custom-select-menu">
+                    {inspectionTypes.map((type) => (
+                      <button
+                        type="button"
+                        key={type.value}
+                        className={`custom-select-option ${inspectionType === type.value ? "selected" : ""}`}
+                        onClick={() => {
+                          setInspectionType(type.value);
+                          setInspectionTypeDropdownOpen(false);
+                        }}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </label>
           </div>
         </div>
@@ -10034,11 +10310,7 @@ function Inspections({ canEdit }) {
           <div className="panel-header">
             <div>
               <span className="eyebrow">Inspection Report</span>
-              <h3>
-                {selectedVehicle
-                  ? `Inspection Report — Fleet ${selectedVehicle.fleet_number}`
-                  : "Select a vehicle to begin"}
-              </h3>
+              <h3>{selectedVehicle ? "New Inspection Report" : "Select a vehicle to begin"}</h3>
             </div>
           </div>
 
@@ -10091,6 +10363,7 @@ function Inspections({ canEdit }) {
 
   if (inspectionView === "details" && selectedInspection) {
     const inspectionVehicle = getInspectionVehicle(selectedInspection);
+    const overallTag = getStoredOverallTag(selectedInspection);
 
     return (
       <section className="page-section inspection-page inspection-detail-page">
@@ -10101,7 +10374,7 @@ function Inspections({ canEdit }) {
             </button>
 
             <span className="eyebrow">Fleet Compliance / Inspection Record</span>
-            <h1>Fleet {selectedInspection.vehicles?.fleet_number || "Unknown"}</h1>
+            <h1>{selectedInspection.vehicles?.fleet_number || "Unknown"}</h1>
             <p>{getInspectionTypeLabel(selectedInspection.audit_type)} inspection record.</p>
           </div>
         </div>
@@ -10114,35 +10387,37 @@ function Inspections({ canEdit }) {
             </div>
           </div>
 
-          <div className="inspection-fact-grid">
-            <div className="inspection-fact">
-              <span>Vehicle</span>
-              <strong>Fleet {selectedInspection.vehicles?.fleet_number || "Unknown"}</strong>
-            </div>
-
-            <div className="inspection-fact">
-              <span>Inspector</span>
-              <strong>{selectedInspection.drivers?.name || "Unassigned"}</strong>
-            </div>
-
-            <div className="inspection-fact">
+          <div className="detail-list">
+            <div className="detail-list-row">
               <span>Inspection Type</span>
               <strong>{getInspectionTypeLabel(selectedInspection.audit_type)}</strong>
             </div>
 
-            <div className="inspection-fact">
-              <span>Completed</span>
-              <strong>{formatDate(selectedInspection.completed_at || selectedInspection.created_at)}</strong>
+            <div className="detail-list-row">
+              <span>Vehicle</span>
+              <strong>{selectedInspection.vehicles?.fleet_number || "Unknown"}</strong>
             </div>
 
-            {inspectionVehicle && (
-              <div className="inspection-fact">
-                <span>Vehicle Details</span>
-                <strong>
-                  {[inspectionVehicle.year, inspectionVehicle.make, inspectionVehicle.model].filter(Boolean).join(" ") || "—"}
-                </strong>
-              </div>
-            )}
+            <div className="detail-list-row">
+              <span>Vehicle Details</span>
+              <strong>
+                {[inspectionVehicle?.year, inspectionVehicle?.make, inspectionVehicle?.model]
+                  .filter(Boolean)
+                  .join(" ") || "—"}
+              </strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Inspector</span>
+              <strong>{selectedInspection.drivers?.name || "Unassigned"}</strong>
+            </div>
+
+            <div className="detail-list-row">
+              <span>Completed</span>
+              <strong>
+                {formatDate(selectedInspection.completed_at || selectedInspection.created_at)}
+              </strong>
+            </div>
           </div>
         </div>
 
@@ -10153,8 +10428,8 @@ function Inspections({ canEdit }) {
               <h3>Inspection Results</h3>
             </div>
 
-            <span className={getResultClass(selectedInspection.result)}>
-              {selectedInspection.result || "—"}
+            <span className={getInspectionTagClass(overallTag)}>
+              {getInspectionTagLabel(overallTag)}
             </span>
           </div>
 
@@ -10206,7 +10481,7 @@ function Inspections({ canEdit }) {
             disabled={refreshing}
           >
             <span className={refreshing ? "refresh-icon spinning" : "refresh-icon"}>↻</span>
-            <span>{refreshing ? "Refreshing" : "Refresh Inspections"}</span>
+            <span>{refreshing ? "Refreshing" : "Refresh"}</span>
           </button>
         </div>
       </div>
@@ -10232,8 +10507,8 @@ function Inspections({ canEdit }) {
 
       <div className="inspection-kpi-grid">
         <DashboardKpi label="Total Inspections" value={totalInspections} detail="Recorded inspections" />
-        <DashboardKpi label="Passed" value={passedInspections} detail="Completed with no qualifying defects" />
-        <DashboardKpi label="Failed" value={failedInspections} detail="Inspections requiring attention" />
+        <DashboardKpi label="Passed" value={passedInspections} detail="Completed inspections without a Red Tag" />
+        <DashboardKpi label="Failed" value={failedInspections} detail="Inspections receiving a Red Tag" />
       </div>
 
       <div className="panel">
@@ -10288,55 +10563,59 @@ function Inspections({ canEdit }) {
               </thead>
 
               <tbody>
-                {filteredAudits.map((inspection) => (
-                  <tr key={inspection.id}>
-                    <td>
-                      <span className="table-primary-link">
-                        {inspection.vehicles?.fleet_number || "Unknown"}
-                      </span>
-                    </td>
+                {filteredAudits.map((inspection) => {
+                  const inspectionTag = getStoredOverallTag(inspection);
 
-                    <td>
-                      <span className="table-main-text">
-                        {inspection.drivers?.name || "Unassigned"}
-                      </span>
-                    </td>
+                  return (
+                    <tr key={inspection.id}>
+                      <td>
+                        <span className="table-primary-link">
+                          {inspection.vehicles?.fleet_number || "Unknown"}
+                        </span>
+                      </td>
 
-                    <td>
-                      <span className="table-main-text">
-                        {getInspectionTypeLabel(inspection.audit_type)}
-                      </span>
-                    </td>
+                      <td>
+                        <span className="table-main-text">
+                          {inspection.drivers?.name || "Unassigned"}
+                        </span>
+                      </td>
 
-                    <td>
-                      <span className={getResultClass(inspection.result)}>
-                        {inspection.result || "—"}
-                      </span>
-                    </td>
+                      <td>
+                        <span className="table-main-text">
+                          {getInspectionTypeLabel(inspection.audit_type)}
+                        </span>
+                      </td>
 
-                    <td>
-                      <span className="table-main-text">
-                        {formatDate(inspection.completed_at || inspection.created_at)}
-                      </span>
-                    </td>
+                      <td>
+                        <span className={getInspectionTagClass(inspectionTag)}>
+                          {getInspectionTagLabel(inspectionTag)}
+                        </span>
+                      </td>
 
-                    <td className="inspection-history-notes">
-                      <span title={inspection.notes || ""}>
-                        {inspection.notes || "—"}
-                      </span>
-                    </td>
+                      <td>
+                        <span className="table-main-text">
+                          {formatDate(inspection.completed_at || inspection.created_at)}
+                        </span>
+                      </td>
 
-                    <td>
-                      <button
-                        type="button"
-                        className="button button-secondary button-small"
-                        onClick={() => openInspectionDetails(inspection)}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="inspection-history-notes">
+                        <span title={inspection.notes || ""}>
+                          {inspection.notes || "—"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          type="button"
+                          className="button button-secondary button-small"
+                          onClick={() => openInspectionDetails(inspection)}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
